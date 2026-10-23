@@ -1,6 +1,6 @@
 # Parallel Workstreams — 2D Labyrinth on FPGA
 
-Version 0.1 (2026-10-23). Based on `epics.md`, the architecture spine (AD-1 to AD-13) and the PRD. Interface details below are a proposal for the day-1 kickoff; once all three people agree, they are frozen and changes need all three to approve.
+Version 1.0 (2026-10-23), agreed by DY, QZ and CJX. Based on `epics.md`, the architecture spine (AD-1 to AD-13) and the PRD. The interface contract in section 3 is frozen: changes need all three owners to approve and a pull request that updates this file.
 
 ## 1. Stream ownership
 
@@ -28,7 +28,7 @@ Rules:
 
 Until C's project skeleton lands, A and B work in simulation only, against stubs of the other modules.
 
-## 3. Interface contract (proposal, v0.1)
+## 3. Interface contract (v1.0, frozen)
 
 Widths and scales follow AD-4. All signals are in the single 100 MHz clock domain (AD-2) and synchronous to `clk`. Active-high, one-cycle pulses unless stated.
 
@@ -88,7 +88,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 
 ## 5. Open points for the kickoff
 
-1. Confirm the interface proposal in section 3 (especially maze addressing, ball formats and the `game_cfg` fields).
+1. ~~Confirm the interface proposal in section 3~~ — done, agreed by all three.
 2. Who covers Story 2.3 (CJX's) if it slips. Streams are assigned: A = DY, B = QZ, C = CJX.
 3. Which of 5.2–5.4 each person takes.
 4. The course's open constraint questions (for example, IP cores allowed?) from the PRD.
