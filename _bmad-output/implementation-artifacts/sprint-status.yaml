@@ -1,0 +1,71 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 10-23-2026 15:00
+last_updated: 10-23-2026 15:00
+project: 2D-Labyrinth-on-FPGA
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: backlog
+  1-1-project-skeleton-and-a-stable-vga-picture: backlog  # owner: CJX
+  1-2-draw-a-fixed-maze-with-distinct-start-and-goal: backlog  # owner: CJX
+  1-3-generate-a-random-solvable-maze: backlog  # owner: DY
+  1-4-game-state-skeleton-and-regenerate-on-demand: backlog  # owner: QZ
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-read-the-mouse-and-produce-a-rotation-command: backlog  # owner: QZ
+  2-2-angle-accumulator-and-sine-cosine-table: backlog  # owner: QZ + DY (trig table)
+  2-3-draw-the-maze-at-its-exact-angle: backlog  # owner: CJX
+  2-4-fallback-90-snap-rotation-mode: backlog  # owner: CJX
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-a-ball-that-falls-under-screen-down-gravity: backlog  # owner: DY
+  3-2-elastic-wall-collisions-without-friction: backlog  # owner: DY
+  3-3-reach-the-goal-win-and-play-again: backlog  # owner: QZ + CJX (win indication)
+  3-4-reset-and-frame-budget-check: backlog  # owner: QZ
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-show-text-on-the-pmod-oled: backlog  # owner: DY
+  4-2-choose-a-stage-and-start-the-game-on-the-oled: backlog  # owner: QZ
+  4-3-settings-screen: backlog  # owner: QZ
+  4-4-live-status-and-timer-on-the-oled: backlog  # owner: QZ
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-timing-closure-and-resource-report: backlog  # owner: CJX
+  5-2-full-testbench-regression: backlog  # owner: shared
+  5-3-demo-script-and-acceptance-run: backlog  # owner: shared
+  5-4-course-report: backlog  # owner: shared
+  epic-5-retrospective: optional
