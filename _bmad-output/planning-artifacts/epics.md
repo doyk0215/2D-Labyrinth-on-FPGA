@@ -325,7 +325,7 @@ So that the maze behaves like a tilting game.
 **When** the ball is drawn
 **Then** it is a round circle of radius 5 px at the rotated screen position of its maze position
 
-**Given** the speed cap of 8 px per frame per axis (AD-4)
+**Given** the speed cap of 7 px per frame per axis (AD-4)
 **When** gravity acts for a long time
 **Then** no velocity component exceeds the cap
 **And** `ball_physics` is the only writer of ball state (AD-5)
