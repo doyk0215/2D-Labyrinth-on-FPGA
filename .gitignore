@@ -3,3 +3,9 @@ _bmad/config.user.toml
 _bmad/custom/*.user.toml
 .claude/settings.local.json
 .DS_Store
+vivado/
+*.jou
+*.log
+*.str
+.Xil/
+*.bit

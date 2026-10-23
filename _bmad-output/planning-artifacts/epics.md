@@ -135,6 +135,8 @@ The examiner powers on the board and sees a freshly generated, solvable random m
 
 ### Story 1.1: Project skeleton and a stable VGA picture
 
+**Starting point (recorded 2026-10-23):** Step 0 is already complete (done by DY): `rtl/labyrinth_pkg.vh`, the folder layout (`rtl/`, `tb/`, `constraints/`, `scripts/`), `constraints/basys3.xdc` and `scripts/create_project.tcl` (recreates the Vivado project). Story 1.1 starts from these files and does not recreate them. Remaining for 1.1: verify the XDC pins against Digilent's master XDC, write `top.v`, `vga_timing` and the test pattern, and check on the board.
+
 As the examiner,
 I want the board to show a stable test pattern on the HDMI monitor,
 So that the video chain is proven before any game logic is built.

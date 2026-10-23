@@ -20,6 +20,8 @@ Rules:
 - `top.v` and the XDC belong to C. A and B send C their module ports and pin needs.
 - Each stream works on its own git branch and merges to `main` through a pull request that the owner of the touched interface reviews.
 
+**Step 0 is complete** (done by DY, 2026-10-23): `rtl/labyrinth_pkg.vh`, the folder layout, `constraints/basys3.xdc` and `scripts/create_project.tcl`. Story 1.1 starts from these; CJX should pull them, run `scripts/create_project.tcl` in Vivado 2025.2, verify the XDC pins against Digilent's master XDC, and continue with `top.v` and `vga_timing`.
+
 ## 2. Work order within each stream
 
 **A:** (1) `sincos_rom` and testbench, as B and C need the trig values; (2) `oled_driver` + `font_rom` (4.1), since B's menu stories wait on it; (3) `maze_gen` (1.3); (4) `ball_physics` (3.1, then 3.2).
