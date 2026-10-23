@@ -54,7 +54,14 @@ Story details: `_bmad-output/planning-artifacts/epics.md`. Interfaces: `docs/par
 
 A slip in the first story of a chain delays everything after it. `sincos_rom` (DY) and Story 1.1 (CJX) unblock the others on day one, so do them first.
 
-## Working rules
+## Git workflow (mandatory)
+- **All work happens on a feature branch, never directly on `main`.** One branch per story, named `feature/<story-number>-<short-name>` (for example `feature/1-1-vga-timing`, `feature/3-1-ball-gravity`). Documentation-only changes use `docs/<short-name>`.
+- **Nothing reaches `main` except through a pull request.** Push the feature branch to `origin` and open a PR into `main`. Do not push to `main` directly, and do not force-push.
+- Each PR covers one story (or one part of a story), references the story number, and lists which testbenches pass. The owner of any interface the PR touches reviews it; DY also runs the hardware check where the story needs the board.
+- Merge only when the PR builds in Vivado 2025.2 without errors and its testbenches print PASS.
+- Keep branches short-lived: merge the PR, then delete the branch, so the next story starts from an up-to-date `main`.
+- Recommended: turn on GitHub branch protection for `main` (require a pull request before merging) so the rule is enforced and not only agreed.
+
+## Other working rules
 - One owner per file; the interface contract is frozen (changes need all three owners).
-- Each person works on their own branch (for example `stream-a-dy`, `stream-b-qz`, `stream-c-cjx`) and merges to `main` by pull request.
 - Hardware checks: send DY the branch name and story number (or a `.bit` file); DY reports PASS or FAIL with a photo or note.
