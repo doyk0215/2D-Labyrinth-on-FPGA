@@ -86,7 +86,14 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Integration 2 (end of week 2):** physics + game flow + rotated render together; ball plays on the board. Fallback: snap rotation (Story 2.4).
 **Week 3:** OLED menu, polish, timing closure, regression, demo, report.
 
-## 5. Open points for the kickoff
+## 5. Hardware and integration ownership
+
+- DY holds the Basys 3, the Pmod OLED and the VGA display, and runs every integration check (end of week 1, end of week 2, final).
+- QZ and CJX verify with simulation and testbenches (AD-13) and hand over a branch that builds in Vivado 2025.2 with no errors and passes its testbenches.
+- Hardware checks for a story are requested from DY with the branch name and the story number; DY reports PASS/FAIL back with a photo or note.
+- Still to confirm: who has the PS/2-capable USB mouse and the VGA-to-HDMI converter (needed from Story 1.1 and Story 2.1 onwards).
+
+## 6. Open points for the kickoff
 
 1. ~~Confirm the interface proposal in section 3~~ — done, agreed by all three.
 2. Who covers Story 2.3 (CJX's) if it slips. Streams are assigned: A = DY, B = QZ, C = CJX.
