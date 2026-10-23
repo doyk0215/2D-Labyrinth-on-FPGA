@@ -8,8 +8,8 @@ Version 1.0 (2026-10-23), agreed by DY, QZ and CJX. Based on `epics.md`, the arc
 | --- | --- | --- |
 | **A (DY). Physics engine and maze generation** | `ball_physics`, `maze_gen`, `sincos_rom`, `oled_driver`, `font_rom` | 3.1, 3.2, 1.3, 4.1, 2.2 (sine/cosine table part) |
 | **B (QZ). Input and game control** | `ps2_mouse`, `input_mux`, angle accumulator, `game_ctrl`, `menu_ctrl` | 2.1, 2.2 (angle part), 1.4, 3.3 (control part), 3.4, 4.2, 4.3, 4.4 |
-| **C (CJX). Graphics** | `vga_timing`, `render`, `maze_ram`, `top.v`, `constraints/basys3.xdc`, `labyrinth_pkg.vh` (editing rights; changes need all three) | 1.1, 1.2, 2.3, 2.4, 3.3 (win indication), 5.1 |
-| **Shared** | — | 5.2 (regression), 5.3 (demo), 5.4 (report) |
+| **C (CJX). Graphics** | `vga_timing`, `render`, `maze_ram`, `top.v`, `constraints/basys3.xdc` | 1.1, 1.2, 2.3, 2.4, 3.3 (win indication), 5.1 |
+| **Shared** | `labyrinth_pkg.vh` (owner: DY; changes need all three owners to approve) | 5.2 (regression), 5.3 (demo), 5.4 (report) |
 
 Rough effort (1–5 per story, estimate): A ≈ 17, B ≈ 15, C ≈ 15.
 

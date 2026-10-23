@@ -70,7 +70,7 @@ Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`)
   - Trig: signed Q1.14, from a 256-entry quarter-wave table (about 4 Kb of ROM) with symmetry.
   - Positions: signed Q9.8 in maze pixels, relative to the maze centre. Velocities: signed Q4.8 in px/frame.
   - Tile: 16 px. Tile map: 21×21 bits (10×10 cells plus walls), 1 = wall.
-  - Ball radius: 5 px. Speed cap: 8 px/frame per axis, so that a 16 px wall can never be skipped.
+  - Ball radius: 5 px. Speed cap: 7 px/frame per axis (Q4.8 cannot represent 8), so that a 16 px wall can never be skipped.
   - Restitution is shift-and-add only (for example 0.5 = `>>1`, 0.75 = `v − (v>>2)`); there is no runtime division and multipliers are limited to the per-frame and per-scanline setup (AD-7) within the DSP budget in AD-8.
 
 ### AD-5 — Single writer per shared state
