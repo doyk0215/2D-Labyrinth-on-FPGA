@@ -1,6 +1,10 @@
 `timescale 1ns / 1ps
 
-// Story 1.2 top: fixed maze rendered over the VGA timing generator.
+// Integration top (Stories 1.1-1.3): maze_gen fills maze_ram, render draws it.
+//   sw[0]   = debug seed (fixed seed, same maze every time)
+//   sw[4:1] = maze size in cells (2..10); 0 selects 10
+//   btnD    = regenerate; a maze is also generated when btnC is released
+//   Any of btnU/L/R/D latches the random seed (first press only).
 module top (
     input  wire       clk,
     input  wire       btnC,
@@ -40,10 +44,39 @@ module top (
     wire [8:0] maze_raddr_r;
     wire maze_rdata_r;
 
-    localparam [4:0] FIXED_START_COL = 5'd1;
-    localparam [4:0] FIXED_START_ROW = 5'd1;
-    localparam [4:0] FIXED_GOAL_COL  = 5'd1;
-    localparam [4:0] FIXED_GOAL_ROW  = 5'd19;
+    wire        maze_we;
+    wire [8:0]  maze_waddr;
+    wire        maze_wdata;
+    wire [4:0]  start_col;
+    wire [4:0]  start_row;
+    wire [4:0]  goal_col;
+    wire [4:0]  goal_row;
+    wire        gen_busy;
+    wire        gen_done;
+    wire [31:0] seed;
+
+    // Synchronise the buttons, then turn them into one-cycle pulses.
+    reg [2:0] btnD_s = 3'b000;
+    reg [2:0] btnAny_s = 3'b000;
+    reg       rst_d = 1'b1;
+    wire any_btn = btnU | btnL | btnR | btnD;
+    always @(posedge clk) begin
+        btnD_s   <= {btnD_s[1:0], btnD};
+        btnAny_s <= {btnAny_s[1:0], any_btn};
+        rst_d    <= rst;
+    end
+    wire regen     = btnD_s[1] & ~btnD_s[2];
+    wire latch_en  = btnAny_s[1] & ~btnAny_s[2];
+    wire gen_start = (rst_d & ~rst) | regen;
+    wire [3:0] n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
+
+    reg gen_done_seen = 1'b0;
+    always @(posedge clk) begin
+        if (rst)
+            gen_done_seen <= 1'b0;
+        else if (gen_done)
+            gen_done_seen <= 1'b1;
+    end
 
     vga_timing timing_i (
         .clk          (clk),
@@ -57,15 +90,39 @@ module top (
         .vsync        (timing_vsync)
     );
 
-    // The map is preloaded for Story 1.2. Later maze_gen writes through
-    // the same single write port; the physics port is idle in this story.
+    seed_source seed_i (
+        .clk         (clk),
+        .rst         (rst),
+        .debug_fixed (sw[0]),
+        .latch_en    (latch_en),
+        .seed        (seed)
+    );
+
+    maze_gen gen_i (
+        .clk       (clk),
+        .rst       (rst),
+        .gen_start (gen_start),
+        .n_cells   (n_cells),
+        .seed      (seed),
+        .gen_busy  (gen_busy),
+        .gen_done  (gen_done),
+        .we        (maze_we),
+        .waddr     (maze_waddr),
+        .wdata     (maze_wdata),
+        .start_col (start_col),
+        .start_row (start_row),
+        .goal_col  (goal_col),
+        .goal_row  (goal_row)
+    );
+
+    // maze_gen is the sole writer; the physics port is idle in this story.
     assign maze_raddr_p = 9'd0;
 
     maze_ram maze_ram_i (
         .clk     (clk),
-        .we      (1'b0),
-        .waddr   (9'd0),
-        .wdata   (1'b0),
+        .we      (maze_we),
+        .waddr   (maze_waddr),
+        .wdata   (maze_wdata),
         .raddr_p (maze_raddr_p),
         .rdata_p (maze_rdata_p),
         .raddr_r (maze_raddr_r),
@@ -82,10 +139,10 @@ module top (
         .vsync_in     (timing_vsync),
         .maze_raddr   (maze_raddr_r),
         .maze_rdata   (maze_rdata_r),
-        .start_col    (FIXED_START_COL),
-        .start_row    (FIXED_START_ROW),
-        .goal_col     (FIXED_GOAL_COL),
-        .goal_row     (FIXED_GOAL_ROW),
+        .start_col    (start_col),
+        .start_row    (start_row),
+        .goal_col     (goal_col),
+        .goal_row     (goal_row),
         .vga_r        (vga_r),
         .vga_g        (vga_g),
         .vga_b        (vga_b),
@@ -93,12 +150,13 @@ module top (
         .vga_vs       (vga_vs)
     );
 
-    // Not used until later stories. Keep LEDs low and the OLED idle. The
+    // LED[0] = generating, LED[1] = a maze has been generated. Not used
+    // until later stories otherwise. Keep the OLED idle. The
     // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
     // so drive them high (off) until the OLED driver (Story 4.1) applies
     // the manual's power-up sequence. The PS/2 pins remain released for
     // the open-collector interface.
-    assign led = 16'h0000;
+    assign led = {14'b0, gen_done_seen, gen_busy};
     assign oled_cs = 1'b1;
     assign oled_mosi = 1'b0;
     assign oled_sclk = 1'b0;
