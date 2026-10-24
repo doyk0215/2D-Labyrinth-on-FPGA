@@ -18,13 +18,14 @@ So that I can steer the maze.
 1. **PS/2 startup and packet decoding**
    - `ps2_mouse` synchronizes PS/2 clock and data through two flip-flops in the 100 MHz domain and uses no derived clock.
    - After reset, it waits for idle lines, performs the host inhibit/request-to-send sequence, transmits `8'hF4` LSB-first with valid odd parity and framing, and accepts the device's low acknowledgement bit.
+   - It then consumes and validates the device's parity- and framing-correct `8'hFA` command response before parsing movement packets.
    - It decodes three-byte stream packets, checking start, odd-parity, and stop bits. Packet alignment begins at a status byte with bit 3 set.
    - Left/right outputs update only after a complete valid packet. `connected` means at least one valid packet has arrived since startup and the packet watchdog has not expired; on timeout it clears the button outputs and retries stream startup.
    - The module exposes only `left_button`, `right_button`, and `connected` to game logic.
 
 2. **Mouse testbench**
-   - The self-checking `ps2_mouse` testbench verifies the transmitted `F4` frame, supplies the device acknowledgement, and drives three-byte packets through the receiver.
-   - It reports PASS for left-only, right-only, both-button, and no-button packets, and fails if framing or decoded button states are incorrect.
+   - The self-checking `ps2_mouse` testbench verifies the transmitted `F4` frame, supplies the device acknowledgement and `8'hFA` command response, then drives three-byte packets through the receiver.
+   - It confirms an unexpected `8'hFE` response is rejected, `8'hFA` does not alter button state, and the first left-only packet decodes as left; it also covers right-only, both-button, and no-button packets.
 
 3. **Rotation-command selection**
    - `input_mux` emits signed `rot_cmd`: left-only is `-1`, right-only is `+1`, and both or neither is `0`.
@@ -38,6 +39,7 @@ So that I can steer the maze.
 ## Implementation Tasks
 
 - [x] Add `ps2_mouse.v` with PS/2 line synchronizers, host stream-enable transaction, acknowledgement handling, serial receive/parity and stop-bit checks, and three-byte packet assembly.
+- [x] Consume and validate the framed `8'hFA` command response before packet alignment; reject malformed or unexpected responses and retry startup.
 - [x] Publish only `left_button`, `right_button`, and `connected` from the mouse interface; retain the last complete button state between packets.
 - [x] Add `input_mux.v` to choose mouse input when connected and otherwise use BTNL/BTNR, applying the defined both/neither behavior.
 - [x] Integrate the top level: synchronize BTNL/BTNR, connect PS/2 pins as open-drain pull-low/release signals, instantiate `ps2_mouse` and `input_mux`, and drive `led[1:0]` from `rot_cmd`.
@@ -48,7 +50,7 @@ So that I can steer the maze.
 ## Implementation Notes
 
 - The physical PS/2 interface uses `ps2_clk_drive_low` and `ps2_data_drive_low` outputs. The integrating top level must translate these to open-drain pull-low/release behavior and synchronize the board buttons.
-- Vivado 2025.2 passes `input_mux_tb`, `ps2_mouse_tb`, and `tb_top_story21_integration` through `tb/run_story21.tcl`. The broader `tb/run_current_stories.tcl` regression also passes Stories 1.1-1.3, Story 2.1, and the already-merged sine/cosine ROM.
+- Vivado 2025.2 passes `input_mux_tb`, `ps2_mouse_tb`, and `tb_top_story21_integration` through `tb/run_story21.tcl`. The mouse bench verifies an unexpected response is rejected, then confirms the `8'hFA` response precedes and does not shift the first left-only movement packet. The broader `tb/run_current_stories.tcl` regression also passes Stories 1.1-1.3, Story 2.1, and the already-merged sine/cosine ROM.
 - `top.v` synchronizes BTNL/BTNR, instantiates the mouse receiver and input mux, and translates the mouse's drive-low controls to open-drain PS/2 pins. LED[1:0] show `rot_cmd`; LED[3:2] retain maze-generation status.
 
 ## Interface Contract

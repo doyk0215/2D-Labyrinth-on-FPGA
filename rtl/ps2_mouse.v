@@ -24,6 +24,7 @@ module ps2_mouse #(
     localparam [2:0] ST_TX        = 3'd2;
     localparam [2:0] ST_ACK       = 3'd3;
     localparam [2:0] ST_RX        = 3'd4;
+    localparam [2:0] ST_RESPONSE  = 3'd5;
 
     localparam integer INHIBIT_CYCLES = CLK_HZ / 10000; // 100 us
     localparam integer TIMER_WIDTH = 32;
@@ -170,7 +171,7 @@ module ps2_mouse #(
                     if (ps2_clk_rise) begin
                         timer <= 32'd0;
                         if (!data_sync[1]) begin
-                            state <= ST_RX;
+                            state <= ST_RESPONSE;
                             rx_bit_count <= 4'd0;
                             rx_shift <= 8'd0;
                             packet_index <= 2'd0;
@@ -181,8 +182,24 @@ module ps2_mouse #(
                     end
                 end
 
-                ST_RX: begin
+                ST_RESPONSE, ST_RX: begin
+                    if (state == ST_RESPONSE) begin
+                        if (timer < PS2_TIMEOUT_CYCLES)
+                            timer <= timer + 1'b1;
+                        else begin
+                            // The command response never arrived; release
+                            // the bus and retry stream-mode startup.
+                            state <= ST_WAIT_IDLE;
+                            timer <= 32'd0;
+                            packet_index <= 2'd0;
+                            ps2_clk_drive_low  <= 1'b0;
+                            ps2_data_drive_low <= 1'b0;
+                        end
+                    end
+
                     if (ps2_clk_rise) begin
+                        if (state == ST_RESPONSE)
+                            timer <= 32'd0;
                         case (rx_bit_count)
                             4'd0: begin
                                 if (!data_sync[1]) begin
@@ -205,23 +222,52 @@ module ps2_mouse #(
                             default: begin
                                 rx_bit_count <= 4'd0;
                                 if (data_sync[1] && ((^rx_shift) ^ rx_parity)) begin
-                                    activity_timer <= 32'd0;
-                                    if (packet_index == 2'd0) begin
-                                        if (rx_shift[3]) begin
-                                            packet_byte0 <= rx_shift;
-                                            packet_index <= 2'd1;
+                                    if (state == ST_RESPONSE) begin
+                                        if (rx_shift == 8'hFA) begin
+                                            // Consume the command ACK byte;
+                                            // movement packet parsing starts
+                                            // with the next device frame.
+                                            state <= ST_RX;
+                                            timer <= 32'd0;
+                                            packet_index <= 2'd0;
+                                            activity_timer <= 32'd0;
+                                        end else begin
+                                            // Reject unexpected command
+                                            // responses rather than treating
+                                            // them as packet status bytes.
+                                            state <= ST_WAIT_IDLE;
+                                            timer <= 32'd0;
+                                            packet_index <= 2'd0;
+                                            ps2_clk_drive_low  <= 1'b0;
+                                            ps2_data_drive_low <= 1'b0;
                                         end
-                                    end else if (packet_index == 2'd1) begin
-                                        packet_byte1 <= rx_shift;
-                                        packet_index <= 2'd2;
                                     end else begin
-                                        left_button  <= packet_byte0[0];
-                                        right_button <= packet_byte0[1];
-                                        connected    <= 1'b1;
-                                        packet_index <= 2'd0;
+                                        activity_timer <= 32'd0;
+                                        if (packet_index == 2'd0) begin
+                                            if (rx_shift[3]) begin
+                                                packet_byte0 <= rx_shift;
+                                                packet_index <= 2'd1;
+                                            end
+                                        end else if (packet_index == 2'd1) begin
+                                            packet_byte1 <= rx_shift;
+                                            packet_index <= 2'd2;
+                                        end else begin
+                                            left_button  <= packet_byte0[0];
+                                            right_button <= packet_byte0[1];
+                                            connected    <= 1'b1;
+                                            packet_index <= 2'd0;
+                                        end
                                     end
                                 end else begin
                                     packet_index <= 2'd0;
+                                    if (state == ST_RESPONSE) begin
+                                        // Bad parity or framing on the
+                                        // command response: restart safely.
+                                        state <= ST_WAIT_IDLE;
+                                        timer <= 32'd0;
+                                        ps2_clk_drive_low  <= 1'b0;
+                                        ps2_data_drive_low <= 1'b0;
+                                    end
                                 end
                             end
                         endcase

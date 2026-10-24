@@ -13,7 +13,6 @@ module ps2_mouse_tb;
     wire right_button;
     wire connected;
     reg [10:0] host_frame;
-    integer k;
 
     always #5 clk = ~clk;
     assign ps2_clk = device_clk_low ? 1'b0 : 1'bz;
@@ -67,6 +66,35 @@ module ps2_mouse_tb;
         end
     endtask
 
+    task send_f4_and_ack;
+        integer b;
+        begin
+            // Wait for the DUT's request-to-send sequence and then clock the
+            // host's 11-bit F4 frame. Sample the data line once per rising edge.
+            wait (dut_clk_low && dut_data_low);
+            wait (!dut_clk_low && dut_data_low);
+            host_frame = 11'd0;
+            for (b = 0; b < 11; b = b + 1) begin
+                device_clk_low = 1'b1;
+                settle(8);
+                device_clk_low = 1'b0;
+                settle(8);
+                host_frame[b] = ps2_data;
+            end
+            if (host_frame[0] !== 1'b0 || host_frame[8:1] !== 8'hF4 ||
+                host_frame[9] !== 1'b0 || host_frame[10] !== 1'b1) begin
+                $display("FAIL ps2_mouse: host frame was not F4 with valid framing: %b", host_frame);
+                $finish;
+            end
+
+            // Device acknowledgement bit (low).
+            device_data_low = 1'b1;
+            ps2_pulse;
+            device_data_low = 1'b0;
+            settle(8);
+        end
+    endtask
+
     task send_packet;
         input [7:0] buttons;
         begin
@@ -93,29 +121,32 @@ module ps2_mouse_tb;
         settle(5);
         rst = 1'b0;
 
-        // Wait for the DUT's request-to-send sequence and then clock the
-        // host's 11-bit F4 frame. Sample the data line once per rising edge.
-        wait (dut_clk_low && dut_data_low);
-        wait (!dut_clk_low && dut_data_low);
-        host_frame = 11'd0;
-        for (k = 0; k < 11; k = k + 1) begin
-            device_clk_low = 1'b1;
-            settle(8);
-            device_clk_low = 1'b0;
-            settle(8);
-            host_frame[k] = ps2_data;
-        end
-        if (host_frame[0] !== 1'b0 || host_frame[8:1] !== 8'hF4 ||
-            host_frame[9] !== 1'b0 || host_frame[10] !== 1'b1) begin
-            $display("FAIL ps2_mouse: host frame was not F4 with valid framing: %b", host_frame);
+        send_f4_and_ack;
+
+        // An unexpected response must not be treated as a packet header.
+        send_device_byte(8'hFE);
+        send_packet(8'h01);
+        if (connected || left_button || right_button) begin
+            $display("FAIL ps2_mouse: unexpected command response was accepted as a packet");
             $finish;
         end
 
-        // Device acknowledgement bit (low), followed by a recorded stream.
-        device_data_low = 1'b1;
-        ps2_pulse;
-        device_data_low = 1'b0;
+        // Reset and retry startup with the required command response.
+        rst = 1'b1;
+        settle(5);
+        rst = 1'b0;
+        settle(5);
+        send_f4_and_ack;
+
+        // The device's 0xFA response must be consumed as the F4 command ACK,
+        // not treated as a movement-packet status byte.
+        send_device_byte(8'hFA); // command ACK byte, not a movement packet
         settle(8);
+        if (connected || left_button || right_button) begin
+            $display("FAIL ps2_mouse: command response was treated as a movement packet");
+            $finish;
+        end
+
         send_packet(8'h01); // left only
         expect_buttons(1'b1, 1'b0, "left only");
         send_packet(8'h02); // right only
