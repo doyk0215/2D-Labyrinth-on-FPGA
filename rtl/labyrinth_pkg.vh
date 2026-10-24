@@ -27,6 +27,7 @@
 `define MAP_DIM        21       // tile map is 21 x 21 (10 cells + walls)
 `define MAP_TILES      441      // 21 * 21
 `define MAP_ADDR_W     9        // addr = row * 21 + col
+`define MAP_MID        10       // centre tile index; an N-cell maze fills tiles (10-N)..(10+N)
 `define COORD_W        5        // tile column / row index width
 `define N_CELLS_W      4        // maze size in cells (up to 10)
 `define BALL_RADIUS    5        // pixels

@@ -8,13 +8,16 @@
 // goal are always connected (FR2).
 //
 // Tile map layout (21 x 21 tiles, 1 = wall, 0 = floor, addr = row*21 + col):
-//   cell (cx, cy), 0 <= cx,cy < N, is the tile (2*cx+1, 2*cy+1);
+//   A maze of N x N cells needs (2N+1) x (2N+1) tiles and is CENTRED in the
+//   map: with off = 10 - N it fills tiles off .. off+2N in each axis, so its
+//   middle is always the middle of the map (tile 10, centre at 168 px) and
+//   the renderer and physics rotate about one fixed point for every N.
+//   Cell (cx, cy), 0 <= cx,cy < N, is the tile (off+2*cx+1, off+2*cy+1);
 //   the wall/passage between two neighbouring cells is the tile between them.
-//   The maze fills tiles 0..2N in each axis (top-left of the map). Every other
-//   tile of the 21 x 21 map is written as wall, so a smaller maze never leaves
-//   stale floor behind.
-// Start = cell (0,0) = tile (1,1).  Goal = cell (N-1,N-1) = tile (2N-1,2N-1).
-//   N is clamped to 2..10.
+//   Every other tile of the 21 x 21 map is written as wall, so a smaller maze
+//   never leaves stale floor behind.
+// Start = cell (0,0)     = tile (off+1,    off+1).
+// Goal  = cell (N-1,N-1) = tile (off+2N-1, off+2N-1).   N is clamped to 2..10.
 //
 // Interface (contract v1.0):
 //   gen_start (pulse) + n_cells + seed -> gen_busy ... gen_done (pulse).
@@ -82,12 +85,13 @@ module maze_gen (
     wire [3:0] ny = (dir == 2'd2) ? cy + 4'd1 : (dir == 2'd0) ? cy - 4'd1 : cy;
 
     // ---- tile coordinates (5 bits) ----
-    wire [4:0] cell_col  = {cx, 1'b1};
-    wire [4:0] cell_row  = {cy, 1'b1};
+    wire [4:0] off       = 5'd10 - {1'b0, n};           // centring offset
+    wire [4:0] cell_col  = {cx, 1'b1} + off;
+    wire [4:0] cell_row  = {cy, 1'b1} + off;
     wire [4:0] pass_col  = (dir == 2'd1) ? cell_col + 5'd1 : (dir == 2'd3) ? cell_col - 5'd1 : cell_col;
     wire [4:0] pass_row  = (dir == 2'd2) ? cell_row + 5'd1 : (dir == 2'd0) ? cell_row - 5'd1 : cell_row;
-    wire [4:0] next_col  = {nx, 1'b1};
-    wire [4:0] next_row  = {ny, 1'b1};
+    wire [4:0] next_col  = {nx, 1'b1} + off;
+    wire [4:0] next_row  = {ny, 1'b1} + off;
 
     // row * 21 + col  (21 = 16 + 4 + 1)
     function [`MAP_ADDR_W-1:0] tile_addr;
@@ -103,7 +107,7 @@ module maze_gen (
                    (state == S_WPASS) || (state == S_WCELL);
     assign wdata = (state == S_CLEAR);   // wall while clearing, floor otherwise
     assign waddr = (state == S_CLEAR) ? clr_addr :
-                   (state == S_INIT)  ? tile_addr(5'd1, 5'd1) :
+                   (state == S_INIT)  ? tile_addr(off + 5'd1, off + 5'd1) :
                    (state == S_WPASS) ? tile_addr(pass_col, pass_row) :
                                         tile_addr(next_col, next_row);
 
@@ -138,10 +142,10 @@ module maze_gen (
                     sp               <= 7'd1;
                     cx               <= 4'd0;
                     cy               <= 4'd0;
-                    start_col        <= 5'd1;
-                    start_row        <= 5'd1;
-                    goal_col         <= {n - 4'd1, 1'b1};
-                    goal_row         <= {n - 4'd1, 1'b1};
+                    start_col        <= off + 5'd1;
+                    start_row        <= off + 5'd1;
+                    goal_col         <= {n - 4'd1, 1'b1} + off;
+                    goal_row         <= {n - 4'd1, 1'b1} + off;
                     state            <= S_STEP;
                 end
 

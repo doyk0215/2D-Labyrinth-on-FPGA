@@ -95,9 +95,9 @@ module tb_maze_gen;
         input integer N;
         input integer drive;
         input [31:0] s;
-        integer limit, k, outside_floor, perimeter_floor;
+        integer limit, k, outside_floor, perimeter_floor, off;
         begin
-            n_cells = drive[3:0]; seed = s;
+            n_cells = drive[3:0]; seed = s; off = 10 - N;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
             cycles = 0; limit = 20000;
@@ -110,8 +110,8 @@ module tb_maze_gen;
                 if (gen_busy) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: busy after done", N, s); end
 
                 // start/goal tiles
-                if (start_col !== 5'd1 || start_row !== 5'd1 ||
-                    goal_col !== (2 * N - 1) || goal_row !== (2 * N - 1)) begin
+                if (start_col !== (off + 1) || start_row !== (off + 1) ||
+                    goal_col !== (off + 2 * N - 1) || goal_row !== (off + 2 * N - 1)) begin
                     errors = errors + 1;
                     $display("FAIL N=%0d seed=%h: start (%0d,%0d) goal (%0d,%0d)", N, s,
                              start_col, start_row, goal_col, goal_row);
@@ -124,11 +124,13 @@ module tb_maze_gen;
                 outside_floor = 0; perimeter_floor = 0;
                 for (k = 0; k < `MAP_TILES; k = k + 1) begin
                     c = k % 21; r = k / 21;
-                    if ((c > 2 * N || r > 2 * N) && !mem[k]) outside_floor = outside_floor + 1;
-                    if ((c == 0 || r == 0 || c == 2 * N || r == 2 * N) && c <= 2 * N && r <= 2 * N && !mem[k])
+                    if ((c < off || c > off + 2 * N || r < off || r > off + 2 * N) && !mem[k])
+                        outside_floor = outside_floor + 1;
+                    if ((c == off || r == off || c == off + 2 * N || r == off + 2 * N) &&
+                        c >= off && c <= off + 2 * N && r >= off && r <= off + 2 * N && !mem[k])
                         perimeter_floor = perimeter_floor + 1;
                 end
-                if (outside_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles outside region", N, s, outside_floor); end
+                if (outside_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles outside the centred region", N, s, outside_floor); end
                 if (perimeter_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: gap in outer wall", N, s); end
 
                 // BFS: goal reachable; connected; perfect maze (tree): 2N^2-1 floor tiles

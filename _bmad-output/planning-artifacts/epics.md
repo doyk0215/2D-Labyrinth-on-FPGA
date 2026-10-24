@@ -188,6 +188,7 @@ So that every game is new and always winnable.
 **Given** `maze_gen` (iterative DFS with explicit stack and a 32-bit LFSR, AD-12)
 **When** it runs for a given seed and size N
 **Then** it fills `maze_ram` with a perfect maze, sets the start and goal tiles, and signals done (FR1, FR2)
+**And** an N-cell maze is stored centred in the 21×21 tile map (tiles 10−N to 10+N), everything else is wall
 **And** `maze_gen` is the only writer of `maze_ram` (AD-5)
 
 **Given** the `maze_gen` testbench
