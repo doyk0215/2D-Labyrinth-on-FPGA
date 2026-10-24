@@ -23,7 +23,7 @@ add_files -fileset constrs_1 -norecurse [file join $repo constraints basys3.xdc]
 set tb_files [glob -nocomplain [file join $repo tb *.v]]
 if {[llength $tb_files] > 0} {
     add_files -fileset sim_1 -norecurse $tb_files
-    set_property top tb_vga_timing [get_filesets sim_1]
+    set_property top tb_render [get_filesets sim_1]
 }
 set_property include_dirs [list [file join $repo rtl]] [get_filesets sim_1]
 

@@ -1,7 +1,6 @@
 `timescale 1ns / 1ps
 
-// Story 1.1 bring-up top: stable VGA colour bars and safe inactive levels
-// on the unused peripherals. Later stories replace the test pattern.
+// Story 1.2 top: fixed maze rendered over the VGA timing generator.
 module top (
     input  wire       clk,
     input  wire       btnC,
@@ -11,9 +10,9 @@ module top (
     input  wire       btnD,
     input  wire [15:0] sw,
     output wire [15:0] led,
-    output reg  [3:0] vga_r,
-    output reg  [3:0] vga_g,
-    output reg  [3:0] vga_b,
+    output wire [3:0] vga_r,
+    output wire [3:0] vga_g,
+    output wire [3:0] vga_b,
     output wire       vga_hs,
     output wire       vga_vs,
     inout  wire       ps2_clk,
@@ -33,6 +32,18 @@ module top (
     wire [9:0] pixel_x;
     wire [9:0] pixel_y;
     wire active_video;
+    wire timing_hsync;
+    wire timing_vsync;
+
+    wire [8:0] maze_raddr_p;
+    wire maze_rdata_p;
+    wire [8:0] maze_raddr_r;
+    wire maze_rdata_r;
+
+    localparam [4:0] FIXED_START_COL = 5'd1;
+    localparam [4:0] FIXED_START_ROW = 5'd1;
+    localparam [4:0] FIXED_GOAL_COL  = 5'd1;
+    localparam [4:0] FIXED_GOAL_ROW  = 5'd19;
 
     vga_timing timing_i (
         .clk          (clk),
@@ -42,33 +53,45 @@ module top (
         .pixel_x      (pixel_x),
         .pixel_y      (pixel_y),
         .active_video (active_video),
-        .hsync        (vga_hs),
-        .vsync        (vga_vs)
+        .hsync        (timing_hsync),
+        .vsync        (timing_vsync)
     );
 
-    // Eight 80-pixel colour bars; output black during blanking and reset.
-    always @* begin
-        vga_r = 4'h0;
-        vga_g = 4'h0;
-        vga_b = 4'h0;
-        if (active_video && !rst) begin
-            if (pixel_x < 10'd80) begin       // white
-                vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'hf;
-            end else if (pixel_x < 10'd160) begin // yellow
-                vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'h0;
-            end else if (pixel_x < 10'd240) begin // cyan
-                vga_r = 4'h0; vga_g = 4'hf; vga_b = 4'hf;
-            end else if (pixel_x < 10'd320) begin // green
-                vga_r = 4'h0; vga_g = 4'hf; vga_b = 4'h0;
-            end else if (pixel_x < 10'd400) begin // magenta
-                vga_r = 4'hf; vga_g = 4'h0; vga_b = 4'hf;
-            end else if (pixel_x < 10'd480) begin // red
-                vga_r = 4'hf; vga_g = 4'h0; vga_b = 4'h0;
-            end else if (pixel_x < 10'd560) begin // blue
-                vga_r = 4'h0; vga_g = 4'h0; vga_b = 4'hf;
-            end
-        end
-    end
+    // The map is preloaded for Story 1.2. Later maze_gen writes through
+    // the same single write port; the physics port is idle in this story.
+    assign maze_raddr_p = 9'd0;
+
+    maze_ram maze_ram_i (
+        .clk     (clk),
+        .we      (1'b0),
+        .waddr   (9'd0),
+        .wdata   (1'b0),
+        .raddr_p (maze_raddr_p),
+        .rdata_p (maze_rdata_p),
+        .raddr_r (maze_raddr_r),
+        .rdata_r (maze_rdata_r)
+    );
+
+    render render_i (
+        .clk          (clk),
+        .rst          (rst),
+        .pixel_x      (pixel_x),
+        .pixel_y      (pixel_y),
+        .active_video (active_video),
+        .hsync_in     (timing_hsync),
+        .vsync_in     (timing_vsync),
+        .maze_raddr   (maze_raddr_r),
+        .maze_rdata   (maze_rdata_r),
+        .start_col    (FIXED_START_COL),
+        .start_row    (FIXED_START_ROW),
+        .goal_col     (FIXED_GOAL_COL),
+        .goal_row     (FIXED_GOAL_ROW),
+        .vga_r        (vga_r),
+        .vga_g        (vga_g),
+        .vga_b        (vga_b),
+        .vga_hs       (vga_hs),
+        .vga_vs       (vga_vs)
+    );
 
     // Not used until later stories. Keep LEDs low and the OLED idle. The
     // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
