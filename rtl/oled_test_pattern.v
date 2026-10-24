@@ -11,12 +11,12 @@ module oled_test_pattern (
     output reg  [15:0] pixel_data
 );
 
-    wire [7:0]  y_hi = pixel_index[12:5];           // index / 32
-    wire [5:0]  y    = y_hi / 8'd3;                 // index / 96
-    wire [12:0] row_base = {1'b0, y, 6'b0} + {2'b0, y, 5'b0}; // 96 * y
-    wire [6:0]  x    = pixel_index - row_base;      // index % 96
-    wire [2:0]  bar  = x / 7'd12;
-    wire [4:0]  grey = x / 7'd3;                    // 0..31
+    wire [6:0] x;
+    wire [5:0] y;
+    oled_xy xy_i (.pixel_index(pixel_index), .x(x), .y(y));
+
+    wire [2:0] bar  = x / 7'd12;
+    wire [4:0] grey = x / 7'd3;                     // 0..31
 
     always @* begin
         if (x == 7'd0 || x == 7'd95 || y == 6'd0 || y == 6'd63)
