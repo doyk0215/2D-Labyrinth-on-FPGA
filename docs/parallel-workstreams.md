@@ -71,7 +71,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
 **Render (C)**
-- Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal`, `n_cells`, maze read port 2
+- Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2 (no `n_cells`: the maze is always centred in the map)
 - Outputs: `vga_r/g/b[3:0]`, `vga_hs`, `vga_vs`
 - C latches `angle`, `ball_x`, `ball_y` at frame start (AD-6)
 
