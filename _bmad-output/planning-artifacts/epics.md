@@ -158,6 +158,8 @@ So that the video chain is proven before any game logic is built.
 
 ### Story 1.2: Draw a fixed maze with distinct start and goal
 
+**Note (2026-10-24):** the renderer draws the whole 21×21 map centred on the screen and does not need the maze size, because `maze_gen` stores an N-cell maze centred in the map (tiles 10−N to 10+N; see the interface contract). The hard-coded test maze should be a valid 10×10 maze (it fills the whole map), and the start and goal tiles are absolute tile coordinates. A smaller maze appears as a smaller maze inside a solid wall-coloured square; how to style that border is the renderer's choice.
+
 As the examiner,
 I want to see a maze with a clearly marked start and goal on the monitor,
 So that the maze view and tile map are proven before generation is added.
@@ -188,6 +190,7 @@ So that every game is new and always winnable.
 **Given** `maze_gen` (iterative DFS with explicit stack and a 32-bit LFSR, AD-12)
 **When** it runs for a given seed and size N
 **Then** it fills `maze_ram` with a perfect maze, sets the start and goal tiles, and signals done (FR1, FR2)
+**And** an N-cell maze is stored centred in the 21×21 tile map (tiles 10−N to 10+N), everything else is wall
 **And** `maze_gen` is the only writer of `maze_ram` (AD-5)
 
 **Given** the `maze_gen` testbench

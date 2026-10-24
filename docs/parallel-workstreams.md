@@ -50,6 +50,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Read port 1 (A, physics): `raddr_p[8:0]` → `rdata_p`, 1-clock read latency
 - Read port 2 (C, render): `raddr_r[8:0]` → `rdata_r`, 1-clock read latency
 - Maze outputs of `maze_gen` (held until the next generation): `start_col[4:0]`, `start_row[4:0]`, `goal_col[4:0]`, `goal_row[4:0]`
+- Maze placement (added 2026-10-24, with `maze_gen`): an N-cell maze (N = 2..10) is stored **centred** in the 21×21 map, filling tiles `10-N .. 10+N` in each axis; all other tiles are wall. The middle of every maze is therefore tile 10, so the renderer and physics always rotate about the map centre (336 px / 2 = 168 px) and never need `n_cells` for centring. `start_*`/`goal_*` are absolute tile coordinates in the 21×21 map (start = `(11-N, 11-N)`, goal = `(9+N, 9+N)`).
 
 **Maze generation (A)**
 - Inputs: `gen_start` (pulse), `n_cells[3:0]` (from `game_cfg`), `seed[31:0]`
@@ -70,7 +71,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
 **Render (C)**
-- Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal`, `n_cells`, maze read port 2
+- Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2 (no `n_cells`: the maze is always centred in the map)
 - Outputs: `vga_r/g/b[3:0]`, `vga_hs`, `vga_vs`
 - C latches `angle`, `ball_x`, `ball_y` at frame start (AD-6)
 
