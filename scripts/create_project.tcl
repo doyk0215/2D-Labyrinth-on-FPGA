@@ -14,14 +14,17 @@ add_files -norecurse $hdr
 set_property file_type {Verilog Header} [get_files $hdr]
 set_property include_dirs [list [file join $repo rtl]] [get_filesets sources_1]
 set_property target_language Verilog [current_project]
+set_property top top [get_filesets sources_1]
 
 # Constraints
-add_files -fileset constraints_1 -norecurse [file join $repo constraints basys3.xdc]
+add_files -fileset constrs_1 -norecurse [file join $repo constraints basys3.xdc]
 
 # Testbenches (simulation sources)
 set tb_files [glob -nocomplain [file join $repo tb *.v]]
-if {[llength $tb_files] > 0} { add_files -fileset sim_1 -norecurse $tb_files }
+if {[llength $tb_files] > 0} {
+    add_files -fileset sim_1 -norecurse $tb_files
+    set_property top tb_vga_timing [get_filesets sim_1]
+}
 set_property include_dirs [list [file join $repo rtl]] [get_filesets sim_1]
 
-# Set the top module once it exists:  set_property top top [current_fileset]
 puts "Project created in [file join $repo vivado]"
