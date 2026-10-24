@@ -68,6 +68,8 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Menu and OLED (B and A)**
 - `game_cfg` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start)
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
+  - Bit order (added with `oled_driver`): character `k` (`k = row*16 + column`, row 0 at the top, column 0 at the left) is `status_text[8*k +: 8]`, so the top-left character is `status_text[7:0]`. Only ASCII 0x20..0x7E draw glyphs; anything else is blank.
+- `oled_driver` extra ports (added with `oled_driver`): input `shutdown` (1 = power the display down in order; release to power up again), output `oled_on` (1 while the display is on and refreshing), input `rst` (synchronous; cuts both supplies at once, so use it only for FPGA start-up).
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
 **Render (C)**
