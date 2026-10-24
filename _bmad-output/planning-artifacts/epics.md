@@ -65,7 +65,7 @@ NFR5: Behaviour is reproducible: the same PRNG seed gives the same maze.
 - AD-7: Incremental affine render walk (per-scanline setup, per-pixel adds, fixed latency, nearest-neighbour).
 - AD-8: Resource budget on XC7A35T: LUTs ≤ 50%, flip-flops ≤ 30%, block RAM ≤ 6, DSP48 ≤ 8, no clock tiles.
 - AD-9: `input_mux` outputs `rot_cmd` (−1/0/+1); PS/2 stream mode with enable 0xF4; BTNL/BTNR fallback.
-- AD-10: OLED text-only: 4×16 character buffer, SSD1306 init, SPI ≤ 10 MHz, power sequence per Digilent manual; menu on BTNU/BTND/BTNC.
+- AD-10: OLED text-only: 4×16 character buffer, SPI ≤ 10 MHz; menu on BTNU/BTND/BTNC. Hardware is the Pmod OLEDrgb (96×64, SSD1331); the course-supplied `Oled_Display.v` does the init, reset and SPI (amended 2026-10-24, see Story 4.1).
 - AD-11: Collision by per-axis move and tile test with clamp and restitution; goal = ball centre in goal tile.
 - AD-12: Maze generation by iterative DFS with explicit stack, only in GENERATE state; seed from free-running counter or debug fixed seed.
 - AD-13: Every module has a self-checking testbench (maze solvability by BFS, physics no-tunnelling and bounce ratio, PS/2 packet stream, VGA timing counts, render pixel checks).
@@ -407,19 +407,21 @@ As the player,
 I want the OLED to show readable text,
 So that menus can be displayed there.
 
+**Amended 2026-10-24 (approved by the project owner):** the board has the Pmod OLEDrgb (96×64 RGB, SSD1331), not the Pmod OLED 128×32 (SSD1306). The SSD1306 driver left the panel dark on the board. Story 4.1 now uses the course-supplied, unmodified `Oled_Display.v` (init, reset and SPI) on a 6.25 MHz clock made by `oled_clk_div` (100 MHz ÷ 16 through a BUFG; the one documented exception to AD-2, declared with `create_generated_clock`), plus our `oled_text_pixel` and `font_rom`. The criteria below are updated to match.
+
 **Acceptance Criteria:**
 
-**Given** `oled_driver` and `font_rom` with a 4×16 character buffer (AD-10)
+**Given** `Oled_Display`, `oled_text_pixel` and `font_rom` with a 4×16 character buffer (AD-10)
 **When** the board powers on
-**Then** the SSD1306 is initialised using the power-up sequence of the Digilent Pmod OLED manual, and the buffer contents are shown with an 8×8 font over SPI with SCLK ≤ 10 MHz
+**Then** the SSD1331 is initialised by the course driver's power-up sequence and the buffer contents are shown on the 96×64 panel with the 5×7 font, 6 px per character and 16 px per text row (16 characters across, 4 rows), over SPI with SCLK = 6.25 MHz (≤ 10 MHz)
 
-**Given** the driver testbench
+**Given** the OLED testbench (`tb_oled_display`)
 **When** it runs
-**Then** it reports PASS for the init command order, the D/C and chip-select behaviour, and the byte stream for a sample text
+**Then** it reports PASS for the init command bytes, the PMODEN/RES/VCCEN sequence, the D/C and chip-select behaviour, SPI timing, and a full 6144-pixel frame equal to an independent model of the text image (and of the colour-bar test pattern)
 
 **Given** a reset
-**When** the board is powered down or reset
-**Then** the OLED power-down order of the manual is followed
+**When** the board is reset
+**Then** PMODEN drops and the driver restarts its power-up sequence. **Waived:** the manual's orderly power-down (display off, VCCEN off, delay, then power off) is not implemented, because the course `Oled_Display` cannot do it and may not be modified (waiver approved by the project owner, 2026-10-24).
 
 ### Story 4.2: Choose a stage and start the game on the OLED
 
