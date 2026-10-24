@@ -48,7 +48,7 @@ So that I can steer the maze.
 ## Implementation Notes
 
 - The physical PS/2 interface uses `ps2_clk_drive_low` and `ps2_data_drive_low` outputs. The integrating top level must translate these to open-drain pull-low/release behavior and synchronize the board buttons.
-- Vivado 2025.2 passes `input_mux_tb`, `ps2_mouse_tb`, and `tb_top_story21_integration` through `tb/run_story21.tcl`.
+- Vivado 2025.2 passes `input_mux_tb`, `ps2_mouse_tb`, and `tb_top_story21_integration` through `tb/run_story21.tcl`. The broader `tb/run_current_stories.tcl` regression also passes Stories 1.1-1.3, Story 2.1, and the already-merged sine/cosine ROM.
 - `top.v` synchronizes BTNL/BTNR, instantiates the mouse receiver and input mux, and translates the mouse's drive-low controls to open-drain PS/2 pins. LED[1:0] show `rot_cmd`; LED[3:2] retain maze-generation status.
 
 ## Interface Contract
