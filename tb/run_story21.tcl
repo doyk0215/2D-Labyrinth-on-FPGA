@@ -4,13 +4,24 @@ set run_dir [file join $::env(TEMP) story21_vivado_run]
 file mkdir $run_dir
 cd $run_dir
 
-set rtl_ps2 [file join $repo_root rtl ps2_mouse.v]
-set rtl_mux [file join $repo_root rtl input_mux.v]
-set tb_ps2 [file join $repo_root tb ps2_mouse_tb.v]
-set tb_mux [file join $repo_root tb input_mux_tb.v]
+set rtl_dir [file join $repo_root rtl]
+set sources [list \
+    [file join $rtl_dir vga_timing.v] \
+    [file join $rtl_dir maze_gen.v] \
+    [file join $rtl_dir maze_ram.v] \
+    [file join $rtl_dir render.v] \
+    [file join $rtl_dir seed_source.v] \
+    [file join $rtl_dir ps2_mouse.v] \
+    [file join $rtl_dir input_mux.v] \
+    [file join $rtl_dir top.v] \
+    [file join $repo_root tb ps2_mouse_tb.v] \
+    [file join $repo_root tb input_mux_tb.v] \
+    [file join $repo_root tb tb_top_story21_integration.v]]
 
-puts "Compiling Story 2.1 sources with Vivado xvlog..."
-if {[catch {exec xvlog -work work $rtl_ps2 $rtl_mux $tb_ps2 $tb_mux 2>@1} compile_output]} {
+puts "Compiling Story 2.1 RTL and testbenches with Vivado xvlog..."
+set compile_cmd [list xvlog -work work -i $rtl_dir]
+foreach source $sources { lappend compile_cmd $source }
+if {[catch {exec {*}$compile_cmd 2>@1} compile_output]} {
     puts $compile_output
     error "xvlog compilation failed"
 }
@@ -19,6 +30,7 @@ puts $compile_output
 foreach {top snapshot marker} {
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     ps2_mouse_tb ps2_mouse_snapshot "PASS ps2_mouse_tb"
+    tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
 } {
     puts "Elaborating $top..."
     if {[catch {exec xelab -debug typical -top $top -snapshot $snapshot 2>@1} elaborate_output]} {

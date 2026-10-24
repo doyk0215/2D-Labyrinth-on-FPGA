@@ -2,7 +2,7 @@
 story_id: 2.1
 story_key: 2-1-read-the-mouse-and-produce-a-rotation-command
 title: Read the mouse and produce a rotation command
-status: in-progress
+status: review
 owner: QZ
 epic: 2
 ---
@@ -40,15 +40,16 @@ So that I can steer the maze.
 - [x] Add `ps2_mouse.v` with PS/2 line synchronizers, host stream-enable transaction, acknowledgement handling, serial receive/parity and stop-bit checks, and three-byte packet assembly.
 - [x] Publish only `left_button`, `right_button`, and `connected` from the mouse interface; retain the last complete button state between packets.
 - [x] Add `input_mux.v` to choose mouse input when connected and otherwise use BTNL/BTNR, applying the defined both/neither behavior.
-- [ ] Coordinate with the top-level owner to synchronize BTNL/BTNR, connect PS/2 pins as open-drain pull-low/release signals, instantiate `ps2_mouse` and `input_mux`, and drive `led[1:0]` from `rot_cmd`.
+- [x] Integrate the top level: synchronize BTNL/BTNR, connect PS/2 pins as open-drain pull-low/release signals, instantiate `ps2_mouse` and `input_mux`, and drive `led[1:0]` from `rot_cmd`.
 - [x] Add a self-checking `tb/ps2_mouse_tb.v` for the recorded packet cases and `tb/input_mux_tb.v` for source selection and command mapping.
+- [x] Add `tb/tb_top_story21_integration.v` for board-button fallback, rotation LED encoding, and PS/2 open-drain startup.
 - [x] Document PS/2 timing constants as parameters and keep all sequential logic on `clk` (no derived clocks).
 
 ## Implementation Notes
 
 - The physical PS/2 interface uses `ps2_clk_drive_low` and `ps2_data_drive_low` outputs. The integrating top level must translate these to open-drain pull-low/release behavior and synchronize the board buttons.
-- Vivado 2025.2 simulation passes for both `input_mux_tb` and `ps2_mouse_tb`. The reusable command script is `tb/run_story21.tcl`.
-- Upstream now includes `rtl/top.v`, and `scripts/create_project.tcl` includes the Story 2.1 modules through its RTL glob. The current top still releases both PS/2 lines, ties LEDs low, and does not instantiate `ps2_mouse` or `input_mux`; the hardware hookup remains for the top-level owner.
+- Vivado 2025.2 passes `input_mux_tb`, `ps2_mouse_tb`, and `tb_top_story21_integration` through `tb/run_story21.tcl`.
+- `top.v` synchronizes BTNL/BTNR, instantiates the mouse receiver and input mux, and translates the mouse's drive-low controls to open-drain PS/2 pins. LED[1:0] show `rot_cmd`; LED[3:2] retain maze-generation status.
 
 ## Interface Contract
 

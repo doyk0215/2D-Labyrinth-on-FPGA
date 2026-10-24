@@ -55,6 +55,50 @@ module top (
     wire        gen_done;
     wire [31:0] seed;
 
+    wire ps2_clk_i;
+    wire ps2_data_i;
+    wire ps2_clk_drive_low;
+    wire ps2_data_drive_low;
+    wire mouse_left;
+    wire mouse_right;
+    wire mouse_connected;
+    wire signed [1:0] rot_cmd;
+
+    // PS/2 is open-drain: assert low when requested, otherwise release.
+    assign ps2_clk = ps2_clk_drive_low ? 1'b0 : 1'bz;
+    assign ps2_data = ps2_data_drive_low ? 1'b0 : 1'bz;
+    assign ps2_clk_i = ps2_clk;
+    assign ps2_data_i = ps2_data;
+
+    // Synchronize board-button fallback controls into the 100 MHz domain.
+    (* ASYNC_REG = "TRUE" *) reg [1:0] btnL_sync = 2'b00;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] btnR_sync = 2'b00;
+    always @(posedge clk) begin
+        btnL_sync <= {btnL_sync[0], btnL};
+        btnR_sync <= {btnR_sync[0], btnR};
+    end
+
+    ps2_mouse mouse_i (
+        .clk               (clk),
+        .rst               (rst),
+        .ps2_clk_i         (ps2_clk_i),
+        .ps2_data_i        (ps2_data_i),
+        .ps2_clk_drive_low (ps2_clk_drive_low),
+        .ps2_data_drive_low(ps2_data_drive_low),
+        .left_button       (mouse_left),
+        .right_button      (mouse_right),
+        .connected         (mouse_connected)
+    );
+
+    input_mux input_mux_i (
+        .mouse_connected (mouse_connected),
+        .mouse_left      (mouse_left),
+        .mouse_right     (mouse_right),
+        .btn_left        (btnL_sync[1]),
+        .btn_right       (btnR_sync[1]),
+        .rot_cmd         (rot_cmd)
+    );
+
     // Synchronise the buttons, then turn them into one-cycle pulses.
     reg [2:0] btnD_s = 3'b000;
     reg [2:0] btnAny_s = 3'b000;
@@ -150,13 +194,12 @@ module top (
         .vga_vs       (vga_vs)
     );
 
-    // LED[0] = generating, LED[1] = a maze has been generated. Not used
-    // until later stories otherwise. Keep the OLED idle. The
+    // LED[1:0] show the signed rotation command; LED[2] = generating and
+    // LED[3] = a maze has been generated. Keep the OLED idle. The
     // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
     // so drive them high (off) until the OLED driver (Story 4.1) applies
-    // the manual's power-up sequence. The PS/2 pins remain released for
-    // the open-collector interface.
-    assign led = {14'b0, gen_done_seen, gen_busy};
+    // the manual's power-up sequence.
+    assign led = {12'b0, gen_done_seen, gen_busy, rot_cmd};
     assign oled_cs = 1'b1;
     assign oled_mosi = 1'b0;
     assign oled_sclk = 1'b0;
