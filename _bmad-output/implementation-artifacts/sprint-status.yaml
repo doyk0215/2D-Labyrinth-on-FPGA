@@ -44,7 +44,7 @@ development_status:
 
   epic-2: backlog
   2-1-read-the-mouse-and-produce-a-rotation-command: backlog  # owner: QZ
-  2-2-angle-accumulator-and-sine-cosine-table: backlog  # owner: QZ + DY (trig table)
+  2-2-angle-accumulator-and-sine-cosine-table: review  # owner: QZ + DY (trig table)
   2-3-draw-the-maze-at-its-exact-angle: backlog  # owner: CJX
   2-4-fallback-90-snap-rotation-mode: backlog  # owner: CJX
   epic-2-retrospective: optional
