@@ -70,15 +70,18 @@ module top (
         end
     end
 
-    // Not used until later stories. Keep LEDs and OLED power/control low;
-    // the PS/2 pins remain released for the open-collector interface.
+    // Not used until later stories. Keep LEDs low and the OLED idle. The
+    // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
+    // so drive them high (off) until the OLED driver (Story 4.1) applies
+    // the manual's power-up sequence. The PS/2 pins remain released for
+    // the open-collector interface.
     assign led = 16'h0000;
     assign oled_cs = 1'b1;
     assign oled_mosi = 1'b0;
     assign oled_sclk = 1'b0;
     assign oled_dc = 1'b0;
     assign oled_res = 1'b0;
-    assign oled_vbatc = 1'b0;
-    assign oled_vddc = 1'b0;
+    assign oled_vbatc = 1'b1;
+    assign oled_vddc = 1'b1;
 
 endmodule
