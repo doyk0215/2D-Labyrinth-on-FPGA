@@ -55,6 +55,74 @@ module top (
     wire        gen_done;
     wire [31:0] seed;
 
+    wire mouse_left;
+    wire mouse_right;
+    wire mouse_middle;
+    wire mouse_event;
+    wire [11:0] mouse_x;
+    wire [11:0] mouse_y;
+    wire [3:0] mouse_z;
+    reg mouse_connected = 1'b0;
+    reg [25:0] mouse_event_timer = 26'd0;
+    wire signed [1:0] rot_cmd;
+
+    // MouseCtl wraps Ps2Interface, which drives the PS/2 lines open-drain
+    // (low or high impedance). Keep connection status asserted after the
+    // first complete packet, and fall back to board buttons after 500 ms
+    // without a packet.
+    MouseCtl mouse_controller (
+        .clk       (clk),
+        .rst       (rst),
+        .xpos      (mouse_x),
+        .ypos      (mouse_y),
+        .zpos      (mouse_z),
+        .left      (mouse_left),
+        .middle    (mouse_middle),
+        .right     (mouse_right),
+        .new_event (mouse_event),
+        .value     (12'd0),
+        .setx      (1'b0),
+        .sety      (1'b0),
+        .setmax_x  (1'b0),
+        .setmax_y  (1'b0),
+        .ps2_clk   (ps2_clk),
+        .ps2_data  (ps2_data)
+    );
+
+    always @(posedge clk) begin
+        if (rst) begin
+            mouse_connected  <= 1'b0;
+            mouse_event_timer <= 26'd0;
+        end else if (mouse_event) begin
+            mouse_connected  <= 1'b1;
+            mouse_event_timer <= 26'd0;
+        end else if (mouse_connected) begin
+            if (mouse_event_timer >= 26'd49_999_999) begin
+                mouse_connected  <= 1'b0;
+                mouse_event_timer <= 26'd0;
+            end else begin
+                mouse_event_timer <= mouse_event_timer + 1'b1;
+            end
+        end
+    end
+
+    // Synchronize board-button fallback controls into the 100 MHz domain.
+    (* ASYNC_REG = "TRUE" *) reg [1:0] btnL_sync = 2'b00;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] btnR_sync = 2'b00;
+    always @(posedge clk) begin
+        btnL_sync <= {btnL_sync[0], btnL};
+        btnR_sync <= {btnR_sync[0], btnR};
+    end
+
+    input_mux input_mux_i (
+        .mouse_connected (mouse_connected),
+        .mouse_left      (mouse_left),
+        .mouse_right     (mouse_right),
+        .btn_left        (btnL_sync[1]),
+        .btn_right       (btnR_sync[1]),
+        .rot_cmd         (rot_cmd)
+    );
+
     // Synchronise the buttons, then turn them into one-cycle pulses.
     reg [2:0] btnD_s = 3'b000;
     reg [2:0] btnAny_s = 3'b000;
@@ -150,13 +218,12 @@ module top (
         .vga_vs       (vga_vs)
     );
 
-    // LED[0] = generating, LED[1] = a maze has been generated. Not used
-    // until later stories otherwise. Keep the OLED idle. The
+    // LED[1:0] show the signed rotation command; LED[2] = generating and
+    // LED[3] = a maze has been generated. Keep the OLED idle. The
     // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
     // so drive them high (off) until the OLED driver (Story 4.1) applies
-    // the manual's power-up sequence. The PS/2 pins remain released for
-    // the open-collector interface.
-    assign led = {14'b0, gen_done_seen, gen_busy};
+    // the manual's power-up sequence.
+    assign led = {12'b0, gen_done_seen, gen_busy, rot_cmd};
     assign oled_cs = 1'b1;
     assign oled_mosi = 1'b0;
     assign oled_sclk = 1'b0;
