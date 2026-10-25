@@ -55,7 +55,7 @@ Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`)
 ### AD-2 — One clock domain, clock enables for everything slower
 - **Binds:** all, NFR-1
 - **Prevents:** Derived clocks and extra MMCM/PLL instances, which cause clock-domain-crossing bugs and timing failures.
-- **Rule:** Every register is clocked by the 100 MHz board clock. The pixel rate is a 1-in-4 enable `ce_pix` (25.0 MHz; refresh ≈ 59.5 Hz, converters normally accept it). The OLED SPI clock is generated from an enable, never a divided clock net. Only the PS/2 lines and the buttons are asynchronous, and each passes through a two-flip-flop synchronizer on entry. The 4 clocks per pixel are a budget available to the render pipeline.
+- **Rule:** Every register is clocked by the 100 MHz board clock. The pixel rate is a 1-in-4 enable `ce_pix` (25.0 MHz; refresh ≈ 59.5 Hz, converters normally accept it). The OLED SPI clock is generated from an enable, never a divided clock net. **One documented exception (2026-10-24):** the course-supplied `Oled_Display.v` (Pmod OLEDrgb, may not be modified) needs a real 6.25 MHz clock, so `oled_clk_div` divides 100 MHz by 16 through a BUFG for that module alone, declared with `create_generated_clock`; everything else, including the text-to-pixel logic, stays on the 100 MHz clock, and the crossing is a timed synchronous one. Only the PS/2 lines and the buttons are asynchronous, and each passes through a two-flip-flop synchronizer on entry. The 4 clocks per pixel are a budget available to the render pipeline.
 
 ### AD-3 — The maze frame is the physics frame; the angle is the only coupling
 - **Binds:** FR-7, FR-8, FR-8b, FR-14
@@ -120,7 +120,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 ### AD-10 — OLED is a text-only peripheral behind a buffer
 - **Binds:** FR-20..FR-26
 - **Prevents:** Menu logic mixed with SPI timing; pixel-level graphics that the budget doesn't need.
-- **Rule:** `menu_ctrl` writes a 4-row × 16-column character buffer (`status_text`) and owns `game_cfg`. `oled_driver` is the SSD1306 initialization sequence plus a loop that streams the buffer through an 8×8 font ROM over SPI (SCLK ≤ 10 MHz, D/C and reset as described in the Digilent Pmod OLED manual, including the power-up and power-down order). The menu is driven by BTNU/BTND/BTNC. The OLED never reads game state directly; `game_ctrl` hands the stage number and timer to `menu_ctrl`.
+- **Rule:** `menu_ctrl` writes a 4-row × 16-column character buffer (`status_text`) and owns `game_cfg`. The OLED is the Pmod OLEDrgb (96×64, SSD1331). The course-supplied `Oled_Display.v` does the initialization, reset and SPI (SCLK 6.25 MHz, D/C and reset in its own sequence; the manual's orderly power-down is waived), and `oled_text_pixel` turns the buffer into its pixel stream through a 5×7 font ROM (6 px per character, 16 px per text row). The menu is driven by BTNU/BTND/BTNC. The OLED never reads game state directly; `game_ctrl` hands the stage number and timer to `menu_ctrl`.
 
 ### AD-11 — Collision by per-axis move and tile test
 - **Binds:** FR-11, FR-12, FR-13
@@ -155,7 +155,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 | HDL | Verilog (IEEE 1364-2005) |
 | Toolchain | Vivado 2025.2 |
 | Display | VGA 640×480, 12-bit colour, then an external VGA-to-HDMI converter |
-| Secondary display | Digilent Pmod OLED, 128×32, SSD1306, SPI |
+| Secondary display | Digilent Pmod OLEDrgb, 96×64, SSD1331, SPI |
 | Input | USB-HID mouse via the board's PS/2 emulation |
 
 ## Structural Seed
@@ -174,8 +174,10 @@ rtl/
   ps2_mouse.v          # PS/2 receiver, packet decoder
   input_mux.v          # rot_cmd from mouse or buttons
   menu_ctrl.v          # stages, settings, status_text
-  oled_driver.v        # SSD1306 init + text streaming
-  font_rom.v           # 8x8 font
+  Oled_Display.v      # course-supplied SSD1331 driver (unmodified)
+  oled_clk_div.v       # 6.25 MHz clock for Oled_Display (AD-2 exception)
+  oled_text_pixel.v    # status_text -> RGB565 pixel stream
+  font_rom.v           # 5x7 font
 tb/                    # one testbench per module
 constraints/basys3.xdc
 ```

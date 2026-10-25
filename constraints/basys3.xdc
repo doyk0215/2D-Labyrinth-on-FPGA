@@ -83,3 +83,8 @@ set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports oled_vddc]
 ## Bitstream settings
 set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property CFGBVS VCCO [current_design]
+
+## Derived 6.25 MHz clock for the course-supplied Oled_Display (the one AD-2 exception).
+## oled_clk_div divides the 100 MHz clock by 16 and drives it through a BUFG.
+create_generated_clock -name clk_6m25 -source [get_ports clk] -divide_by 16 \
+    [get_pins -hierarchical {*oled_div_cnt_reg[3]/Q}]
