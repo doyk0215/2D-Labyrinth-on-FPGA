@@ -88,10 +88,16 @@ module tb_rotated_render;
         real mx, my, ex, ey, fx, fy;
         begin
             // The final pixel of the previous scanline seeds x=0 for this y.
+            // Real timing holds pixel_y for a whole line; hold it here for a
+            // few clocks too, so the renderer's registered row products settle.
             @(negedge clk);
-            pixel_x = 10'd799;
+            pixel_x = 10'd798;
             pixel_y = (y == 0) ? 10'd524 : y - 1;
             active_video = 1'b0;
+            ce_pix = 1'b0;
+            repeat (4) @(posedge clk);
+            @(negedge clk);
+            pixel_x = 10'd799;
             ce_pix = 1'b1;
             @(posedge clk); #1;
 
