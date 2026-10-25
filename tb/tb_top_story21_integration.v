@@ -67,13 +67,13 @@ module tb_top_story21_integration;
 
     initial begin
         repeat (4) @(posedge clk);
-        #1 btnC = 1'b0;
-        repeat (4) @(posedge clk);
         #1;
         if (ps2_clk !== 1'b1 || ps2_data !== 1'b1) begin
-            $display("FAIL: PS/2 lines were not released while idle");
+            $display("FAIL: PS/2 lines were not released during reset");
             $finish;
         end
+        #1 btnC = 1'b0;
+        repeat (4) @(posedge clk);
 
         // With no valid mouse packet yet, synchronized board buttons control rotation.
         #1 btnL = 1'b1;
@@ -87,7 +87,8 @@ module tb_top_story21_integration;
         btnR = 1'b0;
         check_rotation_leds(2'b00);
 
-        // Startup inhibit must pull both open-drain lines low, never high.
+        // MouseCtl begins the PS/2 reset transaction by inhibiting the clock
+        // and then asserting the request-to-send data level.
         repeat (10020) @(posedge clk);
         #1;
         if (ps2_clk !== 1'b0 || ps2_data !== 1'b0) begin

@@ -6,9 +6,11 @@
 set repo [file normalize [file join [file dirname [info script]] ..]]
 create_project -force labyrinth [file join $repo vivado] -part xc7a35tcpg236-1
 
-# Design sources (Verilog) and the shared header
+# Design sources (Verilog/VHDL) and the shared header
 set rtl_files [glob -nocomplain [file join $repo rtl *.v]]
 if {[llength $rtl_files] > 0} { add_files -norecurse $rtl_files }
+set vhdl_files [glob -nocomplain [file join $repo rtl *.vhd]]
+if {[llength $vhdl_files] > 0} { add_files -norecurse $vhdl_files }
 set hdr [file join $repo rtl labyrinth_pkg.vh]
 add_files -norecurse $hdr
 set_property file_type {Verilog Header} [get_files $hdr]

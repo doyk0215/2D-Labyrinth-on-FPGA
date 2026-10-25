@@ -5,6 +5,9 @@ file mkdir $run_dir
 cd $run_dir
 
 set rtl_dir [file join $repo_root rtl]
+set vhdl_sources [list \
+    [file join $rtl_dir Ps2Interface.vhd] \
+    [file join $rtl_dir Mouse_Control.vhd]]
 set sources [list \
     [file join $rtl_dir vga_timing.v] \
     [file join $rtl_dir maze_gen.v] \
@@ -18,7 +21,15 @@ set sources [list \
     [file join $repo_root tb input_mux_tb.v] \
     [file join $repo_root tb tb_top_story21_integration.v]]
 
-puts "Compiling Story 2.1 RTL and testbenches with Vivado xvlog..."
+puts "Compiling Story 2.1 VHDL, RTL, and testbenches with Vivado xvhdl/xvlog..."
+set vhdl_compile_cmd [list xvhdl -work work]
+foreach source $vhdl_sources { lappend vhdl_compile_cmd $source }
+if {[catch {exec {*}$vhdl_compile_cmd 2>@1} vhdl_compile_output]} {
+    puts $vhdl_compile_output
+    error "xvhdl compilation failed"
+}
+puts $vhdl_compile_output
+
 set compile_cmd [list xvlog -work work -i $rtl_dir]
 foreach source $sources { lappend compile_cmd $source }
 if {[catch {exec {*}$compile_cmd 2>@1} compile_output]} {

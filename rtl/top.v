@@ -55,20 +55,56 @@ module top (
     wire        gen_done;
     wire [31:0] seed;
 
-    wire ps2_clk_i;
-    wire ps2_data_i;
-    wire ps2_clk_drive_low;
-    wire ps2_data_drive_low;
     wire mouse_left;
     wire mouse_right;
-    wire mouse_connected;
+    wire mouse_middle;
+    wire mouse_event;
+    wire [11:0] mouse_x;
+    wire [11:0] mouse_y;
+    wire [3:0] mouse_z;
+    reg mouse_connected = 1'b0;
+    reg [25:0] mouse_event_timer = 26'd0;
     wire signed [1:0] rot_cmd;
 
-    // PS/2 is open-drain: assert low when requested, otherwise release.
-    assign ps2_clk = ps2_clk_drive_low ? 1'b0 : 1'bz;
-    assign ps2_data = ps2_data_drive_low ? 1'b0 : 1'bz;
-    assign ps2_clk_i = ps2_clk;
-    assign ps2_data_i = ps2_data;
+    // MouseCtl wraps Ps2Interface, which drives the PS/2 lines open-drain
+    // (low or high impedance). Keep connection status asserted after the
+    // first complete packet, and fall back to board buttons after 500 ms
+    // without a packet.
+    MouseCtl mouse_controller (
+        .clk       (clk),
+        .rst       (rst),
+        .xpos      (mouse_x),
+        .ypos      (mouse_y),
+        .zpos      (mouse_z),
+        .left      (mouse_left),
+        .middle    (mouse_middle),
+        .right     (mouse_right),
+        .new_event (mouse_event),
+        .value     (12'd0),
+        .setx      (1'b0),
+        .sety      (1'b0),
+        .setmax_x  (1'b0),
+        .setmax_y  (1'b0),
+        .ps2_clk   (ps2_clk),
+        .ps2_data  (ps2_data)
+    );
+
+    always @(posedge clk) begin
+        if (rst) begin
+            mouse_connected  <= 1'b0;
+            mouse_event_timer <= 26'd0;
+        end else if (mouse_event) begin
+            mouse_connected  <= 1'b1;
+            mouse_event_timer <= 26'd0;
+        end else if (mouse_connected) begin
+            if (mouse_event_timer >= 26'd49_999_999) begin
+                mouse_connected  <= 1'b0;
+                mouse_event_timer <= 26'd0;
+            end else begin
+                mouse_event_timer <= mouse_event_timer + 1'b1;
+            end
+        end
+    end
 
     // Synchronize board-button fallback controls into the 100 MHz domain.
     (* ASYNC_REG = "TRUE" *) reg [1:0] btnL_sync = 2'b00;
@@ -77,18 +113,6 @@ module top (
         btnL_sync <= {btnL_sync[0], btnL};
         btnR_sync <= {btnR_sync[0], btnR};
     end
-
-    ps2_mouse mouse_i (
-        .clk               (clk),
-        .rst               (rst),
-        .ps2_clk_i         (ps2_clk_i),
-        .ps2_data_i        (ps2_data_i),
-        .ps2_clk_drive_low (ps2_clk_drive_low),
-        .ps2_data_drive_low(ps2_data_drive_low),
-        .left_button       (mouse_left),
-        .right_button      (mouse_right),
-        .connected         (mouse_connected)
-    );
 
     input_mux input_mux_i (
         .mouse_connected (mouse_connected),

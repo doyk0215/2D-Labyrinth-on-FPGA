@@ -6,6 +6,16 @@ set run_dir [file join $::env(TEMP) current_stories_vivado_run]
 file mkdir $run_dir
 cd $run_dir
 
+set vhdl_compile_cmd [list xvhdl -work work \
+    [file join $rtl_dir Ps2Interface.vhd] \
+    [file join $rtl_dir Mouse_Control.vhd]]
+puts "Compiling the PS/2 mouse VHDL sources with Vivado xvhdl..."
+if {[catch {exec {*}$vhdl_compile_cmd 2>@1} vhdl_output]} {
+    puts $vhdl_output
+    error "xvhdl compilation failed"
+}
+puts $vhdl_output
+
 set compile_cmd [list xvlog -work work -i $rtl_dir]
 foreach source [glob [file join $rtl_dir *.v]] { lappend compile_cmd $source }
 foreach source [glob [file join $repo_root tb *.v]] { lappend compile_cmd $source }

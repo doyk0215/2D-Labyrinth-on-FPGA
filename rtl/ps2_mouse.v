@@ -1,5 +1,7 @@
 `timescale 1ns/1ps
 
+// Legacy PS/2 receiver retained for its standalone regression bench.
+// The active top-level mouse path uses MouseCtl / Ps2Interface in VHDL.
 // PS/2 mouse stream receiver and host enable-command sender.
 // The top level must implement the open-drain pins by pulling a line low
 // when the corresponding *_drive_low output is asserted, and otherwise
