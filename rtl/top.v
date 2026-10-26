@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-// Integration top (Stories 1.1-1.3): maze_gen fills maze_ram, render draws it.
+// Integration top: mouse/board buttons turn the generated maze on VGA.
 //   sw[0]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = maze size in cells (2..10); 0 selects 10
 //   btnD    = regenerate; a maze is also generated when btnC is released
@@ -65,6 +65,9 @@ module top (
     reg mouse_connected = 1'b0;
     reg [25:0] mouse_event_timer = 26'd0;
     wire signed [1:0] rot_cmd;
+    wire [11:0] angle;
+    wire signed [15:0] sin_q;
+    wire signed [15:0] cos_q;
 
     // MouseCtl wraps Ps2Interface, which drives the PS/2 lines open-drain
     // (low or high impedance). Keep connection status asserted after the
@@ -158,6 +161,21 @@ module top (
         .vsync        (timing_vsync)
     );
 
+    angle_accumulator angle_i (
+        .clk        (clk),
+        .rst        (rst),
+        .frame_tick (frame_tick),
+        .rot_cmd    (rot_cmd),
+        .angle      (angle)
+    );
+
+    sincos_rom trig_i (
+        .clk   (clk),
+        .angle (angle),
+        .sin_q (sin_q),
+        .cos_q (cos_q)
+    );
+
     seed_source seed_i (
         .clk         (clk),
         .rst         (rst),
@@ -200,6 +218,11 @@ module top (
     render render_i (
         .clk          (clk),
         .rst          (rst),
+        .ce_pix       (ce_pix),
+        .frame_tick   (frame_tick),
+        .angle        (angle),
+        .sin_q        (sin_q),
+        .cos_q        (cos_q),
         .pixel_x      (pixel_x),
         .pixel_y      (pixel_y),
         .active_video (active_video),
