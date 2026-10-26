@@ -73,4 +73,8 @@ foreach {top snapshot marker} {
     }
 }
 
-puts "PASS regression for current RTL through Story 2.4, including Story 1.4"
+# The OLED display benches need the Vivado glbl model and a generic per mode,
+# so they run from their own script.
+source [file join $tb_dir run_oled_display.tcl]
+
+puts "PASS regression for current RTL through Story 4.2, including both OLED display modes"

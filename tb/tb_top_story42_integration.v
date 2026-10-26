@@ -4,6 +4,7 @@ module tb_top_story42_integration;
     localparam [1:0] MENU = 2'b00;
     localparam [1:0] GENERATE = 2'b01;
     localparam [1:0] PLAY = 2'b10;
+    localparam [1:0] WIN = 2'b11;
 
     reg clk = 1'b0;
     reg btnC = 1'b0;
@@ -17,6 +18,7 @@ module tb_top_story42_integration;
     integer gen_start_count = 0;
     integer errors = 0;
     integer timeout;
+    reg [511:0] old_text;
 
     always #5 clk = ~clk;
 
@@ -79,6 +81,14 @@ module tb_top_story42_integration;
 
     task apply_oled_text_snapshot;
         begin
+            // Hold off frame_begin so the new text can only arrive as pending,
+            // then check the displayed text is still the old frame's text.
+            force dut.oled_frame_begin = 1'b0;
+            old_text = dut.text_active;
+            if (old_text === dut.status_text) begin
+                $display("FAIL: menu change did not alter the OLED text, so tearing cannot be checked");
+                errors = errors + 1;
+            end
             timeout = 0;
             while (((dut.text_mailbox !== dut.status_text) ||
                     (dut.text_req_toggle != dut.text_ack_sync[1]) ||
@@ -90,6 +100,12 @@ module tb_top_story42_integration;
                 $display("FAIL: menu text did not reach OLED pending snapshot");
                 errors = errors + 1;
             end else begin
+                repeat (20) @(posedge clk);
+                #1;
+                if (dut.text_active !== old_text) begin
+                    $display("FAIL: OLED text changed before frame_begin (frame could tear)");
+                    errors = errors + 1;
+                end
                 force dut.oled_frame_begin = 1'b1;
                 repeat (20) @(posedge clk);
                 release dut.oled_frame_begin;
@@ -175,8 +191,29 @@ module tb_top_story42_integration;
             errors = errors + 1;
         end
 
+        // BTNC must also return to MENU from GENERATE. Hold frame_tick low
+        // once generating, so the state cannot reach PLAY before the press.
+        press_button(2'd2);
+        wait_state(GENERATE);
+        force dut.frame_tick = 1'b0;
+        press_button(2'd2);
+        wait_state(MENU);
+        force dut.frame_tick = 1'b1;
+
+        // ... and from WIN. in_goal is tied low until Story 3.3, so force it
+        // to enter WIN, then hold frame_tick low to stay there for the press.
+        press_button(2'd2);
+        wait_state(PLAY);
+        force dut.game_ctrl_i.in_goal = 1'b1;
+        wait_state(WIN);
+        force dut.frame_tick = 1'b0;
+        release dut.game_ctrl_i.in_goal;
+        press_button(2'd2);
+        wait_state(MENU);
+        force dut.frame_tick = 1'b1;
+
         if (errors == 0)
-            $display("PASS: Story 4.2 top menu, frame handoff, N=5 maze, reset, OLED text snapshot");
+            $display("PASS: Story 4.2 top menu, frame handoff, N=5 maze, reset from GENERATE/PLAY/WIN, OLED text snapshot without tearing");
         else
             $display("FAIL: Story 4.2 integration had %0d errors", errors);
         release dut.frame_tick;
