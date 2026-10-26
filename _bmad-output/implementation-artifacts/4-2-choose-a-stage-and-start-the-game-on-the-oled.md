@@ -123,7 +123,7 @@ top and gates game start on stage confirmation.
 - [x] Add `tb/tb_menu_ctrl.v`, a top-level Story 4.2 integration bench, and a
       Story 4.2 Vivado runner; include the supported regression coverage.
 - [x] Run the current-stories regression and build the Basys 3 bitstream.
-- [x] Request and pass the OLED/menu hardware check.
+- [ ] Recheck the OLED/menu hardware after moving the Pmod OLED from JA to JB.
 
 ## Prerequisite Check
 
@@ -157,6 +157,6 @@ top and gates game start on stage confirmation.
   `vivado/labyrinth.runs/impl_1/top.bit`. Routed timing reports zero failing
   setup and hold endpoints (worst setup slack 0.483 ns; worst hold slack
   0.085 ns).
-- Physical Basys 3 OLED/menu hardware check passed, as reported by QZ on
-  2026-10-26. The story remains `in-progress` until PR #40 is reviewed and
-  merged.
+- Physical Basys 3 OLED/menu behavior passed on the prior JA pin mapping, as
+  reported by QZ on 2026-10-26. The updated JB mapping needs a hardware retest;
+  keep this story `in-progress` until that check and PR #40 review/merge pass.

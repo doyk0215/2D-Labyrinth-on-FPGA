@@ -71,14 +71,14 @@ set_property -dict { PACKAGE_PIN R19 IOSTANDARD LVCMOS33 } [get_ports vga_vs]
 set_property -dict { PACKAGE_PIN C17 IOSTANDARD LVCMOS33 PULLUP true } [get_ports ps2_clk]
 set_property -dict { PACKAGE_PIN B17 IOSTANDARD LVCMOS33 PULLUP true } [get_ports ps2_data]
 
-## Pmod OLED on header JA (Digilent Pmod OLED pinout: 1 CS, 2 MOSI, 4 SCLK, 7 D/C, 8 RES, 9 VBATC, 10 VDDC)
-set_property -dict { PACKAGE_PIN J1 IOSTANDARD LVCMOS33 } [get_ports oled_cs]
-set_property -dict { PACKAGE_PIN L2 IOSTANDARD LVCMOS33 } [get_ports oled_mosi]
-set_property -dict { PACKAGE_PIN G2 IOSTANDARD LVCMOS33 } [get_ports oled_sclk]
-set_property -dict { PACKAGE_PIN H1 IOSTANDARD LVCMOS33 } [get_ports oled_dc]
-set_property -dict { PACKAGE_PIN K2 IOSTANDARD LVCMOS33 } [get_ports oled_res]
-set_property -dict { PACKAGE_PIN H2 IOSTANDARD LVCMOS33 } [get_ports oled_vbatc]
-set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports oled_vddc]
+## Pmod OLED on header JB (Digilent Pmod OLED pinout: 1 CS, 2 MOSI, 4 SCLK, 7 D/C, 8 RES, 9 VBATC, 10 VDDC)
+set_property -dict { PACKAGE_PIN A14 IOSTANDARD LVCMOS33 } [get_ports oled_cs]
+set_property -dict { PACKAGE_PIN A16 IOSTANDARD LVCMOS33 } [get_ports oled_mosi]
+set_property -dict { PACKAGE_PIN B16 IOSTANDARD LVCMOS33 } [get_ports oled_sclk]
+set_property -dict { PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports oled_dc]
+set_property -dict { PACKAGE_PIN A17 IOSTANDARD LVCMOS33 } [get_ports oled_res]
+set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports oled_vbatc]
+set_property -dict { PACKAGE_PIN C16 IOSTANDARD LVCMOS33 } [get_ports oled_vddc]
 
 ## Bitstream settings
 set_property CONFIG_VOLTAGE 3.3 [current_design]
