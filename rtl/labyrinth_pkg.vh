@@ -21,6 +21,7 @@
 `define VEL_W          12
 `define VEL_FRAC       8
 `define VEL_CAP        1792     // 7 px/frame * 256 (max representable is 7.996)
+`define GRAV_SHIFT      8        // gravity = trig >>> 8 = 0.25 px/frame^2 at full strength (sin/cos are Q1.14)
 
 // ---- Maze geometry ----
 `define TILE_PX        16       // pixels per tile

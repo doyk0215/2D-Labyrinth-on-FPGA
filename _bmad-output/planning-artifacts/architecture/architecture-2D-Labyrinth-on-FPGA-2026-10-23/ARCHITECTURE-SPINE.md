@@ -60,7 +60,7 @@ Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`)
 ### AD-3 — The maze frame is the physics frame; the angle is the only coupling
 - **Binds:** FR-7, FR-8, FR-8b, FR-14
 - **Prevents:** Physics done in screen space against rotated walls, or two different notions of "down".
-- **Rule:** Ball position and velocity live in maze coordinates. Gravity in maze coordinates is `g·(−sinθ, cosθ)` (screen-down expressed in the maze frame), computed from the same `sincos` output the renderer uses. The renderer maps each screen pixel to maze coordinates by rotating about the screen centre. The ball is drawn as a circle in screen space (its screen position is the rotated maze position), so it always looks round. No centrifugal, Coriolis or moving-wall effects are modelled (FR-8b).
+- **Rule:** Ball position and velocity live in maze coordinates. Gravity in maze coordinates is `g·(sinθ, cosθ)` (screen-down expressed in the maze frame; this is the direction implied by `render.v`'s screen-to-maze mapping `maze_x = 168 + dx·cos + dy·sin`, `maze_y = 168 − dx·sin + dy·cos`, corrected from `(−sinθ, cosθ)` in Story 3.1), computed from the same `sincos` output the renderer uses. The renderer maps each screen pixel to maze coordinates by rotating about the screen centre. The ball is drawn as a circle in screen space (its screen position is the rotated maze position), so it always looks round. No centrifugal, Coriolis or moving-wall effects are modelled (FR-8b).
 
 ### AD-4 — Fixed-point formats live in one package file
 - **Binds:** FR-10, FR-11, FR-13, NFR-5

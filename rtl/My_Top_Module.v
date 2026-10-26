@@ -330,6 +330,49 @@ module top #(
         .rdata_r (maze_rdata_r)
     );
 
+    // Ball (Story 3.1). ball_physics moves the ball once per frame; ball_overlay
+    // turns its maze position into a screen position and draws the disc.
+    // game_ctrl (Story 1.4) places the ball on the start tile when PLAY
+    // begins (phys_init) and enables gravity only in PLAY (phys_en).
+    wire signed [17:0] ball_x, ball_y;
+    wire signed [11:0] ball_vx, ball_vy;
+    wire        phys_done;
+    wire signed [10:0] ball_sx, ball_sy;
+    wire        ball_on;
+
+    ball_physics ball_i (
+        .clk        (clk),
+        .rst        (rst),
+        .frame_tick (frame_tick),
+        .phys_init  (phys_init),
+        .phys_en    (phys_en),
+        .start_col  (start_col),
+        .start_row  (start_row),
+        .sin_q      (sin_q),
+        .cos_q      (cos_q),
+        .ball_x     (ball_x),
+        .ball_y     (ball_y),
+        .vel_x      (ball_vx),
+        .vel_y      (ball_vy),
+        .phys_done  (phys_done)
+    );
+
+    ball_overlay ball_ov_i (
+        .clk          (clk),
+        .rst          (rst),
+        .start        (phys_done),
+        .ball_x       (ball_x),
+        .ball_y       (ball_y),
+        .sin_q        (sin_q),
+        .cos_q        (cos_q),
+        .pixel_x      (pixel_x),
+        .pixel_y      (pixel_y),
+        .active_video (active_video),
+        .ball_sx      (ball_sx),
+        .ball_sy      (ball_sy),
+        .ball_on      (ball_on)
+    );
+
     wire [3:0] render_r;
     wire [3:0] render_g;
     wire [3:0] render_b;
@@ -353,6 +396,7 @@ module top #(
         .start_row    (start_row),
         .goal_col     (goal_col),
         .goal_row     (goal_row),
+        .ball_on      (ball_on),
         .vga_r        (render_r),
         .vga_g        (render_g),
         .vga_b        (render_b),

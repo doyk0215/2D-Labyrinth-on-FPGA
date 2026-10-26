@@ -35,7 +35,7 @@ module tb_rotated_render;
         .active_video(active_video), .hsync_in(hsync_in), .vsync_in(vsync_in),
         .maze_raddr(maze_raddr), .maze_rdata(maze_rdata),
         .start_col(5'd1), .start_row(5'd1),
-        .goal_col(5'd1), .goal_row(5'd19),
+        .goal_col(5'd1), .goal_row(5'd19), .ball_on(1'b0),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs)
     );

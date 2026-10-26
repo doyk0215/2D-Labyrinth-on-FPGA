@@ -59,6 +59,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Ball physics (A)**
 - Inputs: `phys_init` (pulse: place ball at start tile, zero velocity), `phys_en` (level: PLAY state), `frame_tick`, `angle`, `sin_q`, `cos_q`, `restitution_sel[1:0]`, `start_col/row`, `goal_col/row`, maze read port 1
 - Outputs: `ball_x[17:0]`, `ball_y[17:0]` (signed Q9.8, maze pixels from the maze centre), `in_goal` (level), `phys_done` (pulse; must occur inside the blanking interval, NFR2)
+- Story 3.1 as built: `ball_physics` takes `sin_q`/`cos_q` (not `angle`), has no maze port or `restitution_sel` yet (Story 3.2), and also outputs `vel_x`/`vel_y` (Q4.8). Gravity is `g·(sin, cos)` in the maze frame with `g = 0.25 px/frame²` (`GRAV_SHIFT = 8`). Until walls exist the ball stops at the map edge. `ball_overlay` (new) turns the maze position into a screen position and a per-pixel `ball_on`, which `render` draws (new input `ball_on`, one clock behind `pixel_x/y` like render's own flags).
 
 **Game control (B)**
 - `game_state[1:0]`: 0 MENU, 1 GENERATE, 2 PLAY, 3 WIN
