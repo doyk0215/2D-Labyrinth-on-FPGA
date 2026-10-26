@@ -53,9 +53,9 @@ So that I can see that mazes differ and the flow is controlled by one state mach
 ## Implementation and Verification Results
 
 - Story 1.4 focused Vivado 2025.2 benches pass: maze generation/seed capture, `game_ctrl`, and top-level regeneration/render-gating integration.
-- The current-stories Vivado regression passes, including the existing Story 1.1-1.3 and Story 2.1/2.2 simulation benches.
+- After integrating the fetched `origin/main` update (including Story 2.3), `tb/run_current_stories.tcl` passes the combined regression, including Story 1.4 controller/top integration and the existing VGA, maze, mouse, rotation, and ROM benches.
 - Vivado synthesis, implementation, DRC, and bitstream generation complete successfully. Routed timing reports WNS 0.642 ns and WHS 0.071 ns, with no failing setup or hold endpoints. DRC reports zero checks found.
-- Generated bitstream: `vivado/labyrinth.runs/impl_1/top.bit` (2,192,127 bytes).
+- A bitstream was generated before integrating the later `origin/main` Story 2.3 updates. The combined branch has passed simulation; rerun synthesis/implementation on the merged branch before programming hardware.
 - Vivado reports an existing XDC pin lookup warning for the OLED divider signal, which is not part of the current top-level design. The warning does not prevent bitstream generation.
 - Physical Basys 3 testing of this updated top-level design remains pending; verify startup display and BTND regeneration on hardware before marking the story done.
 
