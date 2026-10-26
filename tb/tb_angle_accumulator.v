@@ -14,8 +14,7 @@ module tb_angle_accumulator;
 
     angle_accumulator dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick),
-        .rot_cmd(rot_cmd), .snap_mode(1'b0), .rot_held(1'b0),
-        .angle(angle)
+        .rot_cmd(rot_cmd), .angle(angle)
     );
 
     task step_frame;

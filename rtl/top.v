@@ -3,12 +3,9 @@
 // Integration top: mouse/board buttons turn the generated maze on VGA.
 //   sw[0]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = maze size in cells (2..10); 0 selects 10
-//   sw[5]   = 90-degree snap fallback (off = smooth rotation)
 //   btnD    = regenerate; a maze is also generated when btnC is released
 //   Any of btnU/L/R/D latches the random seed (first press only).
-module top #(
-    parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000  // 10 ms at 100 MHz
-) (
+module top (
     input  wire       clk,
     input  wire       btnC,
     input  wire       btnU,
@@ -68,12 +65,6 @@ module top #(
     reg mouse_connected = 1'b0;
     reg [25:0] mouse_event_timer = 26'd0;
     wire signed [1:0] rot_cmd;
-    wire signed [1:0] angle_rot_cmd;
-    wire rot_held;
-    wire snap_left, snap_right;
-    wire btnL_snap, btnR_snap;
-    (* ASYNC_REG = "TRUE" *) reg [1:0] snap_sw_sync = 2'b00;
-    wire snap_mode = snap_sw_sync[1];
     wire [11:0] angle;
     wire signed [15:0] sin_q;
     wire signed [15:0] cos_q;
@@ -133,24 +124,6 @@ module top #(
         .btn_right       (btnR_sync[1]),
         .rot_cmd         (rot_cmd)
     );
-    // Debounce board buttons only for the one-shot fallback. The original
-    // synchronized button levels still drive the unchanged smooth path.
-    snap_button_debounce #(.STABLE_CYCLES(SNAP_DEBOUNCE_CYCLES)) snap_l_i (
-        .clk(clk), .rst(rst), .level_in(btnL_sync[1]), .level_out(btnL_snap)
-    );
-    snap_button_debounce #(.STABLE_CYCLES(SNAP_DEBOUNCE_CYCLES)) snap_r_i (
-        .clk(clk), .rst(rst), .level_in(btnR_sync[1]), .level_out(btnR_snap)
-    );
-    // A held PS/2 button remains asserted even when packet activity times out.
-    // Match input_mux: mouse and board buttons may both drive snap mode.
-    assign snap_left = mouse_left | btnL_snap;
-    assign snap_right = mouse_right | btnR_snap;
-    assign rot_held = snap_left | snap_right;
-    assign angle_rot_cmd = !snap_mode ? rot_cmd :
-                           (snap_left && !snap_right) ? -2'sd1 :
-                           (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
-    always @(posedge clk)
-        snap_sw_sync <= {snap_sw_sync[0], sw[5]};
 
     // Synchronise the buttons, then turn them into one-cycle pulses.
     reg [2:0] btnD_s = 3'b000;
@@ -191,9 +164,7 @@ module top #(
         .clk        (clk),
         .rst        (rst),
         .frame_tick (frame_tick),
-        .rot_cmd    (angle_rot_cmd),
-        .snap_mode  (snap_mode),
-        .rot_held   (rot_held),
+        .rot_cmd    (rot_cmd),
         .angle      (angle)
     );
 
@@ -284,30 +255,4 @@ module top #(
     assign oled_vbatc = 1'b1;
     assign oled_vddc = 1'b1;
 
-endmodule
-
-// Requires a continuous level for STABLE_CYCLES before accepting either
-// edge. This prevents mechanical contact bounce from producing extra snaps.
-module snap_button_debounce #(
-    parameter integer STABLE_CYCLES = 1_000_000
-) (
-    input  wire clk,
-    input  wire rst,
-    input  wire level_in,
-    output reg  level_out = 1'b0
-);
-    reg [19:0] stable_count = 20'd0;
-    always @(posedge clk) begin
-        if (rst) begin
-            level_out <= 1'b0;
-            stable_count <= 20'd0;
-        end else if (level_in == level_out) begin
-            stable_count <= 20'd0;
-        end else if (stable_count == STABLE_CYCLES - 1) begin
-            level_out <= level_in;
-            stable_count <= 20'd0;
-        end else begin
-            stable_count <= stable_count + 1'b1;
-        end
-    end
 endmodule
