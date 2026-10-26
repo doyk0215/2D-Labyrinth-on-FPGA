@@ -67,9 +67,9 @@ module top (
     wire signed [1:0] rot_cmd;
 
     // MouseCtl wraps Ps2Interface, which drives the PS/2 lines open-drain
-    // (low or high impedance). Keep connection status asserted after the
-    // first complete packet, and fall back to board buttons after 500 ms
-    // without a packet.
+    // (low or high impedance). mouse_connected only means "a packet arrived
+    // in the last 500 ms" and drives a debug LED; it does not gate rotation,
+    // because a button held still sends no packets (see input_mux).
     MouseCtl mouse_controller (
         .clk       (clk),
         .rst       (rst),
@@ -115,7 +115,6 @@ module top (
     end
 
     input_mux input_mux_i (
-        .mouse_connected (mouse_connected),
         .mouse_left      (mouse_left),
         .mouse_right     (mouse_right),
         .btn_left        (btnL_sync[1]),
@@ -219,11 +218,12 @@ module top (
     );
 
     // LED[1:0] show the signed rotation command; LED[2] = generating and
-    // LED[3] = a maze has been generated. Keep the OLED idle. The
+    // LED[3] = a maze has been generated. Mouse debug: LED[4] = a packet in the
+    // last 500 ms, LED[5] = mouse left, LED[6] = mouse right. Keep the OLED idle. The
     // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
     // so drive them high (off) until the OLED driver (Story 4.1) applies
     // the manual's power-up sequence.
-    assign led = {12'b0, gen_done_seen, gen_busy, rot_cmd};
+    assign led = {9'b0, mouse_right, mouse_left, mouse_connected, gen_done_seen, gen_busy, rot_cmd};
     assign oled_cs = 1'b1;
     assign oled_mosi = 1'b0;
     assign oled_sclk = 1'b0;
