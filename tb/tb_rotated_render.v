@@ -25,7 +25,7 @@ module tb_rotated_render;
     sincos_rom trig_i (.clk(clk), .angle(angle), .sin_q(sin_q), .cos_q(cos_q));
     maze_ram ram_i (
         .clk(clk), .we(1'b0), .waddr(9'd0), .wdata(1'b0),
-        .raddr_p(9'd0), .rdata_p(), .raddr_r(maze_raddr),
+        .raddr_p(9'd0), .rdata_p(), .ren_r(1'b1), .raddr_r(maze_raddr),
         .rdata_r(maze_rdata)
     );
     render dut (

@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-// Integration top: mouse/board buttons turn the generated maze on VGA.
+// Integration top: game_ctrl sequences generation/play, and the renderer is
+// held off while maze_gen writes the single map; rotation supports the SW5
+// snap fallback as well as the smooth mouse/button path.
 //   sw[0]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = maze size in cells (2..10); 0 selects 10
 //   sw[5]   = 90-degree snap fallback (off = smooth rotation)
@@ -57,6 +59,14 @@ module top #(
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
+    wire [1:0]  game_state;
+    wire        gen_start;
+    wire        seed_capture;
+    wire        phys_init;
+    wire        phys_en;
+    wire        render_enable;
+    reg         render_enable_d = 1'b0;
+    reg         active_video_d = 1'b0;
 
     wire mouse_left;
     wire mouse_right;
@@ -152,20 +162,43 @@ module top #(
     always @(posedge clk)
         snap_sw_sync <= {snap_sw_sync[0], sw[5]};
 
-    // Synchronise the buttons, then turn them into one-cycle pulses.
+    // Synchronize BTND and convert its rising edge into a one-cycle request.
+    (* ASYNC_REG = "TRUE" *)
     reg [2:0] btnD_s = 3'b000;
-    reg [2:0] btnAny_s = 3'b000;
-    reg       rst_d = 1'b1;
-    wire any_btn = btnU | btnL | btnR | btnD;
     always @(posedge clk) begin
-        btnD_s   <= {btnD_s[1:0], btnD};
-        btnAny_s <= {btnAny_s[1:0], any_btn};
-        rst_d    <= rst;
+        btnD_s <= {btnD_s[1:0], btnD};
     end
-    wire regen     = btnD_s[1] & ~btnD_s[2];
-    wire latch_en  = btnAny_s[1] & ~btnAny_s[2];
-    wire gen_start = (rst_d & ~rst) | regen;
+    wire regen_request = btnD_s[1] & ~btnD_s[2];
     wire [3:0] n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
+
+    assign render_enable = (game_state == 2'b10); // PLAY
+
+    game_ctrl game_ctrl_i (
+        .clk          (clk),
+        .rst          (rst),
+        .frame_tick   (frame_tick),
+        .start_game   (1'b0),
+        .regen_button (regen_request),
+        .gen_busy     (gen_busy),
+        .gen_done     (gen_done),
+        .in_goal      (1'b0),
+        .game_state   (game_state),
+        .gen_start    (gen_start),
+        .seed_capture (seed_capture),
+        .phys_init    (phys_init),
+        .phys_en      (phys_en)
+    );
+
+    // Align the display mask with render's one-cycle pixel pipeline.
+    always @(posedge clk) begin
+        if (rst) begin
+            render_enable_d <= 1'b0;
+            active_video_d  <= 1'b0;
+        end else begin
+            render_enable_d <= render_enable;
+            active_video_d  <= active_video;
+        end
+    end
 
     reg gen_done_seen = 1'b0;
     always @(posedge clk) begin
@@ -208,7 +241,7 @@ module top #(
         .clk         (clk),
         .rst         (rst),
         .debug_fixed (sw[0]),
-        .latch_en    (latch_en),
+        .latch_en    (seed_capture),
         .seed        (seed)
     );
 
@@ -237,11 +270,16 @@ module top #(
         .we      (maze_we),
         .waddr   (maze_waddr),
         .wdata   (maze_wdata),
+        .ren_r   (render_enable),
         .raddr_p (maze_raddr_p),
         .rdata_p (maze_rdata_p),
         .raddr_r (maze_raddr_r),
         .rdata_r (maze_rdata_r)
     );
+
+    wire [3:0] render_r;
+    wire [3:0] render_g;
+    wire [3:0] render_b;
 
     render render_i (
         .clk          (clk),
@@ -262,12 +300,17 @@ module top #(
         .start_row    (start_row),
         .goal_col     (goal_col),
         .goal_row     (goal_row),
-        .vga_r        (vga_r),
-        .vga_g        (vga_g),
-        .vga_b        (vga_b),
+        .vga_r        (render_r),
+        .vga_g        (render_g),
+        .vga_b        (render_b),
         .vga_hs       (vga_hs),
         .vga_vs       (vga_vs)
     );
+
+    // Do not present stale or partially written map pixels during GENERATE.
+    assign vga_r = render_enable_d ? render_r : (active_video_d ? 4'h0 : 4'h0);
+    assign vga_g = render_enable_d ? render_g : (active_video_d ? 4'h0 : 4'h0);
+    assign vga_b = render_enable_d ? render_b : (active_video_d ? 4'h2 : 4'h0);
 
     // LED[1:0] show the signed rotation command; LED[2] = generating and
     // LED[3] = a maze has been generated. Mouse debug: LED[4] = a packet in the

@@ -1,4 +1,5 @@
-# Compile the current RTL and run benches through Story 2.4 with Vivado 2025.2.
+# Compile the current RTL through Story 2.4, including Story 1.4 integration,
+# with Vivado Simulator 2025.2.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
     set script_path [file join [pwd] $script_path]
@@ -37,6 +38,8 @@ foreach {top snapshot marker} {
     tb_rotated_render rotated_render_snapshot "PASS: rotated renderer"
     tb_top_rotation top_rotation_snapshot "PASS: top rotation command"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
+    tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
+    tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     ps2_mouse_tb ps2_mouse_snapshot "PASS ps2_mouse_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
@@ -65,4 +68,4 @@ foreach {top snapshot marker} {
     }
 }
 
-puts "PASS regression for current RTL through Story 2.4"
+puts "PASS regression for current RTL through Story 2.4, including Story 1.4"

@@ -191,7 +191,7 @@ module tb_maze_gen;
         run_gen2(2, 0, 32'h0000_0042);
         run_gen2(2, 1, 32'h0000_0043);
 
-        // 6) seed_source: fixed seed, counter seed, latch on first input only
+        // 6) seed_source: fixed seed, changing counter, fresh capture per run
         ss_dbg = 1'b1; #1;
         if (ss_seed !== 32'hC0FFEE01) begin errors = errors + 1; $display("FAIL: fixed seed wrong"); end
         ss_dbg = 1'b0;
@@ -203,8 +203,10 @@ module tb_maze_gen;
         repeat (20) @(posedge clk);
         if (ss_seed !== snap1) begin errors = errors + 1; $display("FAIL: seed not held after latch"); end
         @(negedge clk); ss_latch = 1'b1; @(negedge clk); ss_latch = 1'b0;
+        snap2 = ss_seed;
+        if (snap2 === snap1) begin errors = errors + 1; $display("FAIL: later generation did not capture a fresh seed"); end
         repeat (3) @(posedge clk);
-        if (ss_seed !== snap1) begin errors = errors + 1; $display("FAIL: second input changed the latched seed"); end
+        if (ss_seed !== snap2) begin errors = errors + 1; $display("FAIL: fresh seed was not held for its generation"); end
 
         $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), done pulses: %0d",
                  runs, max_cycles, max_cycles / 100, done_pulses);
