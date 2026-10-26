@@ -46,6 +46,9 @@ foreach {top snapshot marker} {
     tb_sincos_rom sincos_snapshot "PASS: sincos_rom matches the model"
     tb_angle_accumulator angle_snapshot "PASS: angle_accumulator"
     tb_snap_rotation snap_rotation_snapshot "PASS: snap rotation"
+    tb_ball_physics ball_physics_snapshot "PASS: ball_physics"
+    tb_ball_overlay ball_overlay_snapshot "PASS: ball_overlay"
+    tb_top_ball top_ball_snapshot "PASS: top ball"
 } {
     puts "Elaborating $top..."
     if {[catch {exec xelab -debug typical -top $top -snapshot $snapshot 2>@1} output]} {

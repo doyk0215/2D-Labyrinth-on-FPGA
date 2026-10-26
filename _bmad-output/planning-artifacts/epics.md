@@ -324,7 +324,7 @@ So that the maze behaves like a tilting game.
 
 **Given** the ball at the start tile, with position in Q9.8 and velocity in Q4.8 in maze coordinates (AD-3, AD-4)
 **When** a frame arrives
-**Then** velocity changes by gravity `g·(−sinθ, cosθ)` and the position changes by velocity, in the blanking interval (FR8, FR9, FR10, FR14)
+**Then** velocity changes by gravity `g·(sinθ, cosθ)` (screen-down in the maze frame, matching `render.v`; corrected from `(−sinθ, cosθ)`) and the position changes by velocity, in the blanking interval (FR8, FR9, FR10, FR14)
 
 **Given** the maze is rotated while the ball moves
 **When** the ball is drawn
