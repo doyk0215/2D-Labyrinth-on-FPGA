@@ -264,7 +264,7 @@ So that rotation feels continuous.
 **When** the next frame arrives
 **Then** the angle stays exactly where it stopped (FR6)
 
-**Given** `sincos_rom`, a 256-entry quarter-wave table in Q1.14 with symmetry
+**Given** `sincos_rom`, a 2048-entry half-wave table in Q1.14 with symmetry, in one block RAM
 **When** its testbench compares 4096 angles with a software model
 **Then** the maximum error is within the agreed tolerance (to be stated in the testbench)
 

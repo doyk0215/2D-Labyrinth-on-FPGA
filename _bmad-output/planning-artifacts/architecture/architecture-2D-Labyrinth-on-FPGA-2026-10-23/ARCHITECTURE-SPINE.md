@@ -67,7 +67,7 @@ Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`)
 - **Prevents:** Modules disagreeing on scaling and silently overflowing.
 - **Rule:** All widths and scales are `localparam`/`define`s in `labyrinth_pkg.vh`, and no module hard-codes its own.
   - Angle: 12-bit unsigned, 4096 = 360°.
-  - Trig: signed Q1.14, from a 256-entry quarter-wave table (about 4 Kb of ROM) with symmetry.
+  - Trig: signed Q1.14, from a 2048-entry half-wave table (about 30 Kb, one block RAM tile) with symmetry; one synchronous read per output, one clock of latency.
   - Positions: signed Q9.8 in maze pixels, relative to the maze centre. Velocities: signed Q4.8 in px/frame.
   - Tile: 16 px. Tile map: 21×21 bits (10×10 cells plus walls), 1 = wall.
   - Ball radius: 5 px. Speed cap: 7 px/frame per axis (Q4.8 cannot represent 8), so that a 16 px wall can never be skipped.
@@ -110,7 +110,7 @@ Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`)
 | DSP48 | 90 | ≤ 8 (no per-pixel DSP) |
 | Clocking | 5 tiles | 0 used (board clock only) |
 
-Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table about 4 Kb; OLED font about 6 Kb and text buffer 64 bytes. Total is far below one block RAM tile. No Vivado IP cores are used, so everything stays in plain Verilog.
+Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table about 30 Kb in one block RAM tile (kept out of LUTs so the angle-to-trig path meets 100 MHz); OLED font about 6 Kb and text buffer 64 bytes. Apart from the trig tile, the total is far below one block RAM tile. No Vivado IP cores are used, so everything stays in plain Verilog.
 
 ### AD-9 — Input abstraction: a rotation command, not raw devices
 - **Binds:** FR-5, FR-6, FR-19
@@ -166,7 +166,7 @@ rtl/
   top.v                # pin-level wiring, synchronizers, clock enables
   vga_timing.v         # counters, syncs, frame_tick
   render.v             # affine walk + maze lookup + ball + colour
-  sincos_rom.v         # quarter-wave table
+  sincos_rom.v         # half-wave table in one block RAM
   game_ctrl.v          # state FSM: MENU, GENERATE, PLAY, WIN
   ball_physics.v       # gravity, move, collide, goal test
   maze_gen.v           # iterative DFS, LFSR

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Generate rtl/sincos_rom.v: a 257-entry quarter-wave table in Q1.14.
+"""Generate rtl/sincos_rom.v: a half-wave 2048-entry sine table in Q1.14.
 
-Table entry T[i] = round(16384 * sin(i * (pi/2) / 256)) for i = 0..256
-(T[256] = 16384 = 1.0). Entry 257 repeats 256 so the interpolation never
-reads past the table. Usage: python3 scripts/gen_sincos_table.py > rtl/sincos_rom.v
+Table entry T[a] = floor(16384 * sin(2*pi*a/4096) + 0.5) for a = 0..2047,
+the same rounding tb_sincos_rom uses for its model. The second half-turn
+uses sin(a + 2048) = -sin(a), and cosine reads a quarter turn ahead.
+Usage: python3 scripts/gen_sincos_table.py > rtl/sincos_rom.v
 """
 import math
 
-N = 256
-tbl = [round(16384 * math.sin(i * (math.pi / 2) / N)) for i in range(N + 1)]
-tbl.append(tbl[-1])
+N = 4096
+tbl = [math.floor(16384 * math.sin(2 * math.pi * a / N) + 0.5) for a in range(N // 2)]
 
 print("""`timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
@@ -19,60 +19,45 @@ print("""`timescale 1ns / 1ps
 // sincos_rom: sin and cos of a 12-bit angle (4096 steps = 360 degrees).
 //   angle 0 -> sin = 0, cos = +1.0;   angle 1024 -> sin = +1.0, cos = 0.
 //   Outputs are signed Q1.14 (+1.0 = 16384), one clock of latency.
-// A 257-entry quarter-wave table plus 2-bit linear interpolation keeps the
-// error within +/-2 LSB (checked for all 4096 angles by tb_sincos_rom).
+// A half-wave 2048-entry table, one synchronous block RAM read per output.
+// Synthesis builds one table copy per read, each 2048 x 16 (one 36 Kb tile).
+// cos(a) = sin(a + 1024) and sin(a + 2048) = -sin(a), so only a sign flip
+// follows the block RAM; there is no interpolation or quadrant mux.
 module sincos_rom (
     input  wire                         clk,
     input  wire [`ANGLE_W-1:0]          angle,
-    output reg  signed [`TRIG_W-1:0]    sin_q,
-    output reg  signed [`TRIG_W-1:0]    cos_q
+    output wire signed [`TRIG_W-1:0]    sin_q,
+    output wire signed [`TRIG_W-1:0]    cos_q
 );
 
-    // Quarter-wave table, i = 0..256 (+ one repeated guard entry).
-    function [15:0] tbl;
-        input [8:0] i;
-        begin
-            case (i)""")
-for i, v in enumerate(tbl):
-    print(f"                9'd{i}: tbl = 16'd{v};")
-print("""                default: tbl = 16'd16384;
-            endcase
-        end
-    endfunction
+    (* rom_style = "block" *)
+    reg [`TRIG_W-2:0] sin_tbl [0:(1 << (`ANGLE_W - 1)) - 1];
 
-    // f(x) = sin(x * (pi/2) / 1024) for x = 0..1024, interpolated: 4 steps
-    // of x per table entry.
-    function signed [16:0] f;
-        input [10:0] x;
-        reg [8:0]  idx;
-        reg [1:0]  frac;
-        reg signed [16:0] t0, t1, d, prod;
-        begin
-            idx  = x[10:2];
-            frac = x[1:0];
-            t0   = {1'b0, tbl(idx)};
-            t1   = {1'b0, tbl(idx + 9'd1)};
-            d    = t1 - t0;
-            prod = d * $signed({1'b0, frac});
-            f    = t0 + ((prod + 17'sd2) >>> 2);
-        end
-    endfunction
+    // angle + 1024 flips bit 10 and carries into the sign bit. keep stops
+    // synthesis folding this into a second, 4096-deep table.
+    (* keep = "true" *)
+    wire [`ANGLE_W-2:0] cos_addr = {~angle[`ANGLE_W-2], angle[`ANGLE_W-3:0]};
+    wire                cos_sign = angle[`ANGLE_W-1] ^ angle[`ANGLE_W-2];
 
-    wire [1:0]  quad = angle[`ANGLE_W-1:`ANGLE_W-2];
-    wire [9:0]  q    = angle[9:0];
-    wire [10:0] xa   = {1'b0, q};             // x for f(q)
-    wire [10:0] xb   = 11'd1024 - {1'b0, q};  // x for f(1024 - q)
-
-    wire signed [16:0] fa = f(xa);
-    wire signed [16:0] fb = f(xb);
+    reg [`TRIG_W-2:0] sin_mag, cos_mag;
+    reg               sin_neg, cos_neg;
 
     always @(posedge clk) begin
-        case (quad)
-            2'd0: begin sin_q <=  fa[15:0]; cos_q <=  fb[15:0]; end
-            2'd1: begin sin_q <=  fb[15:0]; cos_q <= -fa[15:0]; end
-            2'd2: begin sin_q <= -fa[15:0]; cos_q <= -fb[15:0]; end
-            default: begin sin_q <= -fb[15:0]; cos_q <=  fa[15:0]; end
-        endcase
+        sin_mag <= sin_tbl[angle[`ANGLE_W-2:0]];
+        sin_neg <= angle[`ANGLE_W-1];
     end
+
+    always @(posedge clk) begin
+        cos_mag <= sin_tbl[cos_addr];
+        cos_neg <= cos_sign;
+    end
+
+    assign sin_q = sin_neg ? -$signed({1'b0, sin_mag}) : $signed({1'b0, sin_mag});
+    assign cos_q = cos_neg ? -$signed({1'b0, cos_mag}) : $signed({1'b0, cos_mag});
+
+    initial begin""")
+for a, v in enumerate(tbl):
+    print(f"        sin_tbl[{a}] = 15'd{v};")
+print("""    end
 
 endmodule""")
