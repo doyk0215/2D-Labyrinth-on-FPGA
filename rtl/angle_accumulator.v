@@ -24,16 +24,22 @@ module angle_accumulator (
     wire phase_carry = (phase_sum >= PHASE_MODULUS);
     wire [`ANGLE_W-1:0] angle_step = phase_carry ? 12'd18 : 12'd17;
 
-    // A complete press queues one step. rot_held distinguishes "both pressed"
+    // Each complete press contributes one step. rot_held distinguishes "both pressed"
     // from "neither pressed", since input_mux reports zero for both cases.
     reg press_active;
     reg press_valid;
     reg signed [1:0] press_dir;
-    reg signed [1:0] pending_dir;
+    reg pending_valid;
+    reg [`ANGLE_W-1:0] pending_angle;
     wire valid_cmd = (rot_cmd == `ROT_CW) || (rot_cmd == `ROT_CCW);
-    wire [1:0] cw_quadrant = angle[11:10] + 2'd1;
-    wire [1:0] ccw_quadrant = angle[11:10] -
-                               ((angle[9:0] == 10'd0) ? 2'd1 : 2'd0);
+    // Fold releases into the pending destination in order. This handles any
+    // number of clicks per frame without a bounded queue; full turns wrap.
+    // Using the destination also preserves directional rounding when the first
+    // snap starts from a fractional angle inherited from smooth mode.
+    wire [`ANGLE_W-1:0] snap_origin = pending_valid ? pending_angle : angle;
+    wire [1:0] cw_quadrant = snap_origin[11:10] + 2'd1;
+    wire [1:0] ccw_quadrant = snap_origin[11:10] -
+                               ((snap_origin[9:0] == 10'd0) ? 2'd1 : 2'd0);
 
     always @(posedge clk) begin
         if (rst) begin
@@ -42,21 +48,26 @@ module angle_accumulator (
             press_active <= 1'b0;
             press_valid <= 1'b0;
             press_dir <= `ROT_NONE;
-            pending_dir <= `ROT_NONE;
+            pending_valid <= 1'b0;
+            pending_angle <= {`ANGLE_W{1'b0}};
         end else if (snap_mode) begin
-            // Consume a queued release only at frame start so the renderer
+            // Consume accumulated releases only at frame start so the renderer
             // and later physics observe the same stable angle for a frame.
-            if (frame_tick && pending_dir != `ROT_NONE) begin
-                if (pending_dir == `ROT_CW)
-                    angle <= {cw_quadrant, 10'b0};
-                else
-                    angle <= {ccw_quadrant, 10'b0};
-                pending_dir <= `ROT_NONE;
+            if (frame_tick && pending_valid) begin
+                angle <= pending_angle;
+                pending_valid <= 1'b0;
             end
 
             if (!rot_held) begin
-                if (press_active && press_valid)
-                    pending_dir <= press_dir;
+                if (press_active && press_valid) begin
+                    if (press_dir == `ROT_CW)
+                        pending_angle <= {cw_quadrant, 10'b0};
+                    else
+                        pending_angle <= {ccw_quadrant, 10'b0};
+                    // A release on frame_tick extends the destination just
+                    // consumed and remains pending for the following frame.
+                    pending_valid <= 1'b1;
+                end
                 press_active <= 1'b0;
                 press_valid <= 1'b0;
             end else if (!press_active) begin
@@ -70,7 +81,7 @@ module angle_accumulator (
         end else begin
             press_active <= 1'b0;
             press_valid <= 1'b0;
-            pending_dir <= `ROT_NONE;
+            pending_valid <= 1'b0;
             if (frame_tick) begin
                 case (rot_cmd)
                     `ROT_CW: begin

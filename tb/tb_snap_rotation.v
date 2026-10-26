@@ -20,7 +20,7 @@ module tb_snap_rotation;
     );
 
     task fail;
-        input [255:0] message;
+        input [511:0] message;
         begin
             $display("FAIL tb_snap_rotation: %0s (angle=%0d)", message, angle);
             $finish;
@@ -122,7 +122,65 @@ module tb_snap_rotation;
         step_frame;
         if (angle !== 12'd3072) fail("sub-frame press was lost");
 
-        $display("PASS: snap rotation press/release, quadrant wrap, mode switch, and smooth fallback");
+        // Multiple completed clicks before a frame must all contribute.
+        press_release(`ROT_CW);
+        press_release(`ROT_CW);
+        if (angle !== 12'd3072) fail("two clicks moved between frames");
+        step_frame;
+        if (angle !== 12'd1024) fail("two clockwise clicks were not accumulated");
+        press_release(`ROT_CCW);
+        press_release(`ROT_CCW);
+        step_frame;
+        if (angle !== 12'd3072) fail("two counterclockwise clicks were lost");
+        for (i = 0; i < 4; i = i + 1) press_release(`ROT_CW);
+        step_frame;
+        if (angle !== 12'd3072) fail("four clicks did not wrap a full turn");
+
+        // Order matters at a fractional angle: CW then CCW reaches zero,
+        // while CCW then CW reaches 90 degrees. A net direction count loses it.
+        @(negedge clk); rst = 1'b1;
+        @(negedge clk); rst = 1'b0; snap_mode = 1'b0;
+        rot_cmd = `ROT_CW;
+        step_frame;
+        rot_cmd = `ROT_NONE; snap_mode = 1'b1;
+        press_release(`ROT_CW);
+        press_release(`ROT_CCW);
+        step_frame;
+        if (angle !== 12'd0) fail("CW then CCW lost fractional-angle ordering");
+        snap_mode = 1'b0; rot_cmd = `ROT_CW;
+        step_frame;
+        rot_cmd = `ROT_NONE; snap_mode = 1'b1;
+        press_release(`ROT_CCW);
+        press_release(`ROT_CW);
+        step_frame;
+        if (angle !== 12'd1024) fail("CCW then CW lost fractional-angle ordering");
+
+        // Consume one batch while another release arrives on the same edge.
+        press_release(`ROT_CW);
+        @(negedge clk); rot_cmd = `ROT_CW; rot_held = 1'b1;
+        repeat (3) @(negedge clk);
+        rot_cmd = `ROT_NONE; rot_held = 1'b0; frame_tick = 1'b1;
+        @(negedge clk); frame_tick = 1'b0;
+        if (angle !== 12'd2048) fail("frame did not consume older clicks");
+        step_frame;
+        if (angle !== 12'd3072) fail("release on frame boundary was lost");
+        step_frame;
+        if (angle !== 12'd3072) fail("pending clicks repeated after consumption");
+
+        // Changing mode or resetting discards unconsumed clicks.
+        press_release(`ROT_CW);
+        snap_mode = 1'b0;
+        repeat (2) @(negedge clk);
+        snap_mode = 1'b1;
+        step_frame;
+        if (angle !== 12'd3072) fail("mode switch retained pending clicks");
+        press_release(`ROT_CW);
+        @(negedge clk); rst = 1'b1;
+        @(negedge clk); rst = 1'b0;
+        step_frame;
+        if (angle !== 12'd0) fail("reset retained pending clicks");
+
+        $display("PASS: snap rotation press/release, ordered pending clicks, frame boundary, wrap, and mode switch");
         $finish;
     end
 endmodule
