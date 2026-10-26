@@ -9,6 +9,7 @@ module maze_ram (
     input  wire       wdata,
     input  wire [8:0] raddr_p,
     output reg        rdata_p,
+    input  wire       ren_r,
     input  wire [8:0] raddr_r,
     output reg        rdata_r
 );
@@ -49,7 +50,10 @@ module maze_ram (
         if (we)
             tile_mem[waddr] <= wdata;
         rdata_p <= tile_mem[raddr_p];
-        rdata_r <= tile_mem[raddr_r];
+        // Hold the render port during GENERATE so the renderer cannot sample
+        // a partially written map (Story 1.4).
+        if (ren_r)
+            rdata_r <= tile_mem[raddr_r];
     end
 
 endmodule

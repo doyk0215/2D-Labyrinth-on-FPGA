@@ -79,6 +79,8 @@ module tb_render;
 
         // Generation starts when reset is released and takes about 11 us.
         wait (dut.gen_done_seen === 1'b1);
+        // Story 1.4 holds the renderer off until the frame-boundary handoff.
+        wait (dut.game_state === 2'b10); // PLAY
         repeat (2) @(posedge clk);
 
         if (dut.start_col !== 5'd1 || dut.start_row !== 5'd1 ||

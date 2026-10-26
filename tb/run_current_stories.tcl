@@ -1,4 +1,4 @@
-# Compile the current RTL and run benches for Stories 1.1-1.3 and 2.1, plus
+# Compile the current RTL and run benches for Stories 1.1-1.4 and 2.1, plus
 # the merged sine/cosine ROM from Story 2.2, with Vivado Simulator 2025.2.
 set repo_root [file normalize [file join [file dirname [info script]] ..]]
 set rtl_dir [file join $repo_root rtl]
@@ -31,6 +31,8 @@ foreach {top snapshot marker} {
     tb_vga_timing vga_timing_snapshot "PASS: 800x525 totals"
     tb_render render_snapshot "PASS: generated maze"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
+    tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
+    tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     ps2_mouse_tb ps2_mouse_snapshot "PASS ps2_mouse_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
@@ -57,4 +59,4 @@ foreach {top snapshot marker} {
     }
 }
 
-puts "PASS regression for current RTL: Stories 1.1-1.3, 2.1, and sincos_rom"
+puts "PASS regression for current RTL: Stories 1.1-1.4, 2.1, and sincos_rom"
