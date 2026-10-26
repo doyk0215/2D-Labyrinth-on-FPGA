@@ -72,7 +72,7 @@ module tb_top_rotation;
         btnR = 1'b1;
         @(negedge clk); btnR = 1'b0;
         repeat (6) @(negedge clk);
-        if (dut.btnR_snap !== 1'b0 || dut.angle_i.pending_dir !== 2'b00) begin
+        if (dut.btnR_snap !== 1'b0 || dut.angle_i.pending_valid !== 1'b0) begin
             $display("FAIL top rotation: button bounce queued a snap");
             $finish;
         end
@@ -119,21 +119,30 @@ module tb_top_rotation;
         force dut.mouse_connected = 1'b0;
         repeat (4) @(negedge clk);
         if (dut.rot_held !== 1'b1 || dut.angle_rot_cmd !== 2'sd1 ||
-            dut.angle_i.pending_dir !== 2'sd0) begin
+            dut.angle_i.pending_valid !== 1'b0) begin
             $display("FAIL top rotation: mouse packet timeout ended snap hold");
             $finish;
         end
         force dut.mouse_right = 1'b0;
         repeat (3) @(negedge clk);
-        if (dut.angle_i.pending_dir !== 2'sd1) begin
+        if (dut.angle_i.pending_valid !== 1'b1 || dut.angle_i.pending_angle !== 12'd2048) begin
             $display("FAIL top rotation: mouse release did not queue snap");
+            $finish;
+        end
+        // Complete a second mouse click before the next VGA frame.
+        force dut.mouse_right = 1'b1;
+        repeat (3) @(negedge clk);
+        force dut.mouse_right = 1'b0;
+        repeat (3) @(negedge clk);
+        if (dut.angle !== 12'd1041 || dut.angle_i.pending_angle !== 12'd3072) begin
+            $display("FAIL top rotation: two mouse clicks did not accumulate before frame");
             $finish;
         end
         wait (dut.frame_tick === 1'b1);
         repeat (5) @(posedge clk);
         #1;
-        if (dut.angle !== 12'd2048) begin
-            $display("FAIL top rotation: mouse release did not snap to 180 degrees");
+        if (dut.angle !== 12'd3072 || dut.render_i.angle_snap !== 12'd3072) begin
+            $display("FAIL top rotation: two mouse clicks did not reach 270 degrees");
             $finish;
         end
         release dut.mouse_right;
