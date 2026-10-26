@@ -23,6 +23,7 @@ module render (
     input  wire [4:0]        start_row,
     input  wire [4:0]        goal_col,
     input  wire [4:0]        goal_row,
+    input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
     output reg  [3:0]        vga_r,
     output reg  [3:0]        vga_g,
     output reg  [3:0]        vga_b,
@@ -37,6 +38,7 @@ module render (
     localparam [3:0] START_R = 4'h0, START_G = 4'hf, START_B = 4'h0;
     localparam [3:0] GOAL_R = 4'hf, GOAL_G = 4'h0, GOAL_B = 4'h0;
     localparam [3:0] BACK_R = 4'h0, BACK_G = 4'h0, BACK_B = 4'h2;
+    localparam [3:0] BALL_R = 4'hf, BALL_G = 4'hc, BALL_B = 4'h0;
 
     reg [1:0] frame_tick_d;
     reg [11:0] angle_snap;
@@ -139,7 +141,9 @@ module render (
         vga_g = 4'h0;
         vga_b = 4'h0;
         if (active_video_d) begin
-            if (in_map_d) begin
+            if (ball_on) begin
+                vga_r = BALL_R; vga_g = BALL_G; vga_b = BALL_B;
+            end else if (in_map_d) begin
                 if (is_start_d) begin
                     vga_r = START_R; vga_g = START_G; vga_b = START_B;
                 end else if (is_goal_d) begin

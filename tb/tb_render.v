@@ -73,6 +73,9 @@ module tb_render;
     // maze is read back from maze_ram and every tile of the displayed map is
     // checked against it, so the test does not depend on which maze is made.
     initial begin
+        // This bench checks the maze picture only. Hide the ball, which sits on
+        // the start tile once PLAY begins (Story 3.1 has its own ball tests).
+        force dut.ball_on = 1'b0;
         repeat (3) @(posedge clk);
         @(negedge clk);
         rst = 1'b0;
