@@ -22,7 +22,7 @@ module tb_render;
 
     always #5 clk = ~clk;
 
-    top dut (
+    top #(.START_IN_MENU(1'b0), .POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
         .clk        (clk),
         .btnC       (rst),
         .btnU       (1'b0),

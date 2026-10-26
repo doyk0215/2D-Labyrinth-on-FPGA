@@ -163,7 +163,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 ```text
 rtl/
   labyrinth_pkg.vh     # all widths, scales, constants (AD-4)
-  top.v                # pin-level wiring, synchronizers, clock enables
+  My_Top_Module.v                # pin-level wiring, synchronizers, clock enables
   vga_timing.v         # counters, syncs, frame_tick
   render.v             # affine walk + maze lookup + ball + colour
   sincos_rom.v         # half-wave table in one block RAM

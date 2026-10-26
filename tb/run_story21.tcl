@@ -9,6 +9,8 @@ set vhdl_sources [list \
     [file join $rtl_dir Ps2Interface.vhd] \
     [file join $rtl_dir Mouse_Control.vhd]]
 set sources [list \
+    [file join $rtl_dir angle_accumulator.v] \
+    [file join $rtl_dir sincos_rom.v] \
     [file join $rtl_dir vga_timing.v] \
     [file join $rtl_dir maze_gen.v] \
     [file join $rtl_dir maze_ram.v] \
@@ -16,7 +18,13 @@ set sources [list \
     [file join $rtl_dir seed_source.v] \
     [file join $rtl_dir ps2_mouse.v] \
     [file join $rtl_dir input_mux.v] \
-    [file join $rtl_dir top.v] \
+    [file join $rtl_dir menu_ctrl.v] \
+    [file join $rtl_dir oled_clk_div.v] \
+    [file join $rtl_dir oled_xy.v] \
+    [file join $rtl_dir font_rom.v] \
+    [file join $rtl_dir oled_text_pixel.v] \
+    [file join $rtl_dir Oled_Display.v] \
+    [file join $rtl_dir My_Top_Module.v] \
     [file join $repo_root tb ps2_mouse_tb.v] \
     [file join $repo_root tb input_mux_tb.v] \
     [file join $repo_root tb tb_top_story21_integration.v]]
@@ -44,7 +52,7 @@ foreach {top snapshot marker} {
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
 } {
     puts "Elaborating $top..."
-    if {[catch {exec xelab -debug typical -top $top -snapshot $snapshot 2>@1} elaborate_output]} {
+    if {[catch {exec xelab -debug typical -L unisims_ver -top $top -snapshot $snapshot 2>@1} elaborate_output]} {
         puts $elaborate_output
         error "xelab failed for $top"
     }

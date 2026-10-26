@@ -1,8 +1,8 @@
 ## Basys 3 constraints for the 2D Labyrinth game (XC7A35T-1CPG236C).
-## Owner: CJX (top.v and this file). Pins taken from the Digilent Basys 3 master XDC --
+## Owner: CJX (My_Top_Module.v and this file). Pins taken from the Digilent Basys 3 master XDC --
 ## CHECK every pin against Digilent's official Basys3_Master.xdc before first use.
-## Port names below are the top-level port names top.v must use.
-## Until top.v exists, Vivado warns that these ports are not found; that is expected.
+## Port names below are the top-level port names My_Top_Module.v must use.
+## Until My_Top_Module.v exists, Vivado warns that these ports are not found; that is expected.
 
 ## Clock (100 MHz)
 set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS33 } [get_ports clk]

@@ -19,6 +19,7 @@ module tb_game_ctrl;
     wire seed_capture;
     wire phys_init;
     wire phys_en;
+    wire [7:0] active_game_cfg;
 
     integer errors = 0;
     integer start_count = 0;
@@ -32,6 +33,7 @@ module tb_game_ctrl;
         .rst          (rst),
         .frame_tick   (frame_tick),
         .start_game   (start_game),
+        .game_cfg     (8'hA5),
         .regen_button (regen_button),
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
@@ -40,6 +42,7 @@ module tb_game_ctrl;
         .gen_start    (gen_start),
         .seed_capture (seed_capture),
         .phys_init    (phys_init),
+        .active_game_cfg(active_game_cfg),
         .phys_en      (phys_en)
     );
 
@@ -107,6 +110,10 @@ module tb_game_ctrl;
         pulse_frame();
         @(negedge clk); start_game = 1'b0;
         wait_state(GENERATE);
+        if (active_game_cfg !== 8'hA5) begin
+            $display("FAIL: start configuration was not captured at frame handoff");
+            errors = errors + 1;
+        end
 
         wait (seed_capture === 1'b1);
         wait (gen_start === 1'b1);

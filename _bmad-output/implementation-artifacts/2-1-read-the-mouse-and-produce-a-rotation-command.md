@@ -46,19 +46,19 @@ So that I can steer the maze.
 
 ## Implementation Notes
 
-- `Ps2Interface` drives the PS/2 inout pins open-drain; the Basys 3 XDC enables pull-ups on C17/B17. Do not add a second PS/2 driver in `top.v`.
+- `Ps2Interface` drives the PS/2 inout pins open-drain; the Basys 3 XDC enables pull-ups on C17/B17. Do not add a second PS/2 driver in `My_Top_Module.v`.
 - Vivado 2025.2 passes `input_mux_tb` and `tb_top_story21_integration` with the VHDL mouse hierarchy elaborated. The existing `ps2_mouse_tb` remains a regression for the previous standalone Verilog implementation; it does not exercise the active `MouseCtl` path.
 - The prior FDP2026 `My_Top_Module` hardware build uses this same VHDL pair and has been confirmed to read the USB mouse. The updated Story 2.1 bitstream was also programmed onto the Basys 3 and physically verified: left click lights LEDs 0 and 1, and right click lights LED 0. The board-button controls and the other stories were also confirmed to work.
-- `top.v` synchronizes BTNL/BTNR, instantiates `MouseCtl` and `input_mux`, and derives `mouse_connected` from `new_event` with a 500 ms watchdog. LED[1:0] show `rot_cmd`; LED[3:2] retain maze-generation status.
+- `My_Top_Module.v` synchronizes BTNL/BTNR, instantiates `MouseCtl` and `input_mux`, and derives `mouse_connected` from `new_event` with a 500 ms watchdog. LED[1:0] show `rot_cmd`; LED[3:2] retain maze-generation status.
 
 ## Interface Contract
 
 Use the shared workstream contract and architecture spine:
 
 - Clock and reset: `clk` at 100 MHz and synchronous, active-high `rst`.
-- PS/2 clock/data are asynchronous to `clk`; `Ps2Interface` synchronizes/debounces them and handles open-drain output. `top.v` passes the board inout pins directly to `MouseCtl`.
+- PS/2 clock/data are asynchronous to `clk`; `Ps2Interface` synchronizes/debounces them and handles open-drain output. `My_Top_Module.v` passes the board inout pins directly to `MouseCtl`.
 - BTNL and BTNR are asynchronous board inputs and must be synchronized through two flip-flops at the top-level boundary before use by `input_mux`.
-- `MouseCtl` outputs persistent left/right button levels and a packet `new_event`; `top.v` adapts these to `mouse_connected` for `input_mux`.
+- `MouseCtl` outputs persistent left/right button levels and a packet `new_event`; `My_Top_Module.v` adapts these to `mouse_connected` for `input_mux`.
 - `input_mux` inputs mouse buttons, `connected`, BTNL and BTNR; output `rot_cmd[1:0]` as signed `-1`, `0`, or `+1` (`2'b11`, `2'b00`, `2'b01`).
 - `rot_cmd` is a level representing the currently held direction, not a pulse. The angle accumulator consumes it in Story 2.2.
 
