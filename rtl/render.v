@@ -28,7 +28,9 @@ module render (
     output reg  [3:0]        vga_g,
     output reg  [3:0]        vga_b,
     output reg               vga_hs,
-    output reg               vga_vs
+    output reg               vga_vs,
+    output reg  signed [15:0] sin_snap,     // this frame's sin/cos, for ball_overlay
+    output reg  signed [15:0] cos_snap
 );
 
     localparam signed [26:0] MAP_CENTRE_Q = 27'sd168 <<< 14;
@@ -42,7 +44,6 @@ module render (
 
     reg [1:0] frame_tick_d;
     reg [11:0] angle_snap;
-    reg signed [15:0] sin_snap, cos_snap;
     reg signed [26:0] walk_x_q, walk_y_q;
     reg signed [10:0] next_dy;
     reg signed [26:0] row_sin, row_cos;

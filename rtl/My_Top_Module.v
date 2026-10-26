@@ -137,6 +137,8 @@ module My_Top_Module #(
     wire [11:0] angle;
     wire signed [15:0] sin_q;
     wire signed [15:0] cos_q;
+    wire signed [15:0] sin_frame;   // render's per-frame snapshot of sin_q/cos_q
+    wire signed [15:0] cos_frame;
 
     // MouseCtl wraps Ps2Interface, which drives the PS/2 lines open-drain
     // (low or high impedance). mouse_connected only means "a packet arrived
@@ -363,8 +365,8 @@ module My_Top_Module #(
         .start        (phys_done),
         .ball_x       (ball_x),
         .ball_y       (ball_y),
-        .sin_q        (sin_q),
-        .cos_q        (cos_q),
+        .sin_q        (sin_frame),  // registered snapshot keeps the trig ROM off the DSP input path
+        .cos_q        (cos_frame),
         .pixel_x      (pixel_x),
         .pixel_y      (pixel_y),
         .active_video (active_video),
@@ -401,7 +403,9 @@ module My_Top_Module #(
         .vga_g        (render_g),
         .vga_b        (render_b),
         .vga_hs       (vga_hs),
-        .vga_vs       (vga_vs)
+        .vga_vs       (vga_vs),
+        .sin_snap     (sin_frame),
+        .cos_snap     (cos_frame)
     );
 
     // Do not present stale or partially written map pixels during GENERATE.
