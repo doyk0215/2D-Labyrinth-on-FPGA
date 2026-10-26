@@ -115,7 +115,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 ### AD-9 — Input abstraction: a rotation command, not raw devices
 - **Binds:** FR-5, FR-6, FR-19
 - **Prevents:** Game logic depending on PS/2 details, or a missing mouse blocking the demo.
-- **Rule:** `input_mux` outputs a single `rot_cmd` (−1, 0, +1). Left held = −1 (counter-clockwise), right held = +1 (clockwise), both or neither = 0. Source is the PS/2 mouse; the board buttons BTNL/BTNR give the same command as a fallback. `ps2_mouse` runs stream mode (sends enable `0xF4` after reset), decodes 3-byte packets, and exposes only the button bits and a `connected` flag. The Basys 3 USB-HID host can fail with some mice, so the fallback is part of the design.
+- **Rule:** `input_mux` outputs a single `rot_cmd` (−1, 0, +1). Left held = −1 (counter-clockwise), right held = +1 (clockwise), both or neither = 0. Either source rotates the maze: left = mouse left OR BTNL, right = mouse right OR BTNR (amended 2026-10-26: a packet-timeout "connected" switch dropped a mouse button held still, because a PS/2 mouse sends packets only when it moves or a button changes). `ps2_mouse` runs stream mode (sends enable `0xF4` after reset), decodes 3-byte packets, and exposes only the button bits and a `connected` flag. The Basys 3 USB-HID host can fail with some mice, so the fallback is part of the design.
 
 ### AD-10 — OLED is a text-only peripheral behind a buffer
 - **Binds:** FR-20..FR-26
