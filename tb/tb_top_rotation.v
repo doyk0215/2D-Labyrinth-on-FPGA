@@ -107,7 +107,39 @@ module tb_top_rotation;
             $finish;
         end
 
-        $display("PASS: top rotation command, smooth/snap modes, trig and frame snapshot");
+        // A stationary mouse hold outlasts mouse_connected's packet timeout.
+        // Snap mode must wait for the actual button release.
+        @(negedge clk); btnR = 1'b0;
+        repeat (8) @(negedge clk);
+        sw[5] = 1'b1;
+        repeat (4) @(negedge clk);
+        force dut.mouse_right = 1'b1;
+        force dut.mouse_connected = 1'b1;
+        repeat (4) @(negedge clk);
+        force dut.mouse_connected = 1'b0;
+        repeat (4) @(negedge clk);
+        if (dut.rot_held !== 1'b1 || dut.angle_rot_cmd !== 2'sd1 ||
+            dut.angle_i.pending_dir !== 2'sd0) begin
+            $display("FAIL top rotation: mouse packet timeout ended snap hold");
+            $finish;
+        end
+        force dut.mouse_right = 1'b0;
+        repeat (3) @(negedge clk);
+        if (dut.angle_i.pending_dir !== 2'sd1) begin
+            $display("FAIL top rotation: mouse release did not queue snap");
+            $finish;
+        end
+        wait (dut.frame_tick === 1'b1);
+        repeat (5) @(posedge clk);
+        #1;
+        if (dut.angle !== 12'd2048) begin
+            $display("FAIL top rotation: mouse release did not snap to 180 degrees");
+            $finish;
+        end
+        release dut.mouse_right;
+        release dut.mouse_connected;
+
+        $display("PASS: top rotation command, smooth/snap modes, mouse hold, trig and frame snapshot");
         $finish;
     end
 endmodule

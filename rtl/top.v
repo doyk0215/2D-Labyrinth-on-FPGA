@@ -141,8 +141,10 @@ module top #(
     snap_button_debounce #(.STABLE_CYCLES(SNAP_DEBOUNCE_CYCLES)) snap_r_i (
         .clk(clk), .rst(rst), .level_in(btnR_sync[1]), .level_out(btnR_snap)
     );
-    assign snap_left = mouse_connected ? mouse_left : btnL_snap;
-    assign snap_right = mouse_connected ? mouse_right : btnR_snap;
+    // A held PS/2 button remains asserted even when packet activity times out.
+    // Match input_mux: mouse and board buttons may both drive snap mode.
+    assign snap_left = mouse_left | btnL_snap;
+    assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
     assign angle_rot_cmd = !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
