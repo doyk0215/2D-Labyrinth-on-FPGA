@@ -42,13 +42,22 @@ module render (
     reg [11:0] angle_snap;
     reg signed [15:0] sin_snap, cos_snap;
     reg signed [26:0] walk_x_q, walk_y_q;
+    reg signed [10:0] next_dy;
+    reg signed [26:0] row_sin, row_cos;
 
     wire signed [26:0] sin_ext = {{11{sin_snap[15]}}, sin_snap};
     wire signed [26:0] cos_ext = {{11{cos_snap[15]}}, cos_snap};
-    wire signed [10:0] next_dy = (pixel_y == 10'd524) ?
+    wire signed [10:0] next_dy_now = (pixel_y == 10'd524) ?
         -11'sd240 : $signed({1'b0, pixel_y}) - 11'sd239;
-    wire signed [26:0] row_sin = next_dy * sin_snap;
-    wire signed [26:0] row_cos = next_dy * cos_snap;
+
+    // pixel_y holds for a whole scanline and the snapshots change only in
+    // vertical blanking, so the row products are registered in two stages
+    // (dy, then the DSP product) long before the x=799 load uses them.
+    always @(posedge clk) begin
+        next_dy <= next_dy_now;
+        row_sin <= next_dy * sin_snap;
+        row_cos <= next_dy * cos_snap;
+    end
 
     // At x=0, dx=-320. Positive angle rotates clockwise on a screen whose
     // Y axis points down. Inverse-map screen (dx,dy) to maze pixels:
