@@ -11,6 +11,8 @@ module angle_accumulator (
     input  wire                    rst,
     input  wire                    frame_tick,
     input  wire signed [1:0]       rot_cmd,
+    input  wire                    snap_mode,
+    input  wire                    rot_held,
     output reg  [`ANGLE_W-1:0]     angle
 );
 
@@ -22,33 +24,77 @@ module angle_accumulator (
     wire phase_carry = (phase_sum >= PHASE_MODULUS);
     wire [`ANGLE_W-1:0] angle_step = phase_carry ? 12'd18 : 12'd17;
 
+    // A complete press queues one step. rot_held distinguishes "both pressed"
+    // from "neither pressed", since input_mux reports zero for both cases.
+    reg press_active;
+    reg press_valid;
+    reg signed [1:0] press_dir;
+    reg signed [1:0] pending_dir;
+    wire valid_cmd = (rot_cmd == `ROT_CW) || (rot_cmd == `ROT_CCW);
+    wire [1:0] cw_quadrant = angle[11:10] + 2'd1;
+    wire [1:0] ccw_quadrant = angle[11:10] -
+                               ((angle[9:0] == 10'd0) ? 2'd1 : 2'd0);
+
     always @(posedge clk) begin
         if (rst) begin
             angle <= {`ANGLE_W{1'b0}};
             phase_remainder <= 6'd0;
-        end else if (frame_tick) begin
-            case (rot_cmd)
-                `ROT_CW: begin
-                    angle <= angle + angle_step;
-                    if (phase_carry)
-                        phase_remainder <= phase_sum - PHASE_MODULUS;
-                    else
-                        phase_remainder <= phase_sum[5:0];
-                end
-                `ROT_CCW: begin
-                    angle <= angle - angle_step;
-                    if (phase_carry)
-                        phase_remainder <= phase_sum - PHASE_MODULUS;
-                    else
-                        phase_remainder <= phase_sum[5:0];
-                end
-                default: begin
-                    // Both buttons, no buttons, or an invalid command means
-                    // hold. Keep the fractional phase frozen while stopped.
-                    angle <= angle;
-                    phase_remainder <= phase_remainder;
-                end
-            endcase
+            press_active <= 1'b0;
+            press_valid <= 1'b0;
+            press_dir <= `ROT_NONE;
+            pending_dir <= `ROT_NONE;
+        end else if (snap_mode) begin
+            // Consume a queued release only at frame start so the renderer
+            // and later physics observe the same stable angle for a frame.
+            if (frame_tick && pending_dir != `ROT_NONE) begin
+                if (pending_dir == `ROT_CW)
+                    angle <= {cw_quadrant, 10'b0};
+                else
+                    angle <= {ccw_quadrant, 10'b0};
+                pending_dir <= `ROT_NONE;
+            end
+
+            if (!rot_held) begin
+                if (press_active && press_valid)
+                    pending_dir <= press_dir;
+                press_active <= 1'b0;
+                press_valid <= 1'b0;
+            end else if (!press_active) begin
+                press_active <= 1'b1;
+                press_valid <= valid_cmd;
+                press_dir <= rot_cmd;
+            end else if (rot_cmd != press_dir) begin
+                // A simultaneous/opposite press cancels this gesture.
+                press_valid <= 1'b0;
+            end
+        end else begin
+            press_active <= 1'b0;
+            press_valid <= 1'b0;
+            pending_dir <= `ROT_NONE;
+            if (frame_tick) begin
+                case (rot_cmd)
+                    `ROT_CW: begin
+                        angle <= angle + angle_step;
+                        if (phase_carry)
+                            phase_remainder <= phase_sum - PHASE_MODULUS;
+                        else
+                            phase_remainder <= phase_sum[5:0];
+                    end
+                    `ROT_CCW: begin
+                        angle <= angle - angle_step;
+                        if (phase_carry)
+                            phase_remainder <= phase_sum - PHASE_MODULUS;
+                        else
+                            phase_remainder <= phase_sum[5:0];
+                    end
+                    default: begin
+                        // Both buttons, no buttons, or an invalid command
+                        // hold the angle and the fractional phase.
+                        angle <= angle;
+                        phase_remainder <= phase_remainder;
+                    end
+                endcase
+            end
         end
     end
 

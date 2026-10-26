@@ -1,4 +1,4 @@
-# Compile the current RTL and run benches through Story 2.3 with Vivado 2025.2.
+# Compile the current RTL and run benches through Story 2.4 with Vivado 2025.2.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
     set script_path [file join [pwd] $script_path]
@@ -42,6 +42,7 @@ foreach {top snapshot marker} {
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
     tb_sincos_rom sincos_snapshot "PASS: sincos_rom matches the model"
     tb_angle_accumulator angle_snapshot "PASS: angle_accumulator"
+    tb_snap_rotation snap_rotation_snapshot "PASS: snap rotation"
 } {
     puts "Elaborating $top..."
     if {[catch {exec xelab -debug typical -top $top -snapshot $snapshot 2>@1} output]} {
@@ -64,4 +65,4 @@ foreach {top snapshot marker} {
     }
 }
 
-puts "PASS regression for current RTL through Story 2.3"
+puts "PASS regression for current RTL through Story 2.4"
