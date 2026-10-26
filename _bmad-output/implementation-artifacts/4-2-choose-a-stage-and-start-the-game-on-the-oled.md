@@ -123,7 +123,7 @@ top and gates game start on stage confirmation.
 - [x] Add `tb/tb_menu_ctrl.v`, a top-level Story 4.2 integration bench, and a
       Story 4.2 Vivado runner; include the supported regression coverage.
 - [x] Run the current-stories regression and build the Basys 3 bitstream.
-- [ ] Request and pass the OLED/menu hardware check.
+- [x] Request and pass the OLED/menu hardware check.
 
 ## Prerequisite Check
 
@@ -157,5 +157,6 @@ top and gates game start on stage confirmation.
   `vivado/labyrinth.runs/impl_1/top.bit`. Routed timing reports zero failing
   setup and hold endpoints (worst setup slack 0.483 ns; worst hold slack
   0.085 ns).
-- Physical Basys 3 OLED/menu check is still pending with DY; keep this story
-  `in-progress` until the board behavior is confirmed.
+- Physical Basys 3 OLED/menu hardware check passed, as reported by QZ on
+  2026-10-26. The story remains `in-progress` until PR #40 is reviewed and
+  merged.
