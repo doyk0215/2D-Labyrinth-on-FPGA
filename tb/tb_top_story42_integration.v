@@ -20,7 +20,7 @@ module tb_top_story42_integration;
 
     always #5 clk = ~clk;
 
-    top #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
+    My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnL(1'b0), .btnR(1'b0),
         .btnD(btnD), .sw(16'h0001), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),

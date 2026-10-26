@@ -14,7 +14,7 @@ module tb_top_rotation;
     wire oled_vbatc, oled_vddc;
     always #5 clk = ~clk;
 
-    top #(.SNAP_DEBOUNCE_CYCLES(3), .MENU_DEBOUNCE_CYCLES(3), .POR_CYCLES(4)) dut (
+    My_Top_Module #(.SNAP_DEBOUNCE_CYCLES(3), .MENU_DEBOUNCE_CYCLES(3), .POR_CYCLES(4)) dut (
         .clk(clk), .btnC(rst), .btnU(1'b0), .btnL(1'b0),
         .btnR(btnR), .btnD(1'b0), .sw(sw), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),

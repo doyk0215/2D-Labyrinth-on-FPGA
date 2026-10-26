@@ -21,7 +21,7 @@ module tb_top_story14_integration;
 
     always #5 clk = ~clk;
 
-    top #(.START_IN_MENU(1'b0), .POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
+    My_Top_Module #(.START_IN_MENU(1'b0), .POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
         .clk        (clk),
         .btnC       (btnC),
         .btnU       (1'b0),

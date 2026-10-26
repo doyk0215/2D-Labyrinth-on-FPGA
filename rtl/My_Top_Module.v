@@ -10,7 +10,7 @@
 //   btnC    = confirm in MENU; return to MENU from other states
 //   btnD    = regenerate while playing
 //   Any of btnU/L/R/D latches the random seed (first press only).
-module top #(
+module My_Top_Module #(
     parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer MENU_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz

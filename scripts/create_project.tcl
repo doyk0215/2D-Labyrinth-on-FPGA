@@ -16,7 +16,7 @@ add_files -norecurse $hdr
 set_property file_type {Verilog Header} [get_files $hdr]
 set_property include_dirs [list [file join $repo rtl]] [get_filesets sources_1]
 set_property target_language Verilog [current_project]
-set_property top top [get_filesets sources_1]
+set_property top My_Top_Module [get_filesets sources_1]
 
 # Constraints
 add_files -fileset constrs_1 -norecurse [file join $repo constraints basys3.xdc]

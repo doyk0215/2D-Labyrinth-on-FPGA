@@ -154,9 +154,12 @@ top and gates game start on stage confirmation.
   unit and top-level integration coverage. Story 4.1 OLED colour-pattern and
   text-frame simulations both pass.
 - Basys 3 bitstream generated at
-  `vivado/labyrinth.runs/impl_1/top.bit`. Routed timing reports zero failing
-  setup and hold endpoints (worst setup slack 0.483 ns; worst hold slack
-  0.085 ns).
+  `vivado/labyrinth.runs/impl_1/My_Top_Module.bit`. The post-rename routed timing
+  report shows zero failing setup and hold endpoints (worst setup slack
+  0.183 ns; worst hold slack 0.074 ns).
 - Physical Basys 3 OLED/menu behavior passed with the Pmod OLED on header JB,
   as reported by QZ on 2026-10-26. The story remains `in-progress` until PR #40
   is reviewed and merged.
+- After renaming the HDL module to `My_Top_Module`, Vivado 2025.2 current-stories
+  regression and both OLED display modes passed on 2026-10-27. Synthesis,
+  implementation, DRC, and bitstream generation also completed with zero errors.
