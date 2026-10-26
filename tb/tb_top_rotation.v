@@ -5,6 +5,7 @@ module tb_top_rotation;
     reg clk = 1'b0;
     reg rst = 1'b1;
     reg btnR = 1'b0;
+    reg [15:0] sw = 16'h0001;
     wire [15:0] led;
     wire [3:0] vga_r, vga_g, vga_b;
     wire vga_hs, vga_vs;
@@ -13,9 +14,9 @@ module tb_top_rotation;
     wire oled_vbatc, oled_vddc;
     always #5 clk = ~clk;
 
-    top dut (
+    top #(.SNAP_DEBOUNCE_CYCLES(3)) dut (
         .clk(clk), .btnC(rst), .btnU(1'b0), .btnL(1'b0),
-        .btnR(btnR), .btnD(1'b0), .sw(16'h0001), .led(led),
+        .btnR(btnR), .btnD(1'b0), .sw(sw), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data),
@@ -63,7 +64,50 @@ module tb_top_rotation;
             $finish;
         end
 
-        $display("PASS: top rotation command, angle accumulator, trig and frame snapshot");
+        // SW5 selects the fallback. A complete board-button press moves the
+        // same angle/sine/cosine pipeline to the next quadrant on a frame.
+        @(negedge clk); sw[5] = 1'b1;
+        repeat (4) @(negedge clk);
+        // A short board-button bounce is ignored by the snap-only debouncer.
+        btnR = 1'b1;
+        @(negedge clk); btnR = 1'b0;
+        repeat (6) @(negedge clk);
+        if (dut.btnR_snap !== 1'b0 || dut.angle_i.pending_dir !== 2'b00) begin
+            $display("FAIL top rotation: button bounce queued a snap");
+            $finish;
+        end
+        btnR = 1'b1;
+        repeat (8) @(negedge clk);
+        if (dut.angle !== 12'd17) begin
+            $display("FAIL top rotation: snap mode moved before release");
+            $finish;
+        end
+        btnR = 1'b0;
+        @(negedge clk); btnR = 1'b1;
+        @(negedge clk); btnR = 1'b0;
+        repeat (8) @(negedge clk);
+        wait (dut.frame_tick === 1'b1);
+        repeat (5) @(posedge clk);
+        #1;
+        if (dut.angle !== 12'd1024 || dut.render_i.angle_snap !== 12'd1024 ||
+            dut.render_i.sin_snap !== dut.trig_i.sin_q ||
+            dut.render_i.cos_snap !== dut.trig_i.cos_q) begin
+            $display("FAIL top rotation: SW5 snap did not reach 90 degrees");
+            $finish;
+        end
+
+        // Returning to smooth mode continues from 90 degrees.
+        @(negedge clk); sw[5] = 1'b0; btnR = 1'b1;
+        repeat (8) @(negedge clk);
+        wait (dut.frame_tick === 1'b1);
+        repeat (5) @(posedge clk);
+        #1;
+        if (dut.angle !== 12'd1041 || dut.render_i.angle_snap !== 12'd1041) begin
+            $display("FAIL top rotation: smooth mode did not resume from snap angle");
+            $finish;
+        end
+
+        $display("PASS: top rotation command, smooth/snap modes, trig and frame snapshot");
         $finish;
     end
 endmodule
