@@ -100,7 +100,25 @@ module tb_top_story21_integration;
             $finish;
         end
 
-        $display("PASS top Story 2.1 integration: fallback controls, LEDs, and open-drain startup");
+        // Regression (mouse hold bug): a mouse button held still sends no
+        // packets, so mouse_connected times out. Rotation must continue.
+        // Emulate it by forcing the MouseCtl button output and the timeout.
+        force dut.mouse_left = 1'b1;
+        force dut.mouse_connected = 1'b0;
+        check_rotation_leds(2'b11);
+        repeat (1000) @(posedge clk);
+        check_rotation_leds(2'b11);
+        if (led[5] !== 1'b1 || led[4] !== 1'b0) begin
+            $display("FAIL: mouse debug LEDs expected left=1 recent=0, got left=%b recent=%b", led[5], led[4]);
+            $finish;
+        end
+        release dut.mouse_left;
+        force dut.mouse_left = 1'b0;
+        check_rotation_leds(2'b00);
+        release dut.mouse_left;
+        release dut.mouse_connected;
+
+        $display("PASS top Story 2.1 integration: fallback controls, LEDs, held mouse button, and open-drain startup");
         $finish;
     end
 endmodule

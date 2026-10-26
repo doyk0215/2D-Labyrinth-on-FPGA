@@ -1,11 +1,16 @@
 `timescale 1ns / 1ps
 
-// Integration top (Stories 1.1-1.4): game_ctrl sequences generation/play,
-// and the renderer is held off while maze_gen writes the single map.
+// Integration top: game_ctrl sequences generation/play, and the renderer is
+// held off while maze_gen writes the single map; rotation supports the SW5
+// snap fallback as well as the smooth mouse/button path.
 //   sw[0]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = maze size in cells (2..10); 0 selects 10
-//   btnD    = regenerate while in PLAY
-module top (
+//   sw[5]   = 90-degree snap fallback (off = smooth rotation)
+//   btnD    = regenerate; a maze is also generated when btnC is released
+//   Any of btnU/L/R/D latches the random seed (first press only).
+module top #(
+    parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000  // 10 ms at 100 MHz
+) (
     input  wire       clk,
     input  wire       btnC,
     input  wire       btnU,
@@ -73,14 +78,20 @@ module top (
     reg mouse_connected = 1'b0;
     reg [25:0] mouse_event_timer = 26'd0;
     wire signed [1:0] rot_cmd;
+    wire signed [1:0] angle_rot_cmd;
+    wire rot_held;
+    wire snap_left, snap_right;
+    wire btnL_snap, btnR_snap;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] snap_sw_sync = 2'b00;
+    wire snap_mode = snap_sw_sync[1];
     wire [11:0] angle;
     wire signed [15:0] sin_q;
     wire signed [15:0] cos_q;
 
     // MouseCtl wraps Ps2Interface, which drives the PS/2 lines open-drain
-    // (low or high impedance). Keep connection status asserted after the
-    // first complete packet, and fall back to board buttons after 500 ms
-    // without a packet.
+    // (low or high impedance). mouse_connected only means "a packet arrived
+    // in the last 500 ms" and drives a debug LED; it does not gate rotation,
+    // because a button held still sends no packets (see input_mux).
     MouseCtl mouse_controller (
         .clk       (clk),
         .rst       (rst),
@@ -126,13 +137,30 @@ module top (
     end
 
     input_mux input_mux_i (
-        .mouse_connected (mouse_connected),
         .mouse_left      (mouse_left),
         .mouse_right     (mouse_right),
         .btn_left        (btnL_sync[1]),
         .btn_right       (btnR_sync[1]),
         .rot_cmd         (rot_cmd)
     );
+    // Debounce board buttons only for the one-shot fallback. The original
+    // synchronized button levels still drive the unchanged smooth path.
+    snap_button_debounce #(.STABLE_CYCLES(SNAP_DEBOUNCE_CYCLES)) snap_l_i (
+        .clk(clk), .rst(rst), .level_in(btnL_sync[1]), .level_out(btnL_snap)
+    );
+    snap_button_debounce #(.STABLE_CYCLES(SNAP_DEBOUNCE_CYCLES)) snap_r_i (
+        .clk(clk), .rst(rst), .level_in(btnR_sync[1]), .level_out(btnR_snap)
+    );
+    // A held PS/2 button remains asserted even when packet activity times out.
+    // Match input_mux: mouse and board buttons may both drive snap mode.
+    assign snap_left = mouse_left | btnL_snap;
+    assign snap_right = mouse_right | btnR_snap;
+    assign rot_held = snap_left | snap_right;
+    assign angle_rot_cmd = !snap_mode ? rot_cmd :
+                           (snap_left && !snap_right) ? -2'sd1 :
+                           (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
+    always @(posedge clk)
+        snap_sw_sync <= {snap_sw_sync[0], sw[5]};
 
     // Synchronize BTND and convert its rising edge into a one-cycle request.
     (* ASYNC_REG = "TRUE" *)
@@ -196,7 +224,9 @@ module top (
         .clk        (clk),
         .rst        (rst),
         .frame_tick (frame_tick),
-        .rot_cmd    (rot_cmd),
+        .rot_cmd    (angle_rot_cmd),
+        .snap_mode  (snap_mode),
+        .rot_held   (rot_held),
         .angle      (angle)
     );
 
@@ -283,11 +313,12 @@ module top (
     assign vga_b = render_enable_d ? render_b : (active_video_d ? 4'h2 : 4'h0);
 
     // LED[1:0] show the signed rotation command; LED[2] = generating and
-    // LED[3] = a maze has been generated. Keep the OLED idle. The
+    // LED[3] = a maze has been generated. Mouse debug: LED[4] = a packet in the
+    // last 500 ms, LED[5] = mouse left, LED[6] = mouse right. Keep the OLED idle. The
     // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
     // so drive them high (off) until the OLED driver (Story 4.1) applies
     // the manual's power-up sequence.
-    assign led = {12'b0, gen_done_seen, gen_busy, rot_cmd};
+    assign led = {9'b0, mouse_right, mouse_left, mouse_connected, gen_done_seen, gen_busy, rot_cmd};
     assign oled_cs = 1'b1;
     assign oled_mosi = 1'b0;
     assign oled_sclk = 1'b0;
@@ -296,4 +327,30 @@ module top (
     assign oled_vbatc = 1'b1;
     assign oled_vddc = 1'b1;
 
+endmodule
+
+// Requires a continuous level for STABLE_CYCLES before accepting either
+// edge. This prevents mechanical contact bounce from producing extra snaps.
+module snap_button_debounce #(
+    parameter integer STABLE_CYCLES = 1_000_000
+) (
+    input  wire clk,
+    input  wire rst,
+    input  wire level_in,
+    output reg  level_out = 1'b0
+);
+    reg [19:0] stable_count = 20'd0;
+    always @(posedge clk) begin
+        if (rst) begin
+            level_out <= 1'b0;
+            stable_count <= 20'd0;
+        end else if (level_in == level_out) begin
+            stable_count <= 20'd0;
+        end else if (stable_count == STABLE_CYCLES - 1) begin
+            level_out <= level_in;
+            stable_count <= 20'd0;
+        end else begin
+            stable_count <= stable_count + 1'b1;
+        end
+    end
 endmodule
