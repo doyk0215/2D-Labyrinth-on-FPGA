@@ -59,7 +59,7 @@ NFR5: Behaviour is reproducible: the same PRNG seed gives the same maze.
 - AD-1: No framebuffer; pixels are computed in the beam (line buffer at most 640×12 bits).
 - AD-2: Single 100 MHz clock domain; `ce_pix` is a 1-in-4 enable; async inputs get two-flip-flop synchronizers; no derived clocks or MMCM.
 - AD-3: Physics in maze coordinates; gravity in maze frame from the same sincos as the renderer; ball drawn round in screen space.
-- AD-4: All fixed-point formats in `labyrinth_pkg.vh` (12-bit angle, Q1.14 trig with 256-entry quarter table, Q9.8 positions, Q4.8 velocities, 16 px tiles, 21×21 tile map, ball radius 5 px, speed cap 7 px/frame, shift-add restitution).
+- AD-4: All fixed-point formats in `labyrinth_pkg.vh` (12-bit angle, Q1.14 trig with 256-entry quarter table, Q9.8 positions, Q4.8 velocities, 16 px tiles, 21×21 tile map, ball radius 5 px, speed cap 5 px/frame per axis, shift-add restitution). Current physics tuning uses gravity 0.15 px/frame².
 - AD-5: Single writer per shared state (`maze_ram`: `maze_gen`; angle/ball: `game_ctrl` datapath; `game_cfg`/`status_text`: `menu_ctrl`).
 - AD-6: State changes only on `frame_tick` (start of vertical blanking); renderer reads latched snapshots.
 - AD-7: Incremental affine render walk (per-scanline setup, per-pixel adds, fixed latency, nearest-neighbour).
@@ -322,7 +322,7 @@ So that the maze behaves like a tilting game.
 
 **Acceptance Criteria:**
 
-**Given** the ball at the start tile, with position in Q9.8 and velocity in Q4.8 in maze coordinates (AD-3, AD-4)
+**Given** the ball at the red goal tile, with position in Q9.8 and velocity in Q4.8 in maze coordinates (AD-3, AD-4)
 **When** a frame arrives
 **Then** velocity changes by gravity `g·(sinθ, cosθ)` (screen-down in the maze frame, matching `render.v`; corrected from `(−sinθ, cosθ)`) and the position changes by velocity, in the blanking interval (FR8, FR9, FR10, FR14)
 
@@ -330,7 +330,7 @@ So that the maze behaves like a tilting game.
 **When** the ball is drawn
 **Then** it is a round circle of radius 5 px at the rotated screen position of its maze position
 
-**Given** the speed cap of 7 px per frame per axis (AD-4)
+**Given** the speed cap of 5 px per frame per axis (AD-4)
 **When** gravity acts for a long time
 **Then** no velocity component exceeds the cap
 **And** `ball_physics` is the only writer of ball state (AD-5)
@@ -371,7 +371,7 @@ So that the game has a point and can be replayed.
 
 **Given** WIN
 **When** a short pause (about 2 s) elapses
-**Then** a new maze is generated and the ball returns to the start (FR1)
+**Then** a new maze is generated and the ball returns to the red goal tile (FR1)
 
 **Given** the testbench with a scripted path
 **When** the ball is placed in the goal tile

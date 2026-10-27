@@ -334,7 +334,7 @@ module My_Top_Module #(
     // Ball (Stories 3.1, 3.2). ball_physics moves the ball once per frame and
     // bounces it off walls with the stage's restitution; ball_overlay turns its
     // maze position into a screen position and draws the disc.
-    // game_ctrl (Story 1.4) places the ball on the start tile when PLAY
+    // game_ctrl (Story 1.4) places the ball on the red goal tile when PLAY
     // begins (phys_init) and enables gravity only in PLAY (phys_en).
     wire signed [17:0] ball_x, ball_y;
     wire signed [11:0] ball_vx, ball_vy;
@@ -348,8 +348,8 @@ module My_Top_Module #(
         .frame_tick (frame_tick),
         .phys_init  (phys_init),
         .phys_en    (phys_en),
-        .start_col  (start_col),
-        .start_row  (start_row),
+        .spawn_col  (goal_col),
+        .spawn_row  (goal_row),
         .sin_q      (sin_q),
         .cos_q      (cos_q),
         .restitution_sel (active_game_cfg[5:4]),

@@ -20,8 +20,9 @@
 // ---- Ball velocity: signed Q4.8, pixels per frame ----
 `define VEL_W          12
 `define VEL_FRAC       8
-`define VEL_CAP        1792     // 7 px/frame * 256 (max representable is 7.996)
-`define GRAV_SHIFT      8        // gravity = trig >>> 8 = 0.25 px/frame^2 at full strength (sin/cos are Q1.14)
+`define VEL_CAP        1280     // 5 px/frame * 256 (max representable is 7.996)
+`define GRAVITY_Q14    2458     // round(0.15 * 2^14); average acceleration in px/frame^2
+`define GRAVITY_FRAC   20       // product Q2.28 -> velocity Q4.8 with carried fraction bits
 
 // ---- Maze geometry ----
 `define TILE_PX        16       // pixels per tile

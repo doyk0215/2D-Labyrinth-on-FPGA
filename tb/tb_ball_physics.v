@@ -2,9 +2,9 @@
 `include "labyrinth_pkg.vh"
 
 // Self-checking testbench for ball_physics (Stories 3.1 and 3.2).
-// Gravity is checked against a real-number model, g*(sin, cos) with g = 64
-// Q4.8 units (0.25 px/frame^2); free flight must follow the new velocity
-// exactly. Walls come from a real maze_ram loaded through its write port; the
+// Gravity is checked against a real-number model, g*(sin, cos) with g = 0.15
+// px/frame^2; carried fractional bits preserve the average. Free flight must
+// follow the new velocity exactly. Walls come from a real maze_ram loaded through its write port; the
 // bench keeps its own copy of the map to check that the ball's box (centre
 // +/- 5 px, right/bottom edge exclusive) never overlaps a wall tile.
 module tb_ball_physics;
@@ -14,7 +14,7 @@ module tb_ball_physics;
     reg frame_tick = 1'b0;
     reg phys_init = 1'b0;
     reg phys_en = 1'b1;
-    reg [4:0] start_col = 5'd11, start_row = 5'd11;
+    reg [4:0] spawn_col = 5'd11, spawn_row = 5'd11;
     reg signed [15:0] sin_q = 16'sd0, cos_q = 16'sd16384;
     reg [1:0] restit = 2'd0;
     wire signed [17:0] ball_x, ball_y;
@@ -37,13 +37,13 @@ module tb_ball_physics;
 
     ball_physics dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init), .phys_en(phys_en),
-        .start_col(start_col), .start_row(start_row), .sin_q(sin_q), .cos_q(cos_q),
+        .spawn_col(spawn_col), .spawn_row(spawn_row), .sin_q(sin_q), .cos_q(cos_q),
         .restitution_sel(restit), .maze_raddr(raddr_p), .maze_rdata(rdata_p),
         .ball_x(ball_x), .ball_y(ball_y), .vel_x(vel_x), .vel_y(vel_y), .phys_done(phys_done)
     );
 
     localparam real PI = 3.14159265358979323846;
-    localparam integer CAP = 1792;
+    localparam integer CAP = 1280;
     localparam integer OFF = 168 * 256;          // map centre, absolute maze pixels in Q9.8
     localparam integer R   = 5 * 256;
     localparam integer FLOOR_EDGE = 147 * 256;   // centre resting against the border wall of the open room
@@ -151,19 +151,20 @@ module tb_ball_physics;
     task do_init;
         input [4:0] c, r;
         begin
-            start_col = c; start_row = r;
+            spawn_col = c; spawn_row = r;
             @(negedge clk); phys_init = 1'b1;
             @(negedge clk); phys_init = 1'b0;
             repeat (3) @(posedge clk);
         end
     endtask
 
-    // Expected gravity step for the current sin/cos (real model, 64 * trig)
-    function integer exp_gx; input integer dummy; begin exp_gx = $rtoi($floor(64.0 * sin_q / 16384.0 + 0.5)); end endfunction
-    function integer exp_gy; input integer dummy; begin exp_gy = $rtoi($floor(64.0 * cos_q / 16384.0 + 0.5)); end endfunction
+    // Expected per-frame gravity increment; fractional carry may place an
+    // individual increment one LSB either side of this rounded model.
+    function integer exp_gx; input integer dummy; begin exp_gx = $rtoi($floor(38.4 * sin_q / 16384.0 + 0.5)); end endfunction
+    function integer exp_gy; input integer dummy; begin exp_gy = $rtoi($floor(38.4 * cos_q / 16384.0 + 0.5)); end endfunction
     function integer iabs; input integer v; begin iabs = (v < 0) ? -v : v; end endfunction
 
-    // Checks after every frame: cap, box clear of walls, step <= 7 px per axis
+    // Checks after every frame: cap, box clear of walls, step <= 5 px per axis
     // (a 16 px wall can then never be crossed). With free = 1, the step must
     // also match the gravity model exactly (only where no wall is in reach).
     task check_step;
@@ -180,7 +181,7 @@ module tb_ball_physics;
             end
             if (iabs(vel_x) > CAP || iabs(vel_y) > CAP) begin errors = errors + 1; $display("FAIL: velocity (%0d,%0d) beyond the cap %0d", vel_x, vel_y, CAP); end
             if (iabs(ball_x - prev_px) > CAP || iabs(ball_y - prev_py) > CAP) begin
-                errors = errors + 1; $display("FAIL: step (%0d,%0d) longer than 7 px", ball_x - prev_px, ball_y - prev_py);
+                errors = errors + 1; $display("FAIL: step (%0d,%0d) longer than 5 px", ball_x - prev_px, ball_y - prev_py);
             end
             if (box_hits_wall(ball_x, ball_y)) begin
                 errors = errors + 1; $display("FAIL: ball box at (%0d,%0d) overlaps a wall", ball_x, ball_y);
@@ -262,7 +263,9 @@ module tb_ball_physics;
         set_angle(0);
         for (i = 0; i < 6; i = i + 1) begin
             frame; check_step(1);
-            if (vel_y !== 64 * (i + 1) || vel_x !== 0) begin errors = errors + 1; $display("FAIL: angle 0 frame %0d: vel (%0d,%0d)", i, vel_x, vel_y); end
+            if (iabs(vel_y - $rtoi($floor(38.4 * (i + 1) + 0.5))) > 1 || vel_x !== 0) begin
+                errors = errors + 1; $display("FAIL: angle 0 frame %0d: vel (%0d,%0d)", i, vel_x, vel_y);
+            end
         end
         if (!(ball_y > 0 && ball_x == 0)) begin errors = errors + 1; $display("FAIL: ball did not fall straight down"); end
 
@@ -272,10 +275,10 @@ module tb_ball_physics;
             frame; check_step(1);
             gx_obs = vel_x; gy_obs = vel_y;
             case (a)
-                0:    if (!(gx_obs == 0   && gy_obs == 64))  begin errors = errors + 1; $display("FAIL: angle   0 -> g (%0d,%0d)", gx_obs, gy_obs); end
-                1024: if (!(gx_obs == 64  && gy_obs == 0))   begin errors = errors + 1; $display("FAIL: angle  90 -> g (%0d,%0d)", gx_obs, gy_obs); end
-                2048: if (!(gx_obs == 0   && gy_obs == -64)) begin errors = errors + 1; $display("FAIL: angle 180 -> g (%0d,%0d)", gx_obs, gy_obs); end
-                3072: if (!(gx_obs == -64 && gy_obs == 0))   begin errors = errors + 1; $display("FAIL: angle 270 -> g (%0d,%0d)", gx_obs, gy_obs); end
+                0:    if (iabs(gx_obs) > 1 || iabs(gy_obs - 38) > 1) begin errors = errors + 1; $display("FAIL: angle   0 -> g (%0d,%0d)", gx_obs, gy_obs); end
+                1024: if (iabs(gx_obs - 38) > 1 || iabs(gy_obs) > 1) begin errors = errors + 1; $display("FAIL: angle  90 -> g (%0d,%0d)", gx_obs, gy_obs); end
+                2048: if (iabs(gx_obs) > 1 || iabs(gy_obs + 38) > 1) begin errors = errors + 1; $display("FAIL: angle 180 -> g (%0d,%0d)", gx_obs, gy_obs); end
+                3072: if (iabs(gx_obs + 38) > 1 || iabs(gy_obs) > 1) begin errors = errors + 1; $display("FAIL: angle 270 -> g (%0d,%0d)", gx_obs, gy_obs); end
             endcase
         end
 
@@ -285,7 +288,7 @@ module tb_ball_physics;
             do_init(5'd10, 5'd10); set_angle(a);
             frame; check_step(1);
             mag = $sqrt(1.0 * vel_x * vel_x + 1.0 * vel_y * vel_y);
-            mag_err = $rtoi(mag + 0.5) - 64; if (mag_err < 0) mag_err = -mag_err;
+            mag_err = $rtoi(mag + 0.5) - 38; if (mag_err < 0) mag_err = -mag_err;
             if (mag_err > max_mag_err) max_mag_err = mag_err;
         end
         if (max_mag_err > 1) begin errors = errors + 1; $display("FAIL: gravity magnitude off by %0d", max_mag_err); end
@@ -309,8 +312,8 @@ module tb_ball_physics;
             frame; check_step(0);
             if (ball_y !== rest_y || ball_x !== 0) begin errors = errors + 1; $display("FAIL: resting ball moved to (%0d,%0d)", ball_x, ball_y); end
         end
-        if (rest_y !== FLOOR_EDGE || iabs(vel_y) >= 64) begin
-            errors = errors + 1; $display("FAIL: ball rests at y=%0d vel %0d, expected %0d and |vel| < 64", rest_y, vel_y, FLOOR_EDGE);
+        if (rest_y !== FLOOR_EDGE || iabs(vel_y) >= 40) begin
+            errors = errors + 1; $display("FAIL: ball rests at y=%0d vel %0d, expected %0d and |vel| < 40", rest_y, vel_y, FLOOR_EDGE);
         end
 
         // 7) rotating while moving: gravity follows the new angle at once
@@ -318,7 +321,7 @@ module tb_ball_physics;
         for (i = 0; i < 5; i = i + 1) frame;
         set_angle(2048);                      // upside down
         frame; check_step(1);
-        if (!(vel_y == 5 * 64 - 64)) begin errors = errors + 1; $display("FAIL: after the turn vel_y %0d, expected %0d", vel_y, 5 * 64 - 64); end
+        if (iabs(vel_y - 154) > 1) begin errors = errors + 1; $display("FAIL: after the turn vel_y %0d, expected about 154", vel_y); end
 
         // 8) phys_en = 0 holds the ball; a frame without PLAY changes nothing
         do_init(5'd10, 5'd10); set_angle(0);

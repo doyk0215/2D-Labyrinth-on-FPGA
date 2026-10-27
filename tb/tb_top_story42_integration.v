@@ -182,6 +182,12 @@ module tb_top_story42_integration;
             $display("FAIL: N=5 maze was not centred in the tile map");
             errors = errors + 1;
         end
+        repeat (4) @(posedge clk);
+        if (dut.ball_x !== 18'sd16384 || dut.ball_y !== 18'sd16384) begin
+            $display("FAIL: ball did not spawn on the red goal tile: pos=(%0d,%0d)",
+                     dut.ball_x, dut.ball_y);
+            errors = errors + 1;
+        end
 
         // The same debounced center button returns active play to the menu.
         press_button(2'd2);

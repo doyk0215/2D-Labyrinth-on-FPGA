@@ -20,7 +20,7 @@ context:
 
 ## Boundaries & Constraints
 
-**Always:** Ball box is the centre ±5 px (`BALL_RADIUS`). Restitution is shift-and-add on the magnitude, then the sign is reversed. Tiles outside 0..20 count as wall. The whole step runs in vertical blanking and ends with one `phys_done` pulse. `ball_physics` stays the only writer of ball state; it only reads `maze_ram`. Gravity, the 7 px/frame cap and placement behave as in Story 3.1.
+**Always:** Ball box is the centre ±5 px (`BALL_RADIUS`). Restitution is shift-and-add on the magnitude, then the sign is reversed. Tiles outside 0..20 count as wall. The whole step runs in vertical blanking and ends with one `phys_done` pulse. `ball_physics` stays the only writer of ball state; it only reads `maze_ram`. The requested tuning is gravity 0.15 px/frame² with fractional carry, a 5 px/frame per-axis cap, and spawn placement on the red goal tile.
 
 **Decision — restitution per `restitution_sel`:** 0 → 0.5 (`v>>1`, EASY), 1 → 0.75 (`(v>>1) + (v>>2)`, HARD; changed by the human from `v − (v>>2)` in review pass 1 so bounces of 1–3 LSB round down and die out), 2 → 0.625 (`(v>>1) + (v>>3)`), 3 → 0.375 (`(v>>2) + (v>>3)`). HARD is bouncier; 2 and 3 are spares for the Story 4.3 settings screen.
 
@@ -47,7 +47,7 @@ context:
 - `rtl/labyrinth_pkg.vh` -- `POS_*`, `VEL_*`, `VEL_CAP`, `TILE_PX`, `MAP_DIM`, `MAP_ADDR_W`, `BALL_RADIUS`, `RESTIT_SEL_W`; add any new constants here (AD-4).
 - `rtl/maze_gen.v` -- every tile outside the N-cell maze is written as wall, so the ball can never leave the maze.
 - `tb/tb_ball_physics.v` -- Story 3.1 bench; assumes no walls (map-edge `LIMIT`, a start at row 0). Must gain a `maze_ram` instance and map loader.
-- `tb/tb_top_ball.v` -- checks a long free fall from the start tile with the model `k(k+1)/8`; walls now interrupt it.
+- `tb/tb_top_ball.v` -- checks a long free fall from the red goal tile with the 0.15 px/frame² model; walls now interrupt it.
 - Geometry: maze pixel = Q9.8 position + 168 px; tile = maze pixel >> 4 (Q9.8: >> 12).
 
 ## Tasks & Acceptance
@@ -55,7 +55,7 @@ context:
 **Execution:**
 - [x] `rtl/ball_physics.v` -- add `restitution_sel`, `maze_raddr`, `maze_rdata` ports; replace the position stage with a small FSM: x move, read the two tiles at the leading column, resolve (clamp + bounce or move), then y with the new x; drop `LIMIT`; `phys_done` after y -- AD-11.
 - [x] `rtl/My_Top_Module.v` -- connect `ball_physics` to the physics read port and `active_game_cfg[5:4]`; update the comments.
-- [x] `tb/tb_ball_physics.v` -- load maps into a real `maze_ram`; keep the 3.1 checks in an open room; add bounce-ratio (all four selections), tangential-unchanged, no-drag, corner-settle and a many-maps, many-angles no-tunnelling sweep that checks the box never overlaps a wall and no axis moves more than 7 px per frame.
+- [x] `tb/tb_ball_physics.v` -- load maps into a real `maze_ram`; keep the 3.1 checks in an open room; add bounce-ratio (all four selections), tangential-unchanged, no-drag, corner-settle and a many-maps, many-angles no-tunnelling sweep that checks the box never overlaps a wall and no axis moves more than 5 px per frame.
 - [x] `tb/tb_top_ball.v` -- replace the free-fall distance model with checks that hold with walls: the drawn ball matches the physics position, it moves down or rests at angle 0, and its box never overlaps a wall tile.
 
 **Acceptance Criteria:**
@@ -65,7 +65,7 @@ context:
 
 ## Design Notes
 
-Box occupies `[c − R, c + R)` per axis (right/bottom edge exclusive), so the rows covered are `(y − R) >> 12` and `(y + R − 1) >> 12` in maze-pixel Q9.8 — at most two, because the box (10 px) is smaller than a tile. Moving +x into wall column `c`: clamp so that `x + R = 16c`; moving −x: `x − R = 16(c + 1)`. Because the box never overlaps a wall at the start of a frame and the cap (7 px) is less than a tile, only the leading column (or row) can be newly entered. Resting example (0.5, g = 64): vy goes 64 → −32, then +32 → −16 …, settling at about −21; every frame the move is downward and blocked, so the position never changes.
+Box occupies `[c − R, c + R)` per axis (right/bottom edge exclusive), so the rows covered are `(y − R) >> 12` and `(y + R − 1) >> 12` in maze-pixel Q9.8 — at most two, because the box (10 px) is smaller than a tile. Moving +x into wall column `c`: clamp so that `x + R = 16c`; moving −x: `x − R = 16(c + 1)`. Because the box never overlaps a wall at the start of a frame and the cap (5 px) is less than a tile, only the leading column (or row) can be newly entered. The spawn tile is the red goal tile; `phys_init` zeros both velocity and the carried gravity fractions.
 
 ## Verification
 

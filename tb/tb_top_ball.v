@@ -4,8 +4,8 @@
 // colour is searched for in the VGA pixel stream of whole frames. Checks that
 // the disc is complete and round, that it sits where ball_physics says (so
 // ball_overlay and render are aligned), that at angle 0 it falls or rests
-// without drifting sideways, that its box never overlaps a wall of the
-// generated maze, and that it follows a rotation. Needs the full design
+    // without drifting sideways, that its box never overlaps a wall of the
+    // generated maze, and that it follows a rotation. Needs the full design
 // (MouseCtl is a VHDL module; Icarus runs this with a stand-in whose buttons
 // stay 0). The power-on reset starts the game; BTNC stays released.
 module tb_top_ball;
@@ -109,29 +109,29 @@ module tb_top_ball;
         n_clk = 0; sum_x = 0; sum_y = 0; min_x = 1023; max_x = 0; min_y = 1023; max_y = 0;
         wait_frames(3);
 
-        // start tile centre on the screen (angle 0): 320 + 16*(col-10), 240 + 16*(row-10).
+        // red goal tile centre on the screen (angle 0): 320 + 16*(col-10), 240 + 16*(row-10).
         // Walls can stop the fall, so the ball is between the tile centre and
-        // the model's free-fall depth k(k+1)/8 px below it.
+        // the model's free-fall depth 0.075*k*(k+1) px below it at g=0.15.
         measure(1);
         x0 = cx; y0 = cy; k0 = k_at_frame;
-        sc = dut.start_col; sr = dut.start_row;        // unsigned 5-bit: widen before subtracting
+        sc = dut.goal_col; sr = dut.goal_row;          // unsigned 5-bit: widen before subtracting
         ex = 320.0 + 16.0 * (sc - 10);
         ey = 240.0 + 16.0 * (sr - 10);
         tile_cy = ey;                                  // measure() reuses ex/ey for the physics position
         if (k0 < 1 || k0 > 6) begin errors = errors + 1; $display("FAIL: unexpected frame count %0d", k0); end
-        if (x0 - ex > 1.0 || ex - x0 > 1.0 || y0 < ey - 1.0 || y0 > ey + 0.125 * k0 * (k0 + 1) + 1.0) begin
-            errors = errors + 1; $display("FAIL: first frame ball at (%f,%f), expected x %f and y in [%f, %f]", x0, y0, ex, ey, ey + 0.125 * k0 * (k0 + 1));
+        if (x0 - ex > 1.0 || ex - x0 > 1.0 || y0 < ey - 1.0 || y0 > ey + 0.075 * k0 * (k0 + 1) + 1.0) begin
+            errors = errors + 1; $display("FAIL: first frame ball at (%f,%f), expected x %f and y in [%f, %f]", x0, y0, ex, ey, ey + 0.075 * k0 * (k0 + 1));
         end
 
         // later it is lower or resting on a wall, never higher, and never off sideways
         wait_frames(9);
         measure(2);
         x1 = cx; y1 = cy; k1 = k_at_frame;
-        expect_dy = 0.125 * (1.0 * k1 * (k1 + 1) - 1.0 * k0 * (k0 + 1));
+        expect_dy = 0.075 * (1.0 * k1 * (k1 + 1) - 1.0 * k0 * (k0 + 1));
         $display("fell %f px between frame counts %0d and %0d, free-fall model %f", y1 - y0, k0, k1, expect_dy);
         if (x1 - x0 > 1.0 || x0 - x1 > 1.0) begin errors = errors + 1; $display("FAIL: ball drifted sideways at angle 0 (%f -> %f)", x0, x1); end
         if (y1 < y0 - 1.0 || y1 - y0 > expect_dy + 1.5) begin errors = errors + 1; $display("FAIL: fall %f px, expected 0 to %f", y1 - y0, expect_dy); end
-        // It must really have dropped: at least to the floor of the start cell
+        // It must really have dropped: at least to the floor of the goal cell
         // (3 px below the tile centre; a rebound peaks at most 0.75 px above it).
         if (y1 < tile_cy + 2.0) begin errors = errors + 1; $display("FAIL: ball still at y %f, expected at least %f (did it fall at all?)", y1, tile_cy + 2.0); end
 
