@@ -158,6 +158,10 @@ module tb_top_story42_integration;
             $display("FAIL: game controller did not capture selected EASY configuration");
             errors = errors + 1;
         end
+        if (dut.ball_i.restitution_sel !== 2'd0) begin
+            $display("FAIL: EASY stage did not give the ball restitution 0 (got %0d)", dut.ball_i.restitution_sel);
+            errors = errors + 1;
+        end
         timeout = 0;
         while ((gen_start_count == 0) && (timeout < 100)) begin
             @(negedge clk);
@@ -212,8 +216,23 @@ module tb_top_story42_integration;
         wait_state(MENU);
         force dut.frame_tick = 1'b1;
 
+        // HARD reaches the ball as restitution 1 (Story 3.2). Checked while
+        // generating, so the bench does not wait for a full N=10 maze.
+        press_button(2'd3);
+        press_button(2'd2);
+        wait_state(GENERATE);
+        if (dut.active_game_cfg !== 8'h1A || dut.ball_i.restitution_sel !== 2'd1) begin
+            $display("FAIL: HARD stage gave cfg %h and ball restitution %0d, expected 1a and 1",
+                     dut.active_game_cfg, dut.ball_i.restitution_sel);
+            errors = errors + 1;
+        end
+        force dut.frame_tick = 1'b0;
+        press_button(2'd2);
+        wait_state(MENU);
+        force dut.frame_tick = 1'b1;
+
         if (errors == 0)
-            $display("PASS: Story 4.2 top menu, frame handoff, N=5 maze, reset from GENERATE/PLAY/WIN, OLED text snapshot without tearing");
+            $display("PASS: Story 4.2 top menu, frame handoff, N=5 maze, reset from GENERATE/PLAY/WIN, OLED text snapshot without tearing, stage restitution reaches the ball");
         else
             $display("FAIL: Story 4.2 integration had %0d errors", errors);
         release dut.frame_tick;

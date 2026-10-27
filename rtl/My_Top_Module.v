@@ -317,9 +317,8 @@ module My_Top_Module #(
         .goal_row  (goal_row)
     );
 
-    // maze_gen is the sole writer; the physics port is idle in this story.
-    assign maze_raddr_p = 9'd0;
-
+    // maze_gen is the sole writer; ball_physics reads walls through the
+    // physics port (Story 3.2) and render through the render port.
     maze_ram maze_ram_i (
         .clk     (clk),
         .we      (maze_we),
@@ -332,8 +331,9 @@ module My_Top_Module #(
         .rdata_r (maze_rdata_r)
     );
 
-    // Ball (Story 3.1). ball_physics moves the ball once per frame; ball_overlay
-    // turns its maze position into a screen position and draws the disc.
+    // Ball (Stories 3.1, 3.2). ball_physics moves the ball once per frame and
+    // bounces it off walls with the stage's restitution; ball_overlay turns its
+    // maze position into a screen position and draws the disc.
     // game_ctrl (Story 1.4) places the ball on the start tile when PLAY
     // begins (phys_init) and enables gravity only in PLAY (phys_en).
     wire signed [17:0] ball_x, ball_y;
@@ -352,6 +352,9 @@ module My_Top_Module #(
         .start_row  (start_row),
         .sin_q      (sin_q),
         .cos_q      (cos_q),
+        .restitution_sel (active_game_cfg[5:4]),
+        .maze_raddr (maze_raddr_p),
+        .maze_rdata (maze_rdata_p),
         .ball_x     (ball_x),
         .ball_y     (ball_y),
         .vel_x      (ball_vx),

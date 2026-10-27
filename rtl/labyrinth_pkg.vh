@@ -25,6 +25,7 @@
 
 // ---- Maze geometry ----
 `define TILE_PX        16       // pixels per tile
+`define TILE_SHIFT     12       // log2(TILE_PX) + POS_FRAC: Q9.8 maze pixels >> 12 = tile index
 `define MAP_DIM        21       // tile map is 21 x 21 (10 cells + walls)
 `define MAP_TILES      441      // 21 * 21
 `define MAP_ADDR_W     9        // addr = row * 21 + col
@@ -53,7 +54,7 @@
 `define ROT_CW         2'b01    // +1
 
 // ---- Game configuration (game_cfg) field widths ----
-`define RESTIT_SEL_W   2
+`define RESTIT_SEL_W   2        // 0 = 0.5 (EASY), 1 = 0.75 (HARD), 2 = 0.625, 3 = 0.375
 `define ROT_SPEED_W    2
 
 // ---- OLED text buffer: 4 rows x 16 columns, ASCII ----
