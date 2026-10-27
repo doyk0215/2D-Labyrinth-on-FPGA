@@ -39,7 +39,9 @@ foreach {top snapshot marker} {
     tb_top_rotation top_rotation_snapshot "PASS: top rotation command"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
+    tb_menu_ctrl menu_ctrl_snapshot "PASS: menu_ctrl"
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
+    tb_top_story42_integration top_story42_snapshot "PASS: Story 4.2 top"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     ps2_mouse_tb ps2_mouse_snapshot "PASS ps2_mouse_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
@@ -51,7 +53,7 @@ foreach {top snapshot marker} {
     tb_top_ball top_ball_snapshot "PASS: top ball"
 } {
     puts "Elaborating $top..."
-    if {[catch {exec xelab -debug typical -top $top -snapshot $snapshot 2>@1} output]} {
+    if {[catch {exec xelab -debug typical -L unisims_ver -top $top -snapshot $snapshot 2>@1} output]} {
         puts $output
         error "xelab failed for $top"
     }
@@ -71,4 +73,8 @@ foreach {top snapshot marker} {
     }
 }
 
-puts "PASS regression for current RTL through Story 2.4, including Story 1.4"
+# The OLED display benches need the Vivado glbl model and a generic per mode,
+# so they run from their own script.
+source [file join $tb_dir run_oled_display.tcl]
+
+puts "PASS regression for current RTL through Story 4.2, including both OLED display modes"

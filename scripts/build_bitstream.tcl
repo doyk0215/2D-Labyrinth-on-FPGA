@@ -22,4 +22,4 @@ if {[string first "Complete" $impl_status] < 0} {
     error "Implementation/bitstream generation did not complete successfully"
 }
 
-puts "Bitstream: [file join $repo vivado labyrinth.runs impl_1 top.bit]"
+puts "Bitstream: [file join $repo vivado labyrinth.runs impl_1 My_Top_Module.bit]"

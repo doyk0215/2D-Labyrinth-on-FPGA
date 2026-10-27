@@ -5,7 +5,7 @@ module tb_top_story14_integration;
     localparam [1:0] PLAY     = 2'b10;
 
     reg clk = 1'b0;
-    reg btnC = 1'b1;
+    reg btnC = 1'b0;
     reg btnD = 1'b0;
     wire [15:0] led;
     wire [3:0] vga_r, vga_g, vga_b;
@@ -21,7 +21,7 @@ module tb_top_story14_integration;
 
     always #5 clk = ~clk;
 
-    top dut (
+    My_Top_Module #(.START_IN_MENU(1'b0), .POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
         .clk        (clk),
         .btnC       (btnC),
         .btnU       (1'b0),
@@ -86,7 +86,6 @@ module tb_top_story14_integration;
         // VGA timing and pixel generation continue to run normally.
         force dut.frame_tick = 1'b1;
         repeat (5) @(posedge clk);
-        @(negedge clk); btnC = 1'b0;
 
         wait_state(PLAY);
         if (dut.gen_done_seen !== 1'b1 || dut.gen_busy !== 1'b0) begin

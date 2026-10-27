@@ -15,7 +15,7 @@ Story details: `_bmad-output/planning-artifacts/epics.md`. Interfaces: `docs/par
 | --- | --- | --- |
 | 1.1 Project skeleton and VGA picture | CJX | step 0 (check the XDC pins against Digilent's master XDC first) |
 | `sincos_rom` (part of 2.2) | DY | step 0 |
-| 2.1 Mouse and input | QZ | step 0 (board test also needs 1.1's XDC and `top.v`) |
+| 2.1 Mouse and input | QZ | step 0 (board test also needs 1.1's XDC and `My_Top_Module.v`) |
 | 1.2 Fixed maze drawn | CJX | 1.1 |
 | 1.3 Maze generator | DY | `maze_ram` write port from 1.2 (simulate against a stub first) |
 | 2.2 Angle accumulator | QZ | `sincos_rom` |

@@ -8,7 +8,7 @@ Version 1.0 (2026-10-23), agreed by DY, QZ and CJX. Based on `epics.md`, the arc
 | --- | --- | --- |
 | **A (DY). Physics engine and maze generation** | `ball_physics`, `maze_gen`, `sincos_rom`, `oled_driver`, `font_rom` | 3.1, 3.2, 1.3, 4.1, 2.2 (sine/cosine table part) |
 | **B (QZ). Input and game control** | `ps2_mouse`, `input_mux`, angle accumulator, `game_ctrl`, `menu_ctrl` | 2.1, 2.2 (angle part), 1.4, 3.3 (control part), 3.4, 4.2, 4.3, 4.4 |
-| **C (CJX). Graphics** | `vga_timing`, `render`, `maze_ram`, `top.v`, `constraints/basys3.xdc` | 1.1, 1.2, 2.3, 2.4, 3.3 (win indication), 5.1 |
+| **C (CJX). Graphics** | `vga_timing`, `render`, `maze_ram`, `My_Top_Module.v`, `constraints/basys3.xdc` | 1.1, 1.2, 2.3, 2.4, 3.3 (win indication), 5.1 |
 | **Shared** | `labyrinth_pkg.vh` (owner: DY; changes need all three owners to approve) | 5.2 (regression), 5.3 (demo), 5.4 (report) |
 
 Rough effort (1–5 per story, estimate): A ≈ 17, B ≈ 15, C ≈ 15.
@@ -17,10 +17,10 @@ Owners: A = DY, B = QZ, C = CJX.
 
 Rules:
 - One owner per file (this follows AD-5, single writer). Others ask the owner or open a change request.
-- `top.v` and the XDC belong to C. A and B send C their module ports and pin needs.
+- `My_Top_Module.v` and the XDC belong to C. A and B send C their module ports and pin needs.
 - All work happens on feature branches (`feature/<story>-<name>`) and reaches `main` only through a pull request that the owner of the touched interface reviews. See `docs/work-order.md`, "Git workflow".
 
-**Step 0 is complete** (done by DY, 2026-10-23): `rtl/labyrinth_pkg.vh`, the folder layout, `constraints/basys3.xdc` and `scripts/create_project.tcl`. Story 1.1 starts from these; CJX should pull them, run `scripts/create_project.tcl` in Vivado 2025.2, verify the XDC pins against Digilent's master XDC, and continue with `top.v` and `vga_timing`.
+**Step 0 is complete** (done by DY, 2026-10-23): `rtl/labyrinth_pkg.vh`, the folder layout, `constraints/basys3.xdc` and `scripts/create_project.tcl`. Story 1.1 starts from these; CJX should pull them, run `scripts/create_project.tcl` in Vivado 2025.2, verify the XDC pins against Digilent's master XDC, and continue with `My_Top_Module.v` and `vga_timing`.
 
 ## 2. Work order within each stream
 

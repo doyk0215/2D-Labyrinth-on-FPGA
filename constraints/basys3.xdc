@@ -1,8 +1,8 @@
 ## Basys 3 constraints for the 2D Labyrinth game (XC7A35T-1CPG236C).
-## Owner: CJX (top.v and this file). Pins taken from the Digilent Basys 3 master XDC --
+## Owner: CJX (My_Top_Module.v and this file). Pins taken from the Digilent Basys 3 master XDC --
 ## CHECK every pin against Digilent's official Basys3_Master.xdc before first use.
-## Port names below are the top-level port names top.v must use.
-## Until top.v exists, Vivado warns that these ports are not found; that is expected.
+## Port names below are the top-level port names My_Top_Module.v must use.
+## Until My_Top_Module.v exists, Vivado warns that these ports are not found; that is expected.
 
 ## Clock (100 MHz)
 set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS33 } [get_ports clk]
@@ -71,14 +71,14 @@ set_property -dict { PACKAGE_PIN R19 IOSTANDARD LVCMOS33 } [get_ports vga_vs]
 set_property -dict { PACKAGE_PIN C17 IOSTANDARD LVCMOS33 PULLUP true } [get_ports ps2_clk]
 set_property -dict { PACKAGE_PIN B17 IOSTANDARD LVCMOS33 PULLUP true } [get_ports ps2_data]
 
-## Pmod OLED on header JA (Digilent Pmod OLED pinout: 1 CS, 2 MOSI, 4 SCLK, 7 D/C, 8 RES, 9 VBATC, 10 VDDC)
-set_property -dict { PACKAGE_PIN J1 IOSTANDARD LVCMOS33 } [get_ports oled_cs]
-set_property -dict { PACKAGE_PIN L2 IOSTANDARD LVCMOS33 } [get_ports oled_mosi]
-set_property -dict { PACKAGE_PIN G2 IOSTANDARD LVCMOS33 } [get_ports oled_sclk]
-set_property -dict { PACKAGE_PIN H1 IOSTANDARD LVCMOS33 } [get_ports oled_dc]
-set_property -dict { PACKAGE_PIN K2 IOSTANDARD LVCMOS33 } [get_ports oled_res]
-set_property -dict { PACKAGE_PIN H2 IOSTANDARD LVCMOS33 } [get_ports oled_vbatc]
-set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports oled_vddc]
+## Pmod OLED on header JB (Digilent Pmod OLED pinout: 1 CS, 2 MOSI, 4 SCLK, 7 D/C, 8 RES, 9 VBATC, 10 VDDC)
+set_property -dict { PACKAGE_PIN A14 IOSTANDARD LVCMOS33 } [get_ports oled_cs]
+set_property -dict { PACKAGE_PIN A16 IOSTANDARD LVCMOS33 } [get_ports oled_mosi]
+set_property -dict { PACKAGE_PIN B16 IOSTANDARD LVCMOS33 } [get_ports oled_sclk]
+set_property -dict { PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports oled_dc]
+set_property -dict { PACKAGE_PIN A17 IOSTANDARD LVCMOS33 } [get_ports oled_res]
+set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports oled_vbatc]
+set_property -dict { PACKAGE_PIN C16 IOSTANDARD LVCMOS33 } [get_ports oled_vddc]
 
 ## Bitstream settings
 set_property CONFIG_VOLTAGE 3.3 [current_design]

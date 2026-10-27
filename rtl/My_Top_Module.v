@@ -4,12 +4,17 @@
 // held off while maze_gen writes the single map; rotation supports the SW5
 // snap fallback as well as the smooth mouse/button path.
 //   sw[0]   = debug seed (fixed seed, same maze every time)
-//   sw[4:1] = maze size in cells (2..10); 0 selects 10
+//   sw[4:1] = retained debug value; Story 4.2 stage configuration selects N
 //   sw[5]   = 90-degree snap fallback (off = smooth rotation)
-//   btnD    = regenerate; a maze is also generated when btnC is released
+//   btnU/D  = stage navigation in MENU
+//   btnC    = confirm in MENU; return to MENU from other states
+//   btnD    = regenerate while playing
 //   Any of btnU/L/R/D latches the random seed (first press only).
-module top #(
-    parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000  // 10 ms at 100 MHz
+module My_Top_Module #(
+    parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
+    parameter integer MENU_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
+    parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz
+    parameter START_IN_MENU = 1'b1
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -35,7 +40,53 @@ module top #(
     output wire       oled_vddc
 );
 
-    wire rst = btnC;
+    reg [31:0] por_count = 32'd0;
+    reg por_done = 1'b0;
+    wire por_reset = !por_done;
+    always @(posedge clk) begin
+        if (!por_done) begin
+            if (por_count >= POR_CYCLES - 1)
+                por_done <= 1'b1;
+            else
+                por_count <= por_count + 1'b1;
+        end
+    end
+
+    wire rst;
+    wire game_reset_request;
+    wire [1:0] game_state;
+    assign rst = por_reset | game_reset_request;
+
+    wire btnU_press, btnD_menu_press, btnC_press;
+    button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnU_menu_i (
+        .clk(clk), .rst(por_reset), .level_in(btnU), .press(btnU_press)
+    );
+    button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnD_menu_i (
+        .clk(clk), .rst(por_reset), .level_in(btnD), .press(btnD_menu_press)
+    );
+    button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnC_menu_i (
+        .clk(clk), .rst(por_reset), .level_in(btnC), .press(btnC_press)
+    );
+
+    wire start_game;
+    wire [7:0] game_cfg;
+    wire [7:0] active_game_cfg;
+    wire [511:0] status_text;
+    wire menu_active = (game_state == 2'b00);
+    assign game_reset_request = btnC_press && !menu_active;
+
+    menu_ctrl menu_ctrl_i (
+        .clk           (clk),
+        .rst           (rst),
+        .menu_active   (menu_active),
+        .btn_up        (btnU_press),
+        .btn_down      (btnD_menu_press),
+        .btn_confirm   (btnC_press),
+        .start_game    (start_game),
+        .game_cfg      (game_cfg),
+        .status_text   (status_text),
+        .selected_stage()
+    );
     wire ce_pix;
     wire frame_tick;
     wire [9:0] pixel_x;
@@ -59,7 +110,6 @@ module top #(
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
-    wire [1:0]  game_state;
     wire        gen_start;
     wire        seed_capture;
     wire        phys_init;
@@ -171,15 +221,17 @@ module top #(
         btnD_s <= {btnD_s[1:0], btnD};
     end
     wire regen_request = btnD_s[1] & ~btnD_s[2];
-    wire [3:0] n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
+    wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
+    wire [3:0] n_cells = START_IN_MENU ? active_game_cfg[3:0] : legacy_n_cells;
 
     assign render_enable = (game_state == 2'b10); // PLAY
 
-    game_ctrl game_ctrl_i (
+    game_ctrl #(.START_IN_MENU(START_IN_MENU)) game_ctrl_i (
         .clk          (clk),
         .rst          (rst),
         .frame_tick   (frame_tick),
-        .start_game   (1'b0),
+        .start_game   (start_game),
+        .game_cfg     (game_cfg),
         .regen_button (regen_request),
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
@@ -188,6 +240,7 @@ module top #(
         .gen_start    (gen_start),
         .seed_capture (seed_capture),
         .phys_init    (phys_init),
+        .active_game_cfg(active_game_cfg),
         .phys_en      (phys_en)
     );
 
@@ -360,20 +413,87 @@ module top #(
     assign vga_g = render_enable_d ? render_g : (active_video_d ? 4'h0 : 4'h0);
     assign vga_b = render_enable_d ? render_b : (active_video_d ? 4'h2 : 4'h0);
 
+    // Transfer the menu's 512-bit text buffer through a held-data toggle
+    // mailbox. The OLED domain acknowledges a complete snapshot, then applies
+    // it only at frame_begin so a changed selection cannot tear a display frame.
+    wire clk_6m25;
+    oled_clk_div oled_div_i (.clk(clk), .clk_6m25(clk_6m25));
+
+    (* ASYNC_REG = "TRUE" *) reg [1:0] oled_reset_sync = 2'b11;
+    wire [12:0] oled_pixel_index;
+    wire [15:0] oled_pixel_data;
+    wire oled_frame_begin, oled_sending_pixels, oled_sample_pixel;
+    always @(posedge clk_6m25) begin
+        if (por_reset)
+            oled_reset_sync <= 2'b11;
+        else
+            oled_reset_sync <= {oled_reset_sync[0], 1'b0};
+    end
+    wire oled_reset = oled_reset_sync[1];
+
+    (* ASYNC_REG = "TRUE" *) reg [1:0] text_ack_sync = 2'b00;
+    reg text_ack_toggle = 1'b0;
+    reg text_req_toggle = 1'b0;
+    reg [511:0] text_mailbox = 512'd0;
+    always @(posedge clk) begin
+        if (por_reset) begin
+            text_ack_sync <= 2'b00;
+            text_mailbox <= status_text;
+            text_req_toggle <= 1'b1;
+        end else begin
+            text_ack_sync <= {text_ack_sync[0], text_ack_toggle};
+            if ((text_req_toggle == text_ack_sync[1]) &&
+                (status_text != text_mailbox)) begin
+                text_mailbox <= status_text;
+                text_req_toggle <= ~text_req_toggle;
+            end
+        end
+    end
+
+    (* ASYNC_REG = "TRUE" *) reg [1:0] text_req_sync = 2'b00;
+    reg [511:0] text_pending = 512'd0;
+    reg [511:0] text_active = 512'd0;
+    reg text_pending_valid = 1'b0;
+    always @(posedge clk_6m25) begin
+        if (oled_reset) begin
+            text_req_sync <= 2'b00;
+            text_ack_toggle <= 1'b0;
+            text_pending <= 512'd0;
+            text_active <= 512'd0;
+            text_pending_valid <= 1'b0;
+        end else begin
+            text_req_sync <= {text_req_sync[0], text_req_toggle};
+            if (text_req_sync[1] != text_ack_toggle) begin
+                text_pending <= text_mailbox;
+                text_ack_toggle <= text_req_sync[1];
+                text_pending_valid <= 1'b1;
+            end
+            if (oled_frame_begin && text_pending_valid &&
+                (text_req_sync[1] == text_ack_toggle)) begin
+                text_active <= text_pending;
+                text_pending_valid <= 1'b0;
+            end
+        end
+    end
+
+    oled_text_pixel oled_text_i (
+        .clk(clk_6m25), .pixel_index(oled_pixel_index),
+        .status_text(text_active), .pixel_data(oled_pixel_data)
+    );
+
+    Oled_Display oled_i (
+        .clk(clk_6m25), .reset(oled_reset),
+        .frame_begin(oled_frame_begin), .sending_pixels(oled_sending_pixels),
+        .sample_pixel(oled_sample_pixel), .pixel_index(oled_pixel_index),
+        .pixel_data(oled_pixel_data), .cs(oled_cs), .sdin(oled_mosi),
+        .sclk(oled_sclk), .d_cn(oled_dc), .resn(oled_res),
+        .vccen(oled_vbatc), .pmoden(oled_vddc)
+    );
+
     // LED[1:0] show the signed rotation command; LED[2] = generating and
     // LED[3] = a maze has been generated. Mouse debug: LED[4] = a packet in the
-    // last 500 ms, LED[5] = mouse left, LED[6] = mouse right. Keep the OLED idle. The
-    // Pmod OLED VDDC/VBATC power controls are ACTIVE LOW (low = supply on),
-    // so drive them high (off) until the OLED driver (Story 4.1) applies
-    // the manual's power-up sequence.
+    // last 500 ms, LED[5] = mouse left, LED[6] = mouse right.
     assign led = {9'b0, mouse_right, mouse_left, mouse_connected, gen_done_seen, gen_busy, rot_cmd};
-    assign oled_cs = 1'b1;
-    assign oled_mosi = 1'b0;
-    assign oled_sclk = 1'b0;
-    assign oled_dc = 1'b0;
-    assign oled_res = 1'b0;
-    assign oled_vbatc = 1'b1;
-    assign oled_vddc = 1'b1;
 
 endmodule
 
@@ -399,6 +519,43 @@ module snap_button_debounce #(
             stable_count <= 20'd0;
         end else begin
             stable_count <= stable_count + 1'b1;
+        end
+    end
+endmodule
+
+// Two-flop synchronization, debounce, and one-cycle rising-edge event for
+// the Story 4.2 menu buttons. Reset also re-arms the press detector.
+module button_press_debounce #(
+    parameter integer STABLE_CYCLES = 1_000_000
+) (
+    input  wire clk,
+    input  wire rst,
+    input  wire level_in,
+    output reg  press = 1'b0
+);
+    (* ASYNC_REG = "TRUE" *) reg [1:0] level_sync = 2'b00;
+    reg debounced_level = 1'b0;
+    reg [31:0] stable_count = 32'd0;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            level_sync <= 2'b00;
+            debounced_level <= 1'b0;
+            stable_count <= 32'd0;
+            press <= 1'b0;
+        end else begin
+            level_sync <= {level_sync[0], level_in};
+            press <= 1'b0;
+            if (level_sync[1] == debounced_level) begin
+                stable_count <= 32'd0;
+            end else if (stable_count >= STABLE_CYCLES - 1) begin
+                debounced_level <= level_sync[1];
+                stable_count <= 32'd0;
+                if (level_sync[1])
+                    press <= 1'b1;
+            end else begin
+                stable_count <= stable_count + 1'b1;
+            end
         end
     end
 endmodule

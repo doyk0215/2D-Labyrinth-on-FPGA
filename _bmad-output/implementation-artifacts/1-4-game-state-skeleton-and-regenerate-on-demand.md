@@ -2,7 +2,7 @@
 story_id: 1.4
 story_key: 1-4-game-state-skeleton-and-regenerate-on-demand
 title: Game state skeleton and regenerate on demand
-status: review
+status: done
 owner: QZ
 epic: 1
 source_issue: https://github.com/doyk0215/2D-Labyrinth-on-FPGA/issues/15
@@ -45,7 +45,7 @@ So that I can see that mazes differ and the flow is controlled by one state mach
 
 - [x] Add `rtl/game_ctrl.v` with the four architecture states, startup generation, regeneration request handling, `gen_done` handoff, and the Epic 3 WIN hook.
 - [x] Adapt the seed capture contract so every non-debug generation receives a fresh stable seed; coordinate changes to the Story 1.3 seed source with its owner.
-- [x] Integrate the controller with `top.v`, keeping `BTND` as the temporary regenerate input and preserving the existing maze-size/debug switches.
+- [x] Integrate the controller with `My_Top_Module.v`, keeping `BTND` as the temporary regenerate input and preserving the existing maze-size/debug switches.
 - [x] Gate maze RAM render reads and video output during generation; coordinate any `maze_ram` or `render` interface changes with their owner.
 - [x] Add `tb/tb_game_ctrl.v` and a top-level Story 1.4 integration bench for regeneration, seed progression, render safety, and completed-maze display.
 - [x] Add a Vivado runner for the Story 1.4 benches and include the supported regression in the current-stories runner.
@@ -63,7 +63,7 @@ So that I can see that mazes differ and the flow is controlled by one state mach
 
 - `vga_timing`, `maze_ram`, `render`, `maze_gen`, and `seed_source` are present in `rtl/`.
 - Vivado 2025.2 `tb/run_current_stories.tcl` passes the current VGA timing, generated-maze render, maze-generation, and existing input/ROM regression benches.
-- The current `top.v` starts generation on reset release and permits `BTND` regeneration, but it has no `game_ctrl` and does not gate the renderer while `maze_gen` writes. Story 1.4 must close this integration gap.
+- The current `My_Top_Module.v` starts generation on reset release and permits `BTND` regeneration, but it has no `game_ctrl` and does not gate the renderer while `maze_gen` writes. Story 1.4 must close this integration gap.
 - The current `seed_source` latches only on the first user input. Story 1.4 must provide a fresh seed for every regeneration; otherwise repeated requests can generate the same maze.
 
 ## Interface and Design Notes

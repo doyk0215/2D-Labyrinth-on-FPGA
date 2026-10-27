@@ -30,7 +30,7 @@ foreach {top snapshot marker} {
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
 } {
-    if {[catch {exec xelab -debug typical -top $top -snapshot $snapshot 2>@1} output]} {
+    if {[catch {exec xelab -debug typical -L unisims_ver -top $top -snapshot $snapshot 2>@1} output]} {
         puts $output
         error "xelab failed for $top"
     }

@@ -203,3 +203,12 @@ module tb_oled_display;
     end
 
 endmodule
+
+// Wrapper used by the automated runner so the Vivado global startup model is
+// included without applying the TEXT generic to the glbl design unit.
+module tb_oled_display_with_glbl #(
+    parameter integer TEXT = 0
+);
+    glbl glbl_i ();
+    tb_oled_display #(.TEXT(TEXT)) oled_test_i ();
+endmodule
