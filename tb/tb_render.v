@@ -86,9 +86,9 @@ module tb_render;
         wait (dut.game_state === 2'b10); // PLAY
         repeat (2) @(posedge clk);
 
-        if (dut.start_col !== 5'd1 || dut.start_row !== 5'd1 ||
-            dut.goal_col !== 5'd19 || dut.goal_row !== 5'd19) begin
-            $display("FAIL: start (%0d,%0d) goal (%0d,%0d), expected (1,1) and (19,19)",
+        if (dut.start_col !== 5'd19 || dut.start_row !== 5'd19 ||
+            dut.goal_col !== 5'd1 || dut.goal_row !== 5'd1) begin
+            $display("FAIL: start (%0d,%0d) goal (%0d,%0d), expected (19,19) and (1,1)",
                      dut.start_col, dut.start_row, dut.goal_col, dut.goal_row);
             $finish;
         end

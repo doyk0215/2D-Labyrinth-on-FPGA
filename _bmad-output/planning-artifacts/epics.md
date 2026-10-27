@@ -363,7 +363,7 @@ As the player,
 I want a win when the ball reaches the goal and then a new maze,
 So that the game has a point and can be replayed.
 
-**Note (2026-10-28) — start/goal swap, decided by the team, not yet implemented:** the start (spawn) tile moves to the **bottom-right** cell and is drawn **green**; the goal moves to the **top-left** cell and is drawn **red**. `maze_gen` swaps its start/goal assignments and `ball_physics` spawns on `start_*`. Commit 4b1fb42 instead spawns the ball on the goal tile (bottom-right, red); under the goal test below that wins as soon as PLAY begins, so it must not reach Story 3.3.
+**Note (2026-10-28) — start/goal swap, decided by the team, implemented on `feature/3-2-wall-collisions`:** the start (spawn) tile is the **bottom-right** cell, drawn **green**; the goal is the **top-left** cell, drawn **red**. `maze_gen` swaps its start/goal assignments and `ball_physics` spawns on `start_*`. (Commit 4b1fb42 had spawned the ball on the goal tile; under the goal test below that would win as soon as PLAY begins.)
 
 **Acceptance Criteria:**
 

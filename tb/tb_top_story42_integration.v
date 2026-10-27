@@ -177,14 +177,14 @@ module tb_top_story42_integration;
         end
 
         wait_state(PLAY);
-        if (dut.start_col !== 5'd6 || dut.goal_col !== 5'd14 ||
-            dut.start_row !== 5'd6 || dut.goal_row !== 5'd14) begin
+        if (dut.start_col !== 5'd14 || dut.goal_col !== 5'd6 ||
+            dut.start_row !== 5'd14 || dut.goal_row !== 5'd6) begin
             $display("FAIL: N=5 maze was not centred in the tile map");
             errors = errors + 1;
         end
         repeat (4) @(posedge clk);
         if (dut.ball_x !== 18'sd16384 || dut.ball_y !== 18'sd16384) begin
-            $display("FAIL: ball did not spawn on the red goal tile: pos=(%0d,%0d)",
+            $display("FAIL: ball did not spawn on the green start tile (bottom-right): pos=(%0d,%0d)",
                      dut.ball_x, dut.ball_y);
             errors = errors + 1;
         end

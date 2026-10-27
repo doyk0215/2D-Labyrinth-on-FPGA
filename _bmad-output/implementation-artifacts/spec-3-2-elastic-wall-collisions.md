@@ -20,7 +20,7 @@ context:
 
 ## Boundaries & Constraints
 
-**Always:** Ball box is the centre ±5 px (`BALL_RADIUS`). Restitution is shift-and-add on the magnitude, then the sign is reversed. Tiles outside 0..20 count as wall. The whole step runs in vertical blanking and ends with one `phys_done` pulse. `ball_physics` stays the only writer of ball state; it only reads `maze_ram`. The requested tuning is gravity 0.15 px/frame² with fractional carry, a 5 px/frame per-axis cap, and a spawn in the bottom-right cell. As committed in 4b1fb42 that spawn uses the goal tile; the team decision of 2026-10-28 (see Spec Change Log) makes the bottom-right cell the green start tile and the top-left cell the red goal, with the spawn on the start tile.
+**Always:** Ball box is the centre ±5 px (`BALL_RADIUS`). Restitution is shift-and-add on the magnitude, then the sign is reversed. Tiles outside 0..20 count as wall. The whole step runs in vertical blanking and ends with one `phys_done` pulse. `ball_physics` stays the only writer of ball state; it only reads `maze_ram`. The requested tuning is gravity 0.15 px/frame² with fractional carry, a 5 px/frame per-axis cap, and a spawn on the start tile, which is the bottom-right cell (green); the goal is the top-left cell (red) — see Spec Change Log.
 
 **Decision — restitution per `restitution_sel`:** 0 → 0.5 (`v>>1`, EASY), 1 → 0.75 (`(v>>1) + (v>>2)`, HARD; changed by the human from `v − (v>>2)` in review pass 1 so bounces of 1–3 LSB round down and die out), 2 → 0.625 (`(v>>1) + (v>>3)`), 3 → 0.375 (`(v>>2) + (v>>3)`). HARD is bouncier; 2 and 3 are spares for the Story 4.3 settings screen.
 
@@ -65,7 +65,7 @@ context:
 
 ## Design Notes
 
-Box occupies `[c − R, c + R)` per axis (right/bottom edge exclusive), so the rows covered are `(y − R) >> 12` and `(y + R − 1) >> 12` in maze-pixel Q9.8 — at most two, because the box (10 px) is smaller than a tile. Moving +x into wall column `c`: clamp so that `x + R = 16c`; moving −x: `x − R = 16(c + 1)`. Because the box never overlaps a wall at the start of a frame and the cap (5 px) is less than a tile, only the leading column (or row) can be newly entered. The spawn tile is the bottom-right cell (currently wired to `goal_*`; to become the green start tile, see Spec Change Log); `phys_init` zeros both velocity and the carried gravity fractions.
+Box occupies `[c − R, c + R)` per axis (right/bottom edge exclusive), so the rows covered are `(y − R) >> 12` and `(y + R − 1) >> 12` in maze-pixel Q9.8 — at most two, because the box (10 px) is smaller than a tile. Moving +x into wall column `c`: clamp so that `x + R = 16c`; moving −x: `x − R = 16(c + 1)`. Because the box never overlaps a wall at the start of a frame and the cap (5 px) is less than a tile, only the leading column (or row) can be newly entered. The spawn tile is the green start tile in the bottom-right cell (`start_*`); `phys_init` zeros both velocity and the carried gravity fractions.
 
 ## Verification
 
@@ -91,7 +91,7 @@ Box occupies `[c − R, c + R)` per axis (right/bottom edge exclusive), so the r
 
 - **Review pass 1 (ECH1, intent gap):** HARD's `v − (v>>2)` keeps |v| = 1..3 LSB, against the matrix row "small bounce rounds to 0". The human chose `(v>>1) + (v>>2)` and asked to keep the existing code rather than revert. Amended: the frozen restitution decision (by the human). Avoids: tiny bounces that never decay at HARD. KEEP: the per-axis FSM, the two-read leading-edge test, the restitution on the magnitude, and every existing bench check.
 - **Tuning commit 4b1fb42 (eziqnah):** gravity 0.15 px/frame² (constant multiply by 2458 = 0.15 in Q14, 20-bit fraction carried), cap 5 px/frame, ball spawned on `goal_*` (the bottom-right cell). Verified 2026-10-28: regression passes (19 benches, both OLED modes); routed WNS +0.747 ns, WHS +0.094 ns; 2305 LUTs, 2044 FFs, 1.5 BRAM, **8 DSPs** (the AD-8 cap; the gravity multiply adds 2). Board check not done.
-- **Start/goal swap (team decision 2026-10-28, not yet implemented):** the spawn stays in the bottom-right cell, but that cell becomes the **start** tile drawn **green**, and the top-left cell becomes the **goal** drawn **red**. To do: swap the start/goal assignments in `maze_gen`, wire `ball_physics` `spawn_*` back to `start_*`, and update `tb_top_ball`, `tb_top_story42_integration` and the maze/render benches that assume start = top-left. Avoids: spawning on the goal tile, which wins at once under the AD-11 goal test (Story 3.3).
+- **Start/goal swap (team decision 2026-10-28, implemented):** the spawn stays in the bottom-right cell, but that cell is now the **start** tile drawn **green**, and the top-left cell is the **goal** drawn **red**. `maze_gen` swaps its start/goal assignments; `My_Top_Module` wires `ball_physics` `spawn_*` to `start_*`; `tb_maze_gen`, `tb_render`, `tb_top_story14_integration`, `tb_top_story42_integration` and `tb_top_ball` expect the new tiles. Avoids: spawning on the goal tile, which wins at once under the AD-11 goal test (Story 3.3). Verified: regression passes (19 benches, both OLED modes); routed WNS +0.729 ns, WHS +0.070 ns; 2312 LUTs, 2044 FFs, 8 DSPs, 1.5 BRAM. Board check not done.
 
 ## Review Triage Log
 
