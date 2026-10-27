@@ -43,7 +43,6 @@ foreach {top snapshot marker} {
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
     tb_top_story42_integration top_story42_snapshot "PASS: Story 4.2 top"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
-    ps2_mouse_tb ps2_mouse_snapshot "PASS ps2_mouse_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
     tb_sincos_rom sincos_snapshot "PASS: sincos_rom matches the model"
     tb_angle_accumulator angle_snapshot "PASS: angle_accumulator"

@@ -7,7 +7,7 @@ Version 1.0 (2026-10-23), agreed by DY, QZ and CJX. Based on `epics.md`, the arc
 | Stream | Owns (files in `rtl/` and `tb/`) | Stories |
 | --- | --- | --- |
 | **A (DY). Physics engine and maze generation** | `ball_physics`, `maze_gen`, `sincos_rom`, `oled_driver`, `font_rom` | 3.1, 3.2, 1.3, 4.1, 2.2 (sine/cosine table part) |
-| **B (QZ). Input and game control** | `ps2_mouse`, `input_mux`, angle accumulator, `game_ctrl`, `menu_ctrl` | 2.1, 2.2 (angle part), 1.4, 3.3 (control part), 3.4, 4.2, 4.3, 4.4 |
+| **B (QZ). Input and game control** | `MouseCtl` (course-supplied) wiring, `input_mux`, angle accumulator, `game_ctrl`, `menu_ctrl` | 2.1, 2.2 (angle part), 1.4, 3.3 (control part), 3.4, 4.2, 4.3, 4.4 |
 | **C (CJX). Graphics** | `vga_timing`, `render`, `maze_ram`, `My_Top_Module.v`, `constraints/basys3.xdc` | 1.1, 1.2, 2.3, 2.4, 3.3 (win indication), 5.1 |
 | **Shared** | `labyrinth_pkg.vh` (owner: DY; changes need all three owners to approve) | 5.2 (regression), 5.3 (demo), 5.4 (report) |
 
@@ -25,7 +25,7 @@ Rules:
 ## 2. Work order within each stream
 
 **A:** (1) `sincos_rom` and testbench, as B and C need the trig values; (2) `oled_driver` + `font_rom` (4.1), since B's menu stories wait on it; (3) `maze_gen` (1.3); (4) `ball_physics` (3.1, then 3.2).
-**B:** (1) `ps2_mouse` + `input_mux` (2.1); (2) angle accumulator (2.2); (3) `game_ctrl` skeleton (1.4); (4) win/reset flow (3.3, 3.4); (5) `menu_ctrl` stories (4.2–4.4) once A's 4.1 is merged.
+**B:** (1) mouse (`MouseCtl`) + `input_mux` (2.1); (2) angle accumulator (2.2); (3) `game_ctrl` skeleton (1.4); (4) win/reset flow (3.3, 3.4); (5) `menu_ctrl` stories (4.2–4.4) once A's 4.1 is merged.
 **C:** (1) Story 1.1 first — the Vivado project, XDC, `labyrinth_pkg.vh`, `vga_timing`, and a test pattern, within the first two days because it unblocks integration; (2) `maze_ram` + fixed maze render (1.2); (3) rotated render (2.3), the riskiest story, so start it as early as possible; (4) 2.4, win indication, timing closure.
 
 Until C's project skeleton lands, A and B work in simulation only, against stubs of the other modules.

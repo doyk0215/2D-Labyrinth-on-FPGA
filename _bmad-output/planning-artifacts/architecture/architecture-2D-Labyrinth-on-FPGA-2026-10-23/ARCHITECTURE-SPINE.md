@@ -25,7 +25,7 @@ The board is the constraint (XC7A35T-1CPG236C: 20,800 LUTs, 41,600 flip-flops, 1
 
 ```mermaid
 graph LR
-  mouse[ps2_mouse] --> inmux[input_mux]
+  mouse[MouseCtl] --> inmux[input_mux]
   btn[board buttons] --> inmux
   btn --> menu[menu_ctrl]
   inmux --> ctrl[game_ctrl FSM]
@@ -43,7 +43,7 @@ graph LR
   rend --> vga[VGA out]
 ```
 
-Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`) depend on nothing. `render` reads state and never writes it. Only `game_ctrl` sequences state changes. `maze_gen` writes `maze_ram` and nothing else.
+Dependency direction: leaf I/O blocks (`MouseCtl`, `oled_driver`, `vga_timing`) depend on nothing. `render` reads state and never writes it. Only `game_ctrl` sequences state changes. `maze_gen` writes `maze_ram` and nothing else.
 
 ## Invariants & Rules
 
@@ -115,7 +115,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 ### AD-9 — Input abstraction: a rotation command, not raw devices
 - **Binds:** FR-5, FR-6, FR-19
 - **Prevents:** Game logic depending on PS/2 details, or a missing mouse blocking the demo.
-- **Rule:** `input_mux` outputs a single `rot_cmd` (−1, 0, +1). Left held = −1 (counter-clockwise), right held = +1 (clockwise), both or neither = 0. Either source rotates the maze: left = mouse left OR BTNL, right = mouse right OR BTNR (amended 2026-10-26: a packet-timeout "connected" switch dropped a mouse button held still, because a PS/2 mouse sends packets only when it moves or a button changes). `ps2_mouse` runs stream mode (sends enable `0xF4` after reset), decodes 3-byte packets, and exposes only the button bits and a `connected` flag. The Basys 3 USB-HID host can fail with some mice, so the fallback is part of the design.
+- **Rule:** `input_mux` outputs a single `rot_cmd` (−1, 0, +1). Left held = −1 (counter-clockwise), right held = +1 (clockwise), both or neither = 0. Either source rotates the maze: left = mouse left OR BTNL, right = mouse right OR BTNR (amended 2026-10-26: a packet-timeout "connected" switch dropped a mouse button held still, because a PS/2 mouse sends packets only when it moves or a button changes). The mouse is read by the course-supplied `MouseCtl` (`Mouse_Control.vhd` + `Ps2Interface.vhd`, unmodified), which initialises the mouse, decodes its packets and drives the PS/2 lines open-drain; only its button bits reach `input_mux` (amended 2026-10-28: the earlier custom `ps2_mouse` was replaced by `MouseCtl` in Story 2.1 and has been removed). The Basys 3 USB-HID host can fail with some mice, so the fallback is part of the design.
 
 ### AD-10 — OLED is a text-only peripheral behind a buffer
 - **Binds:** FR-20..FR-26
@@ -135,7 +135,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 ### AD-13 — Every module ships with a self-checking testbench
 - **Binds:** NFR-4, NFR-5, Success criteria
 - **Prevents:** Integration surprises in the last week, and unprovable claims in the report.
-- **Rule:** Each module has a testbench that asserts and prints PASS/FAIL, runnable in batch from Vivado. Required checks: `maze_gen` (BFS reach from start to goal on many seeds), `ball_physics` (no tunnelling, bounce ratio equals restitution), `ps2_mouse` (a recorded packet stream), `vga_timing` (line and frame counts), `render` (compare a few pixels against a software model for known angles).
+- **Rule:** Each module has a testbench that asserts and prints PASS/FAIL, runnable in batch from Vivado. Required checks: `maze_gen` (BFS reach from start to goal on many seeds), `ball_physics` (no tunnelling, bounce ratio equals restitution), the mouse path (`input_mux` plus the top-level integration with `MouseCtl`; the course-supplied `MouseCtl` itself is not re-verified), `vga_timing` (line and frame counts), `render` (compare a few pixels against a software model for known angles).
 
 ## Consistency Conventions
 
@@ -171,7 +171,8 @@ rtl/
   ball_physics.v       # gravity, move, collide, goal test
   maze_gen.v           # iterative DFS, LFSR
   maze_ram.v           # 21x21 dual-read tile map
-  ps2_mouse.v          # PS/2 receiver, packet decoder
+  Mouse_Control.vhd    # course-supplied MouseCtl: PS/2 mouse init + packet decoder
+  Ps2Interface.vhd     # course-supplied PS/2 line interface used by MouseCtl
   input_mux.v          # rot_cmd from mouse or buttons
   menu_ctrl.v          # stages, settings, status_text
   Oled_Display.v      # course-supplied SSD1331 driver (unmodified)
@@ -202,7 +203,7 @@ stateDiagram-v2
 | Ball physics (FR-9..FR-14) | `ball_physics` | AD-3, AD-4, AD-11 |
 | Game flow (FR-15..FR-17) | `game_ctrl` | AD-5, AD-6 |
 | Maze on monitor (FR-18, FR-20) | `vga_timing`, `render` | AD-1, AD-2, AD-6, AD-7 |
-| PS/2 mouse (FR-19) | `ps2_mouse` | AD-9 |
+| PS/2 mouse (FR-19) | `MouseCtl` (course-supplied) | AD-9 |
 | OLED menu, stages, settings (FR-21..FR-26) | `menu_ctrl`, `oled_driver`, `font_rom` | AD-5, AD-10 |
 | Timing, resources, testbenches (NFR-1..NFR-5) | whole design | AD-2, AD-8, AD-13 |
 
