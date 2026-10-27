@@ -51,13 +51,14 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Read port 2 (C, render): `raddr_r[8:0]` → `rdata_r`, 1-clock read latency
 - Maze outputs of `maze_gen` (held until the next generation): `start_col[4:0]`, `start_row[4:0]`, `goal_col[4:0]`, `goal_row[4:0]`
 - Maze placement (added 2026-10-24, with `maze_gen`): an N-cell maze (N = 2..10) is stored **centred** in the 21×21 map, filling tiles `10-N .. 10+N` in each axis; all other tiles are wall. The middle of every maze is therefore tile 10, so the renderer and physics always rotate about the map centre (336 px / 2 = 168 px) and never need `n_cells` for centring. `start_*`/`goal_*` are absolute tile coordinates in the 21×21 map (start = `(11-N, 11-N)`, goal = `(9+N, 9+N)`).
+- Start/goal swap (decided 2026-10-28, not yet implemented): the start moves to the **bottom-right** cell, `(9+N, 9+N)`, drawn **green**, and the ball spawns there; the goal moves to the **top-left** cell, `(11-N, 11-N)`, drawn **red**. `maze_gen` swaps the two assignments; `ball_physics` spawns on `start_*` again (commit 4b1fb42 spawns on `goal_*` to reach the bottom-right corner, which would win at once under the AD-11 goal test).
 
 **Maze generation (A)**
 - Inputs: `gen_start` (pulse), `n_cells[3:0]` (from `game_cfg`), `seed[31:0]`
 - Outputs: `gen_busy`, `gen_done` (pulse)
 
 **Ball physics (A)**
-- Inputs: `phys_init` (pulse: place ball at selected spawn tile, zero velocity), `phys_en` (level: PLAY state), `frame_tick`, `angle`, `sin_q`, `cos_q`, `restitution_sel[1:0]`, `start_col/row`, `goal_col/row`, maze read port 1
+- Inputs: `phys_init` (pulse: place ball at the start tile, zero velocity), `phys_en` (level: PLAY state), `frame_tick`, `angle`, `sin_q`, `cos_q`, `restitution_sel[1:0]`, `start_col/row`, `goal_col/row`, maze read port 1
 - Outputs: `ball_x[17:0]`, `ball_y[17:0]` (signed Q9.8, maze pixels from the maze centre), `in_goal` (level), `phys_done` (pulse; must occur inside the blanking interval, NFR2)
 - Story 3.1 as built: `ball_physics` takes `sin_q`/`cos_q` (not `angle`), has no maze port or `restitution_sel` yet (Story 3.2), and also outputs `vel_x`/`vel_y` (Q4.8). Gravity is `g·(sin, cos)` in the maze frame; the current requested tuning uses `g = 0.15 px/frame²` with fractional carry and a 5 px/frame per-axis cap. Until walls exist the ball stops at the map edge. `ball_overlay` (new) turns the maze position into a screen position and a per-pixel `ball_on`, which `render` draws (new input `ball_on`, one clock behind `pixel_x/y` like render's own flags).
 
