@@ -8,26 +8,11 @@ set rtl_dir [file join $repo_root rtl]
 set vhdl_sources [list \
     [file join $rtl_dir Ps2Interface.vhd] \
     [file join $rtl_dir Mouse_Control.vhd]]
-set sources [list \
-    [file join $rtl_dir angle_accumulator.v] \
-    [file join $rtl_dir sincos_rom.v] \
-    [file join $rtl_dir vga_timing.v] \
-    [file join $rtl_dir maze_gen.v] \
-    [file join $rtl_dir maze_ram.v] \
-    [file join $rtl_dir render.v] \
-    [file join $rtl_dir seed_source.v] \
-    [file join $rtl_dir ps2_mouse.v] \
-    [file join $rtl_dir input_mux.v] \
-    [file join $rtl_dir menu_ctrl.v] \
-    [file join $rtl_dir oled_clk_div.v] \
-    [file join $rtl_dir oled_xy.v] \
-    [file join $rtl_dir font_rom.v] \
-    [file join $rtl_dir oled_text_pixel.v] \
-    [file join $rtl_dir Oled_Display.v] \
-    [file join $rtl_dir My_Top_Module.v] \
-    [file join $repo_root tb ps2_mouse_tb.v] \
+# All RTL, so the top-level bench keeps elaborating as modules are added.
+set sources [glob [file join $rtl_dir *.v]]
+lappend sources \
     [file join $repo_root tb input_mux_tb.v] \
-    [file join $repo_root tb tb_top_story21_integration.v]]
+    [file join $repo_root tb tb_top_story21_integration.v]
 
 puts "Compiling Story 2.1 VHDL, RTL, and testbenches with Vivado xvhdl/xvlog..."
 set vhdl_compile_cmd [list xvhdl -work work]
@@ -48,7 +33,6 @@ puts $compile_output
 
 foreach {top snapshot marker} {
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
-    ps2_mouse_tb ps2_mouse_snapshot "PASS ps2_mouse_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
 } {
     puts "Elaborating $top..."

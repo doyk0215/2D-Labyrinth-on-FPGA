@@ -515,7 +515,7 @@ So that I can show all modules are verified.
 **Given** a testbench for each module (AD-13, NFR4)
 **When** the batch regression runs
 **Then** every testbench prints PASS and the run exits cleanly
-**And** the list covers `vga_timing`, `maze_gen`, `ball_physics`, `ps2_mouse`, `render`, `sincos_rom`, `oled_driver` and `menu_ctrl`
+**And** the list covers `vga_timing`, `maze_gen`, `ball_physics`, `input_mux` (mouse path), `render`, `sincos_rom`, `oled_driver` and `menu_ctrl`
 
 **Given** the regression output
 **When** saved
