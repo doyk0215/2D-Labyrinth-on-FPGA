@@ -68,7 +68,9 @@ module ball_physics (
     reg signed [`VEL_W-1:0] gx, gy;
     reg [GRAVITY_FRAC_BITS-1:0] gx_frac, gy_frac;
     reg signed [`TRIG_W-1:0] sin_g_r, cos_g_r;
-    reg signed [28:0] gx_prod_r, gy_prod_r;
+    // The coefficient is a constant, so the product is a few shifted adds in
+    // LUTs; keeping it out of DSP48s leaves the AD-8 budget (<= 8) its spares.
+    (* use_dsp = "no" *) reg signed [28:0] gx_prod_r, gy_prod_r;
     wire signed [29:0] gx_accum = {gx_prod_r[28], gx_prod_r} + $signed({10'b0, gx_frac});
     wire signed [29:0] gy_accum = {gy_prod_r[28], gy_prod_r} + $signed({10'b0, gy_frac});
 
@@ -163,7 +165,8 @@ module ball_physics (
 
             // Pipeline gravity across three clocks: first capture settled
             // trig, then multiply, then add the carried fraction. This keeps
-            // the ROM/sign, DSP, and wide carry paths out of one 100 MHz path.
+            // the ROM/sign, constant-multiply adder and wide carry paths out of
+            // one 100 MHz path.
             if (ft_d[1]) begin
                 sin_g_r <= sin_q;
                 cos_g_r <= cos_q;

@@ -70,8 +70,8 @@ Dependency direction: leaf I/O blocks (`ps2_mouse`, `oled_driver`, `vga_timing`)
   - Trig: signed Q1.14, from a 2048-entry half-wave table (about 30 Kb, one block RAM tile) with symmetry; one synchronous read per output, one clock of latency.
   - Positions: signed Q9.8 in maze pixels, relative to the maze centre. Velocities: signed Q4.8 in px/frame.
   - Tile: 16 px. Tile map: 21×21 bits (10×10 cells plus walls), 1 = wall.
-  - Ball radius: 5 px. Current requested tuning: gravity 0.15 px/frame² and speed cap 5 px/frame per axis, so a 16 px wall can never be skipped.
-  - Restitution is shift-and-add only (for example 0.5 = `>>1`, 0.75 = `v − (v>>2)`); there is no runtime division and multipliers are limited to the per-frame and per-scanline setup (AD-7) within the DSP budget in AD-8.
+  - Ball radius: 5 px. Gravity 0.15 px/frame² (constant multiply by `GRAVITY_Q14` in LUTs, fraction carried between frames). Speed cap 5 px/frame per axis, so a 16 px wall can never be skipped.
+  - Restitution is shift-and-add only (for example 0.5 = `v>>1`, 0.75 = `(v>>1) + (v>>2)`, which rounds tiny bounces down to 0); there is no runtime division and multipliers are limited to the per-frame and per-scanline setup (AD-7) within the DSP budget in AD-8.
 
 ### AD-5 — Single writer per shared state
 - **Binds:** FR-1, FR-10, FR-15, FR-22, FR-26

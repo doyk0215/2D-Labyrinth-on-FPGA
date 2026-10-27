@@ -28,7 +28,7 @@ Make the labyrinth playable: a ball falls under gravity that always points down 
 
 - **Physics frame:** the maze frame. Gravity in maze coordinates is `g·(sinθ, cosθ)`, from the same sin/cos the renderer uses.
 - **Formats (single package file `labyrinth_pkg.vh`, no module hard-codes its own):** position signed Q9.8 maze pixels relative to the maze centre; velocity signed Q4.8 px/frame; tile 16 px; tile map 21×21 bits (1 = wall); ball radius 5 px; gravity 0.15 px/frame²; speed cap 5 px/frame per axis, so a 16 px wall can never be skipped.
-- **Restitution:** shift-and-add only (e.g. 0.5 = `>>1`, 0.75 = `v − (v>>2)`). No runtime division; multipliers only in per-frame or per-scanline setup, within the DSP budget.
+- **Restitution:** shift-and-add only (e.g. 0.5 = `v>>1`, 0.75 = `(v>>1) + (v>>2)`, which rounds tiny bounces down to 0). No runtime division; multipliers only in per-frame or per-scanline setup, within the DSP budget.
 - **Collision method:** per-axis move and tile test — move along x, test the ball's bounding box against the tile map, and if blocked clamp to the tile edge and apply restitution to that axis's velocity; then the same for y. Goal detection is "ball centre inside the goal tile".
 - **Start and goal placement (team decision 2026-10-28, implemented):** the ball spawns on the start tile, the bottom-right cell, drawn green; the goal is the top-left cell, drawn red. `maze_gen` sets both; `ball_physics` spawns on `start_*`.
 - **Single writer:** `ball_physics` alone writes ball position and velocity. `maze_ram` is written only by `maze_gen` and read by physics (its own read port) and the renderer.
