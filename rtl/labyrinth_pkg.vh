@@ -20,11 +20,13 @@
 // ---- Ball velocity: signed Q4.8, pixels per frame ----
 `define VEL_W          12
 `define VEL_FRAC       8
-`define VEL_CAP        1792     // 7 px/frame * 256 (max representable is 7.996)
-`define GRAV_SHIFT      8        // gravity = trig >>> 8 = 0.25 px/frame^2 at full strength (sin/cos are Q1.14)
+`define VEL_CAP        1280     // 5 px/frame * 256 (max representable is 7.996)
+`define GRAVITY_Q14    2458     // round(0.15 * 2^14); average acceleration in px/frame^2
+`define GRAVITY_FRAC   20       // product Q2.28 -> velocity Q4.8 with carried fraction bits
 
 // ---- Maze geometry ----
 `define TILE_PX        16       // pixels per tile
+`define TILE_SHIFT     12       // log2(TILE_PX) + POS_FRAC: Q9.8 maze pixels >> 12 = tile index
 `define MAP_DIM        21       // tile map is 21 x 21 (10 cells + walls)
 `define MAP_TILES      441      // 21 * 21
 `define MAP_ADDR_W     9        // addr = row * 21 + col
@@ -53,7 +55,7 @@
 `define ROT_CW         2'b01    // +1
 
 // ---- Game configuration (game_cfg) field widths ----
-`define RESTIT_SEL_W   2
+`define RESTIT_SEL_W   2        // 0 = 0.5 (EASY), 1 = 0.75 (HARD), 2 = 0.625, 3 = 0.375
 `define ROT_SPEED_W    2
 
 // ---- OLED text buffer: 4 rows x 16 columns, ASCII ----

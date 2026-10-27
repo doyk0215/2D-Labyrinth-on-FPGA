@@ -1,14 +1,16 @@
 `timescale 1ns / 1ps
 
-// End-to-end check of the ball on the real top (Story 3.1): the ball colour is
-// searched for in the VGA pixel stream of whole frames. Checks that the disc is
-// complete and round, that it sits where ball_physics says (so ball_overlay and
-// render are aligned), that it falls at angle 0 as k(k+1)/8 px, and that it
-// follows a rotation. Needs the full design (MouseCtl is a VHDL module; Icarus
-// runs this with a stand-in whose buttons stay 0).
+// End-to-end check of the ball on the real top (Stories 3.1, 3.2): the ball
+// colour is searched for in the VGA pixel stream of whole frames. Checks that
+// the disc is complete and round, that it sits where ball_physics says (so
+// ball_overlay and render are aligned), that at angle 0 it falls or rests
+// without drifting sideways, that its box never overlaps a wall of the
+// generated maze, and that it follows a rotation. Needs the full design
+// (MouseCtl is a VHDL module; Icarus runs this with a stand-in whose buttons
+// stay 0). The power-on reset starts the game; BTNC stays released.
 module tb_top_ball;
     reg clk = 1'b0;
-    reg btnC = 1'b1;
+    reg btnC = 1'b0;
     reg btnL = 1'b0;
     wire [15:0] led;
     wire [3:0] vga_r, vga_g, vga_b;
@@ -81,37 +83,57 @@ module tb_top_ball;
             if ((cx - ex) > 1.0 || (ex - cx) > 1.0 || (cy - ey) > 1.0 || (ey - cy) > 1.0) begin
                 errors = errors + 1; $display("FAIL[%0d]: drawn centre (%f,%f) differs from the physics position (%f,%f)", label, cx, cy, ex, ey);
             end
+            if (box_in_wall(dut.ball_x, dut.ball_y)) begin
+                errors = errors + 1; $display("FAIL[%0d]: ball box at (%0d,%0d) overlaps a wall of the maze", label, dut.ball_x, dut.ball_y);
+            end
         end
     endtask
 
-    real y0, y1, x0, x1, expect_dy;
+    // 1 if the ball's box (centre +/- 5 px, right/bottom edge exclusive, Q9.8
+    // from the map centre) overlaps a wall tile of the real maze_ram
+    function box_in_wall;
+        input integer x, y;
+        integer ax, ay, r, c;
+        begin
+            ax = x + 168 * 256; ay = y + 168 * 256;
+            box_in_wall = 1'b0;
+            for (r = (ay - 1280) / 4096; r <= (ay + 1279) / 4096; r = r + 1)
+                for (c = (ax - 1280) / 4096; c <= (ax + 1279) / 4096; c = c + 1)
+                    if (dut.maze_ram_i.tile_mem[r * 21 + c]) box_in_wall = 1'b1;
+        end
+    endfunction
+
+    real y0, y1, x0, x1, expect_dy, tile_cy;
     integer k0, k1, sc, sr;
     initial begin
         n_clk = 0; sum_x = 0; sum_y = 0; min_x = 1023; max_x = 0; min_y = 1023; max_y = 0;
-        repeat (4) @(posedge clk);
-        btnC = 1'b0;                                   // release reset: the maze is generated
         wait_frames(3);
 
-        // start tile centre on the screen (angle 0): 320 + 16*(col-10), 240 + 16*(row-10)
+        // green start tile (bottom-right) centre on the screen (angle 0): 320 + 16*(col-10), 240 + 16*(row-10).
+        // Walls can stop the fall, so the ball is between the tile centre and
+        // the model's free-fall depth 0.075*k*(k+1) px below it at g=0.15.
         measure(1);
         x0 = cx; y0 = cy; k0 = k_at_frame;
         sc = dut.start_col; sr = dut.start_row;        // unsigned 5-bit: widen before subtracting
         ex = 320.0 + 16.0 * (sc - 10);
         ey = 240.0 + 16.0 * (sr - 10);
+        tile_cy = ey;                                  // measure() reuses ex/ey for the physics position
         if (k0 < 1 || k0 > 6) begin errors = errors + 1; $display("FAIL: unexpected frame count %0d", k0); end
-        // k frames of 0.25 px/frame^2 gravity: y moved k(k+1)/8 px below the start tile centre
-        if (x0 - ex > 1.0 || ex - x0 > 1.0 || y0 - (ey + 0.125 * k0 * (k0 + 1)) > 1.0 || (ey + 0.125 * k0 * (k0 + 1)) - y0 > 1.0) begin
-            errors = errors + 1; $display("FAIL: first frame ball at (%f,%f), expected about (%f,%f)", x0, y0, ex, ey + 0.125 * k0 * (k0 + 1));
+        if (x0 - ex > 1.0 || ex - x0 > 1.0 || y0 < ey - 1.0 || y0 > ey + 0.075 * k0 * (k0 + 1) + 1.0) begin
+            errors = errors + 1; $display("FAIL: first frame ball at (%f,%f), expected x %f and y in [%f, %f]", x0, y0, ex, ey, ey + 0.075 * k0 * (k0 + 1));
         end
 
-        // it keeps falling: fixed number of frames later it is lower by the model's amount
+        // later it is lower or resting on a wall, never higher, and never off sideways
         wait_frames(9);
         measure(2);
         x1 = cx; y1 = cy; k1 = k_at_frame;
-        expect_dy = 0.125 * (1.0 * k1 * (k1 + 1) - 1.0 * k0 * (k0 + 1));
-        $display("fell %f px between frame counts %0d and %0d, model %f", y1 - y0, k0, k1, expect_dy);
+        expect_dy = 0.075 * (1.0 * k1 * (k1 + 1) - 1.0 * k0 * (k0 + 1));
+        $display("fell %f px between frame counts %0d and %0d, free-fall model %f", y1 - y0, k0, k1, expect_dy);
         if (x1 - x0 > 1.0 || x0 - x1 > 1.0) begin errors = errors + 1; $display("FAIL: ball drifted sideways at angle 0 (%f -> %f)", x0, x1); end
-        if (y1 - y0 - expect_dy > 1.5 || expect_dy - (y1 - y0) > 1.5) begin errors = errors + 1; $display("FAIL: fall %f px, model %f", y1 - y0, expect_dy); end
+        if (y1 < y0 - 1.0 || y1 - y0 > expect_dy + 1.5) begin errors = errors + 1; $display("FAIL: fall %f px, expected 0 to %f", y1 - y0, expect_dy); end
+        // It must really have dropped: at least to the floor of the start cell
+        // (3 px below the tile centre; a rebound peaks at most 0.75 px above it).
+        if (y1 < tile_cy + 2.0) begin errors = errors + 1; $display("FAIL: ball still at y %f, expected at least %f (did it fall at all?)", y1, tile_cy + 2.0); end
 
         // rotate: hold btnL for a few frames (counter-clockwise); the ball must follow
         btnL = 1'b1;
@@ -121,7 +143,7 @@ module tb_top_ball;
         measure(3);
         if (dut.angle == 0) begin errors = errors + 1; $display("FAIL: the maze did not rotate"); end
 
-        if (errors == 0) $display("PASS: top ball - complete round disc, aligned with the physics position, falls as modelled, follows rotation");
+        if (errors == 0) $display("PASS: top ball - complete round disc, aligned with the physics position, falls or rests without crossing walls, follows rotation");
         else             $display("FAIL: %0d errors", errors);
         $finish;
     end

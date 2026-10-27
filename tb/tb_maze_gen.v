@@ -109,9 +109,9 @@ module tb_maze_gen;
                 if (cycles > max_cycles) max_cycles = cycles;
                 if (gen_busy) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: busy after done", N, s); end
 
-                // start/goal tiles
-                if (start_col !== (off + 1) || start_row !== (off + 1) ||
-                    goal_col !== (off + 2 * N - 1) || goal_row !== (off + 2 * N - 1)) begin
+                // start/goal tiles: start bottom-right, goal top-left
+                if (start_col !== (off + 2 * N - 1) || start_row !== (off + 2 * N - 1) ||
+                    goal_col !== (off + 1) || goal_row !== (off + 1)) begin
                     errors = errors + 1;
                     $display("FAIL N=%0d seed=%h: start (%0d,%0d) goal (%0d,%0d)", N, s,
                              start_col, start_row, goal_col, goal_row);

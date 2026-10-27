@@ -16,8 +16,8 @@
 //   the wall/passage between two neighbouring cells is the tile between them.
 //   Every other tile of the 21 x 21 map is written as wall, so a smaller maze
 //   never leaves stale floor behind.
-// Start = cell (0,0)     = tile (off+1,    off+1).
-// Goal  = cell (N-1,N-1) = tile (off+2N-1, off+2N-1).   N is clamped to 2..10.
+// Start = cell (N-1,N-1) = tile (off+2N-1, off+2N-1), bottom-right (the ball spawns here).
+// Goal  = cell (0,0)     = tile (off+1,    off+1),     top-left.   N is clamped to 2..10.
 //
 // Interface (contract v1.0):
 //   gen_start (pulse) + n_cells + seed -> gen_busy ... gen_done (pulse).
@@ -142,10 +142,10 @@ module maze_gen (
                     sp               <= 7'd1;
                     cx               <= 4'd0;
                     cy               <= 4'd0;
-                    start_col        <= off + 5'd1;
-                    start_row        <= off + 5'd1;
-                    goal_col         <= {n - 4'd1, 1'b1} + off;
-                    goal_row         <= {n - 4'd1, 1'b1} + off;
+                    start_col        <= {n - 4'd1, 1'b1} + off;
+                    start_row        <= {n - 4'd1, 1'b1} + off;
+                    goal_col         <= off + 5'd1;
+                    goal_row         <= off + 5'd1;
                     state            <= S_STEP;
                 end
 
