@@ -322,7 +322,7 @@ So that the maze behaves like a tilting game.
 
 **Acceptance Criteria:**
 
-**Given** the ball at the start tile (green, bottom-right cell; see the start/goal swap note in Story 3.3), with position in Q9.8 and velocity in Q4.8 in maze coordinates (AD-3, AD-4)
+**Given** the ball at the start tile (red, bottom-right cell; see the start/goal mapping note in Story 3.3), with position in Q9.8 and velocity in Q4.8 in maze coordinates (AD-3, AD-4)
 **When** a frame arrives
 **Then** velocity changes by gravity `g·(sinθ, cosθ)` (screen-down in the maze frame, matching `render.v`; corrected from `(−sinθ, cosθ)`) and the position changes by velocity, in the blanking interval (FR8, FR9, FR10, FR14)
 
@@ -363,7 +363,7 @@ As the player,
 I want a win when the ball reaches the goal and then a new maze,
 So that the game has a point and can be replayed.
 
-**Note (2026-10-28) — start/goal swap, decided by the team, implemented on `feature/3-2-wall-collisions`:** the start (spawn) tile is the **bottom-right** cell, drawn **green**; the goal is the **top-left** cell, drawn **red**. `maze_gen` swaps its start/goal assignments and `ball_physics` spawns on `start_*`. (Commit 4b1fb42 had spawned the ball on the goal tile; under the goal test below that would win as soon as PLAY begins.)
+**Note (2026-10-28):** the start (spawn) tile is the **bottom-right** cell, drawn **red**; the goal is the **top-left** cell, drawn **green**. The ball spawns on `start_*`.
 
 **Acceptance Criteria:**
 
@@ -373,7 +373,7 @@ So that the game has a point and can be replayed.
 
 **Given** WIN
 **When** a short pause (about 2 s) elapses
-**Then** a new maze is generated and the ball returns to the start tile (green, bottom-right) (FR1)
+**Then** a new maze is generated and the ball returns to the start tile (red, bottom-right) (FR1)
 
 **Given** the testbench with a scripted path
 **When** the ball is placed in the goal tile

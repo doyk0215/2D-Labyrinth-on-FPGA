@@ -37,8 +37,8 @@ module render (
     localparam signed [26:0] MAP_SIZE_Q   = 27'sd336 <<< 14;
     localparam [3:0] WALL_R = 4'hf, WALL_G = 4'hf, WALL_B = 4'hf;
     localparam [3:0] FLOOR_R = 4'h3, FLOOR_G = 4'h4, FLOOR_B = 4'h6;
-    localparam [3:0] START_R = 4'h0, START_G = 4'hf, START_B = 4'h0;
-    localparam [3:0] GOAL_R = 4'hf, GOAL_G = 4'h0, GOAL_B = 4'h0;
+    localparam [3:0] START_R = 4'hf, START_G = 4'h0, START_B = 4'h0;
+    localparam [3:0] GOAL_R = 4'h0, GOAL_G = 4'hf, GOAL_B = 4'h0;
     localparam [3:0] BACK_R = 4'h0, BACK_G = 4'h0, BACK_B = 4'h2;
     localparam [3:0] BALL_R = 4'hf, BALL_G = 4'hc, BALL_B = 4'h0;
 

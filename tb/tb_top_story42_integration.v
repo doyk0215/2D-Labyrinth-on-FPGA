@@ -184,7 +184,7 @@ module tb_top_story42_integration;
         end
         repeat (4) @(posedge clk);
         if (dut.ball_x !== 18'sd16384 || dut.ball_y !== 18'sd16384) begin
-            $display("FAIL: ball did not spawn on the green start tile (bottom-right): pos=(%0d,%0d)",
+            $display("FAIL: ball did not spawn on the red start tile (bottom-right): pos=(%0d,%0d)",
                      dut.ball_x, dut.ball_y);
             errors = errors + 1;
         end
