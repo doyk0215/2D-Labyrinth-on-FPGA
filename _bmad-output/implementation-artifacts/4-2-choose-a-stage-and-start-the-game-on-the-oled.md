@@ -2,7 +2,7 @@
 story_id: 4.2
 story_key: 4-2-choose-a-stage-and-start-the-game-on-the-oled
 title: Choose a stage and start the game on the OLED
-status: in-progress
+status: done
 owner: QZ
 epic: 4
 depends_on:
@@ -158,8 +158,8 @@ top and gates game start on stage confirmation.
   report shows zero failing setup and hold endpoints (worst setup slack
   0.183 ns; worst hold slack 0.074 ns).
 - Physical Basys 3 OLED/menu behavior passed with the Pmod OLED on header JB,
-  as reported by QZ on 2026-10-26. The story remains `in-progress` until PR #40
-  is reviewed and merged.
+  as reported by QZ on 2026-10-26. PR #40 merged on 2026-10-27 and issue #25
+  closed, completing the story.
 - After renaming the HDL module to `My_Top_Module`, Vivado 2025.2 current-stories
   regression and both OLED display modes passed on 2026-10-27. Synthesis,
   implementation, DRC, and bitstream generation also completed with zero errors.

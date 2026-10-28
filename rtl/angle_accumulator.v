@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// Frame-synchronous 12-bit maze angle accumulator.
+// Frame-synchronous 12-bit maze angle accumulator with a menu-selected rate.
 // At a nominal 60 frames/s, 1024 angle counts/s is 90 degrees/s. Since
 // 1024/60 is fractional, a remainder accumulator alternates 17- and
 // 18-count steps while preserving the exact average. The actual VGA timing
@@ -11,18 +11,30 @@ module angle_accumulator (
     input  wire                    rst,
     input  wire                    frame_tick,
     input  wire signed [1:0]       rot_cmd,
+    input  wire [1:0]              rot_speed_sel,
     input  wire                    snap_mode,
     input  wire                    rot_held,
     output reg  [`ANGLE_W-1:0]     angle
 );
 
     localparam [6:0] PHASE_MODULUS = 7'd60;
-    localparam [6:0] PHASE_ADD     = 7'd4;  // 1024 = 17*60 + 4
-
     reg [5:0] phase_remainder;
-    wire [6:0] phase_sum = {1'b0, phase_remainder} + PHASE_ADD;
+    reg [6:0] phase_add;
+    reg [6:0] whole_step;
+    always @* begin
+        // Counts/second = whole_step * 60 + phase_add. Keep code 00 at
+        // the historical 1024 counts/second (about 90 degrees/second).
+        case (rot_speed_sel)
+            2'b01: begin whole_step = 7'd8;  phase_add = 7'd32; end // 512 / s
+            2'b10: begin whole_step = 7'd25; phase_add = 7'd36; end // 1536 / s
+            2'b11: begin whole_step = 7'd34; phase_add = 7'd8;  end // 2048 / s
+            default: begin whole_step = 7'd17; phase_add = 7'd4;  end // 1024 / s
+        endcase
+    end
+
+    wire [6:0] phase_sum = {1'b0, phase_remainder} + phase_add;
     wire phase_carry = (phase_sum >= PHASE_MODULUS);
-    wire [`ANGLE_W-1:0] angle_step = phase_carry ? 12'd18 : 12'd17;
+    wire [`ANGLE_W-1:0] angle_step = phase_carry ? whole_step + 1'b1 : whole_step;
 
     // Each complete press contributes one step. rot_held distinguishes "both pressed"
     // from "neither pressed", since input_mux reports zero for both cases.
