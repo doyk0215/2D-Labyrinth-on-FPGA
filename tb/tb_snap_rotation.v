@@ -6,6 +6,7 @@ module tb_snap_rotation;
     reg rst = 1'b1;
     reg frame_tick = 1'b0;
     reg signed [1:0] rot_cmd = `ROT_NONE;
+    reg [1:0] rot_speed_sel = 2'b00;
     reg snap_mode = 1'b0;
     reg rot_held = 1'b0;
     wire [11:0] angle;
@@ -15,7 +16,8 @@ module tb_snap_rotation;
 
     angle_accumulator dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick),
-        .rot_cmd(rot_cmd), .snap_mode(snap_mode), .rot_held(rot_held),
+        .rot_cmd(rot_cmd), .rot_speed_sel(rot_speed_sel),
+        .snap_mode(snap_mode), .rot_held(rot_held),
         .angle(angle)
     );
 

@@ -6,7 +6,8 @@
 //   sw[0]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = retained debug value; Story 4.2 stage configuration selects N
 //   sw[5]   = 90-degree snap fallback (off = smooth rotation)
-//   btnU/D  = stage navigation in MENU
+//   btnU/D  = stage navigation in MENU, rotation-rate selection in settings
+//   btnL    = open the settings page from the stage menu
 //   btnC    = confirm in MENU; return to MENU from other states
 //   btnD    = regenerate while playing
 //   Any of btnU/L/R/D latches the random seed (first press only).
@@ -57,7 +58,7 @@ module My_Top_Module #(
     wire [1:0] game_state;
     assign rst = por_reset | game_reset_request;
 
-    wire btnU_press, btnD_menu_press, btnC_press;
+    wire btnU_press, btnD_menu_press, btnC_press, btnL_menu_press;
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnU_menu_i (
         .clk(clk), .rst(por_reset), .level_in(btnU), .press(btnU_press)
     );
@@ -66,6 +67,9 @@ module My_Top_Module #(
     );
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnC_menu_i (
         .clk(clk), .rst(por_reset), .level_in(btnC), .press(btnC_press)
+    );
+    button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnL_menu_i (
+        .clk(clk), .rst(por_reset), .level_in(btnL), .press(btnL_menu_press)
     );
 
     wire start_game;
@@ -77,15 +81,18 @@ module My_Top_Module #(
 
     menu_ctrl menu_ctrl_i (
         .clk           (clk),
-        .rst           (rst),
+        .rst           (por_reset),
+        .return_to_menu(game_reset_request),
         .menu_active   (menu_active),
         .btn_up        (btnU_press),
         .btn_down      (btnD_menu_press),
         .btn_confirm   (btnC_press),
+        .btn_settings  (btnL_menu_press),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
         .status_text   (status_text),
-        .selected_stage()
+        .selected_stage(),
+        .settings_page()
     );
     wire ce_pix;
     wire frame_tick;
@@ -208,7 +215,8 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
-    assign angle_rot_cmd = !snap_mode ? rot_cmd :
+    assign angle_rot_cmd = menu_active ? 2'sd0 :
+                           !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
     always @(posedge clk)
@@ -280,6 +288,7 @@ module My_Top_Module #(
         .rst        (rst),
         .frame_tick (frame_tick),
         .rot_cmd    (angle_rot_cmd),
+        .rot_speed_sel (active_game_cfg[7:6]),
         .snap_mode  (snap_mode),
         .rot_held   (rot_held),
         .angle      (angle)
