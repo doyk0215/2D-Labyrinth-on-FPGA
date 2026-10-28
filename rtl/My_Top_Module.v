@@ -334,7 +334,7 @@ module My_Top_Module #(
     // Ball (Stories 3.1, 3.2). ball_physics moves the ball once per frame and
     // bounces it off walls with the stage's restitution; ball_overlay turns its
     // maze position into a screen position and draws the disc.
-    // game_ctrl (Story 1.4) places the ball on the green start tile (the
+    // game_ctrl (Story 1.4) places the ball on the red start tile (the
     // bottom-right cell) when PLAY begins (phys_init) and enables gravity
     // only in PLAY (phys_en).
     wire signed [17:0] ball_x, ball_y;

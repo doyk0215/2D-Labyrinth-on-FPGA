@@ -154,9 +154,9 @@ module tb_rotated_render;
 
                     if (check_color && tile_x >= 0 && tile_y >= 0) begin
                         if (tile_x == 1 && tile_y == 1)
-                            expected = 12'h0f0;
+                            expected = 12'hf00; // red start
                         else if (tile_x == 1 && tile_y == 19)
-                            expected = 12'hf00;
+                            expected = 12'h0f0; // green goal
                         else if (ram_i.tile_mem[tile_y * 21 + tile_x])
                             expected = 12'hfff;
                         else

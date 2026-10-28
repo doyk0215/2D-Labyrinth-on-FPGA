@@ -109,7 +109,7 @@ module tb_top_ball;
         n_clk = 0; sum_x = 0; sum_y = 0; min_x = 1023; max_x = 0; min_y = 1023; max_y = 0;
         wait_frames(3);
 
-        // green start tile (bottom-right) centre on the screen (angle 0): 320 + 16*(col-10), 240 + 16*(row-10).
+        // red start tile (bottom-right) centre on the screen (angle 0): 320 + 16*(col-10), 240 + 16*(row-10).
         // Walls can stop the fall, so the ball is between the tile centre and
         // the model's free-fall depth 0.075*k*(k+1) px below it at g=0.15.
         measure(1);

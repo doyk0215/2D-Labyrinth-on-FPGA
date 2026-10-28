@@ -108,9 +108,9 @@ module tb_render;
             check_pixel(10'd151, 10'd80 + 16 * r, 12'h002); // background left
             for (c = 0; c < 21; c = c + 1) begin
                 if (c == dut.start_col && r == dut.start_row)
-                    exp_rgb = 12'h0f0;                       // start tile
+                    exp_rgb = 12'hf00;                       // red start tile
                 else if (c == dut.goal_col && r == dut.goal_row)
-                    exp_rgb = 12'hf00;                       // goal tile
+                    exp_rgb = 12'h0f0;                       // green goal tile
                 else if (dut.maze_ram_i.tile_mem[r * 21 + c])
                     exp_rgb = 12'hfff;                       // wall
                 else
