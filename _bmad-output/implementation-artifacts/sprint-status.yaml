@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-23-2026 15:00
-last_updated: 10-28-2026 16:29
+last_updated: 10-28-2026 19:15
 project: 2D-Labyrinth-on-FPGA
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   epic-3: in-progress
   3-1-a-ball-that-falls-under-screen-down-gravity: done  # owner: DY; ball physics and top-level integration delivered
   3-2-elastic-wall-collisions-without-friction: done  # owner: DY; implementation and board check recorded in spec-3-2
-  3-3-reach-the-goal-win-and-play-again: in-progress  # owner: QZ + CJX; visual part from PR #47 integrated, control work in progress
+  3-3-reach-the-goal-win-and-play-again: review  # owner: QZ + CJX; control and Vivado checks complete, board test pending
   3-4-reset-and-frame-budget-check: backlog  # owner: QZ
   epic-3-retrospective: optional
 

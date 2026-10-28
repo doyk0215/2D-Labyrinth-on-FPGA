@@ -1,5 +1,5 @@
-# Compile the current RTL and run the supported Story 1.1–4.3 regression with
-# Vivado Simulator 2025.2.
+# Compile current RTL and run the supported Story 1.1–4.3 regression plus Story 3.3.
+# Run with Vivado Simulator 2025.2.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
     set script_path [file join [pwd] $script_path]
@@ -36,8 +36,10 @@ foreach {top snapshot marker} {
     tb_vga_timing vga_timing_snapshot "PASS: 800x525 totals"
     tb_render render_snapshot "PASS: generated maze"
     tb_rotated_render rotated_render_snapshot "PASS: rotated renderer"
+    tb_goal_detection goal_detection_snapshot "PASS: goal detection"
     tb_win_render win_render_snapshot "PASS: win render"
     tb_top_win_indication top_win_snapshot "PASS: top win indication"
+    tb_top_story33_control top_story33_control_snapshot "PASS: Story 3.3 goal detector"
     tb_top_rotation top_rotation_snapshot "PASS: top rotation command"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"

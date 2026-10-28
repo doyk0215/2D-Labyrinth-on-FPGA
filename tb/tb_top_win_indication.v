@@ -1,13 +1,14 @@
 `timescale 1ns / 1ps
 
-// CJX's Story 3.3 integration uses the existing controller's WIN input as a
-// simulation stub. Goal detection and the two-second pause remain QZ's work.
+// Visual/control integration uses a short WIN interval. Goal detection and
+// replay duration are covered by the dedicated Story 3.3 control bench.
 module tb_top_win_indication;
     reg clk = 1'b0, btnC = 1'b0;
     always #5 clk = ~clk;
     wire [3:0] r, g, b;
     tri1 ps2_clk, ps2_data;
-    My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
+    My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
+                    .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnD(1'b0), .btnL(1'b0), .btnR(1'b0),
         .sw(16'h0001), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data), .oled_cs(), .oled_mosi(), .oled_sclk(),
@@ -83,8 +84,12 @@ module tb_top_win_indication;
         repeat (20) @(negedge clk);
         if (dut.ball_x !== stopped_x || dut.ball_y !== stopped_y) fail("physics moved in WIN");
 
-        // Current control skeleton resumes generation on its next frame.
-        // The display must disappear immediately while the new map is written.
+        // The integration uses a short three-frame WIN interval. The panel
+        // must persist for two frame ticks and disappear in GENERATE.
+        frame();
+        if (dut.game_state !== 2'b11) fail("WIN ended after one frame");
+        frame();
+        if (dut.game_state !== 2'b11) fail("WIN ended before the third frame");
         frame();
         wait_state(2'b01);
         if (dut.maze_ram_i.ren_r || dut.render_enable_d) fail("render reads enabled in GENERATE");

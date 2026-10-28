@@ -2,7 +2,7 @@
 story_id: 3.3
 story_key: 3-3-reach-the-goal-win-and-play-again
 title: Reach the goal, win, and play again
-status: in-progress
+status: review
 owner: QZ + CJX
 epic: 3
 depends_on:
@@ -109,15 +109,15 @@ PR #47 render/game-state interface and tests.
       `YOU WIN` indication over the completed maze during WIN (CJX, PR #47).
 - [x] Add pixel-level and top-level visual benches for the win indication
       (CJX, PR #47).
-- [ ] Detect ball-centre entry into the goal tile and connect `in_goal` to
+- [x] Detect ball-centre entry into the goal tile and connect `in_goal` to
       `game_ctrl`.
-- [ ] Extend `game_ctrl` with a frame-counted WIN interval and exactly one
+- [x] Extend `game_ctrl` with a frame-counted WIN interval and exactly one
       automatic regeneration request after the interval.
-- [ ] Preserve active configuration, capture a fresh non-debug seed, respawn
+- [x] Preserve active configuration, capture a fresh non-debug seed, respawn
       at the red start, and freeze physics/rotation during WIN.
-- [ ] Add goal-detector, controller timing, and full top-level control benches;
+- [x] Add goal-detector, controller timing, and full top-level control benches;
       include them in the focused and current-stories Vivado runners.
-- [ ] Run current-stories regression and routed timing/resource checks; record
+- [x] Run current-stories regression and routed timing/resource checks; record
       exact results.
 - [ ] Perform the Basys 3 goal-to-replay test and record it in the PR and here.
 
@@ -158,6 +158,21 @@ PR #47 render/game-state interface and tests.
 
 ## Implementation Evidence
 
-Control portion is in progress. Visual implementation and reported PR #47
-checks are recorded above. Add control simulation, integrated Vivado, routed
-timing, and board results here as QZ's portion is completed.
+- Control integration detects the ball centre in the half-open goal tile,
+  enters WIN only on a PLAY frame boundary, holds WIN for 120 frame ticks by
+  default, then captures a new non-debug seed and regenerates once. The active
+  configuration is retained, and the ball is initialized at the new red start.
+- The top-level integration bench checks goal detection, a shortened three-frame
+  WIN interval, persistent visual state, frozen physics and rotation, a changed
+  seed/map, configuration retention, and red-start respawn. Goal-boundary
+  coverage checks every supported generated goal coordinate for N=2..10.
+- Vivado 2025.2 focused Story 3.3 suite passed, including both PR #47 visual
+  benches and the new controller/goal integration. The full current-stories
+  regression also passed, including both OLED modes.
+- Vivado synthesis and routing completed on `My_Top_Module` without a bitstream.
+  Routed timing: WNS 0.743 ns and WHS 0.086 ns, with zero failing setup/hold
+  endpoints; all specified timing constraints are met. Utilization: 2809 Slice
+  LUTs (13.50%), 2359 Slice Registers (5.67%), 1.5 Block RAM tiles, and 6 DSPs.
+  DRC reports zero errors and 11 DSP pipelining advisories.
+- The Basys 3 win-and-replay hardware check remains pending; no board pass is
+  claimed.

@@ -15,6 +15,7 @@ module My_Top_Module #(
     parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer MENU_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz
+    parameter integer WIN_HOLD_FRAMES = 120,            // about 2 s at 60 Hz
     parameter START_IN_MENU = 1'b1
 ) (
     input  wire       clk,
@@ -121,6 +122,7 @@ module My_Top_Module #(
     wire        seed_capture;
     wire        phys_init;
     wire        phys_en;
+    wire        in_goal;
     wire        render_enable;
     reg         render_enable_d = 1'b0;
     reg         active_video_d = 1'b0;
@@ -215,7 +217,7 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
-    assign angle_rot_cmd = menu_active ? 2'sd0 :
+    assign angle_rot_cmd = (menu_active || (game_state == 2'b11)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
@@ -236,7 +238,10 @@ module My_Top_Module #(
     // MENU and GENERATE still mask the display and disable map reads.
     assign render_enable = (game_state == 2'b10) || (game_state == 2'b11);
 
-    game_ctrl #(.START_IN_MENU(START_IN_MENU)) game_ctrl_i (
+    game_ctrl #(
+        .START_IN_MENU(START_IN_MENU),
+        .WIN_HOLD_FRAMES(WIN_HOLD_FRAMES)
+    ) game_ctrl_i (
         .clk          (clk),
         .rst          (rst),
         .frame_tick   (frame_tick),
@@ -245,7 +250,7 @@ module My_Top_Module #(
         .regen_button (regen_request),
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
-        .in_goal      (1'b0),
+        .in_goal      (in_goal),
         .game_state   (game_state),
         .gen_start    (gen_start),
         .seed_capture (seed_capture),
@@ -362,6 +367,8 @@ module My_Top_Module #(
         .phys_en    (phys_en),
         .spawn_col  (start_col),
         .spawn_row  (start_row),
+        .goal_col   (goal_col),
+        .goal_row   (goal_row),
         .sin_q      (sin_q),
         .cos_q      (cos_q),
         .restitution_sel (active_game_cfg[5:4]),
@@ -371,7 +378,8 @@ module My_Top_Module #(
         .ball_y     (ball_y),
         .vel_x      (ball_vx),
         .vel_y      (ball_vy),
-        .phys_done  (phys_done)
+        .phys_done  (phys_done),
+        .in_goal    (in_goal)
     );
 
     ball_overlay ball_ov_i (

@@ -5,7 +5,8 @@
 // {rot_speed_sel[1:0], restitution_sel[1:0], n_cells[3:0]} and is captured
 // when a MENU start request is accepted at a frame boundary.
 module game_ctrl #(
-    parameter START_IN_MENU = 1'b0
+    parameter START_IN_MENU = 1'b0,
+    parameter integer WIN_HOLD_FRAMES = 120
 ) (
     input  wire       clk,
     input  wire       rst,
@@ -40,6 +41,7 @@ module game_ctrl #(
     reg       gen_done_pending;
     reg       start_pending;
     reg [7:0] start_cfg_pending;
+    reg [15:0] win_frames_elapsed;
 
     assign phys_en = (game_state == PLAY);
 
@@ -55,6 +57,7 @@ module game_ctrl #(
             start_pending  <= 1'b0;
             start_cfg_pending <= {2'b00, 2'b00, 4'd5};
             active_game_cfg <= {2'b00, 2'b00, 4'd5};
+            win_frames_elapsed <= 16'd0;
         end else begin
             gen_start    <= 1'b0;
             seed_capture <= 1'b0;
@@ -116,6 +119,7 @@ module game_ctrl #(
                         if (in_goal) begin
                             game_state    <= WIN;
                             regen_pending <= 1'b0;
+                            win_frames_elapsed <= 16'd0;
                         end else if (regen_pending || regen_button) begin
                             game_state       <= GENERATE;
                             gen_phase        <= CAPTURE_SEED;
@@ -127,10 +131,15 @@ module game_ctrl #(
 
                 WIN: begin
                     if (frame_tick) begin
-                        game_state       <= GENERATE;
-                        gen_phase        <= CAPTURE_SEED;
-                        regen_pending    <= 1'b0;
-                        gen_done_pending <= 1'b0;
+                        if (win_frames_elapsed >= WIN_HOLD_FRAMES - 1) begin
+                            game_state       <= GENERATE;
+                            gen_phase        <= CAPTURE_SEED;
+                            regen_pending    <= 1'b0;
+                            gen_done_pending <= 1'b0;
+                            win_frames_elapsed <= 16'd0;
+                        end else begin
+                            win_frames_elapsed <= win_frames_elapsed + 16'd1;
+                        end
                     end
                 end
 
