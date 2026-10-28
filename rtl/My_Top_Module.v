@@ -232,7 +232,9 @@ module My_Top_Module #(
     wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
     wire [3:0] n_cells = START_IN_MENU ? active_game_cfg[3:0] : legacy_n_cells;
 
-    assign render_enable = (game_state == 2'b10); // PLAY
+    // Keep the completed maze visible behind the Story 3.3 win indication.
+    // MENU and GENERATE still mask the display and disable map reads.
+    assign render_enable = (game_state == 2'b10) || (game_state == 2'b11);
 
     game_ctrl #(.START_IN_MENU(START_IN_MENU)) game_ctrl_i (
         .clk          (clk),
@@ -397,6 +399,7 @@ module My_Top_Module #(
         .rst          (rst),
         .ce_pix       (ce_pix),
         .frame_tick   (frame_tick),
+        .game_state   (game_state),
         .angle        (angle),
         .sin_q        (sin_q),
         .cos_q        (cos_q),
