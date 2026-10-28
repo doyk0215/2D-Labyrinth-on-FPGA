@@ -49,10 +49,10 @@ development_status:
   2-4-fallback-90-snap-rotation-mode: backlog  # owner: CJX
   epic-2-retrospective: optional
 
-  epic-3: backlog
+  epic-3: in-progress
   3-1-a-ball-that-falls-under-screen-down-gravity: backlog  # owner: DY
   3-2-elastic-wall-collisions-without-friction: backlog  # owner: DY
-  3-3-reach-the-goal-win-and-play-again: backlog  # owner: QZ + CJX (win indication)
+  3-3-reach-the-goal-win-and-play-again: in-progress  # CJX visual part in review; QZ goal detection and WIN pause pending
   3-4-reset-and-frame-budget-check: backlog  # owner: QZ
   epic-3-retrospective: optional
 

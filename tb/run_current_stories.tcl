@@ -36,6 +36,8 @@ foreach {top snapshot marker} {
     tb_vga_timing vga_timing_snapshot "PASS: 800x525 totals"
     tb_render render_snapshot "PASS: generated maze"
     tb_rotated_render rotated_render_snapshot "PASS: rotated renderer"
+    tb_win_render win_render_snapshot "PASS: win render"
+    tb_top_win_indication top_win_snapshot "PASS: top win indication"
     tb_top_rotation top_rotation_snapshot "PASS: top rotation command"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
