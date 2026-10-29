@@ -16,6 +16,7 @@ module My_Top_Module #(
     parameter integer MENU_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz
     parameter integer WIN_HOLD_FRAMES = 120,            // about 2 s at 60 Hz
+    parameter integer TIMER_CLK_HZ = 100_000_000,
     parameter START_IN_MENU = 1'b1
 ) (
     input  wire       clk,
@@ -77,6 +78,9 @@ module My_Top_Module #(
     wire [7:0] game_cfg;
     wire [7:0] active_game_cfg;
     wire [511:0] status_text;
+    wire [511:0] menu_page_text;
+    wire [7:0] elapsed_minutes_bcd;
+    wire [7:0] elapsed_seconds_bcd;
     wire menu_active = (game_state == 2'b00);
     assign game_reset_request = btnC_press && !menu_active;
 
@@ -91,7 +95,7 @@ module My_Top_Module #(
         .btn_settings  (btnL_menu_press),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
-        .status_text   (status_text),
+        .status_text   (menu_page_text),
         .selected_stage(),
         .settings_page()
     );
@@ -257,6 +261,24 @@ module My_Top_Module #(
         .phys_init    (phys_init),
         .active_game_cfg(active_game_cfg),
         .phys_en      (phys_en)
+    );
+
+    game_timer #(.CLK_HZ(TIMER_CLK_HZ)) elapsed_timer_i (
+        .clk(clk),
+        .rst(rst),
+        .game_state(game_state),
+        .phys_init(phys_init),
+        .elapsed_minutes_bcd(elapsed_minutes_bcd),
+        .elapsed_seconds_bcd(elapsed_seconds_bcd)
+    );
+
+    oled_status_text oled_status_i (
+        .menu_text(menu_page_text),
+        .game_state(game_state),
+        .active_game_cfg(active_game_cfg),
+        .elapsed_minutes_bcd(elapsed_minutes_bcd),
+        .elapsed_seconds_bcd(elapsed_seconds_bcd),
+        .status_text(status_text)
     );
 
     // Align the display mask with render's one-cycle pixel pipeline.
@@ -437,9 +459,9 @@ module My_Top_Module #(
     assign vga_g = render_enable_d ? render_g : (active_video_d ? 4'h0 : 4'h0);
     assign vga_b = render_enable_d ? render_b : (active_video_d ? 4'h2 : 4'h0);
 
-    // Transfer the menu's 512-bit text buffer through a held-data toggle
-    // mailbox. The OLED domain acknowledges a complete snapshot, then applies
-    // it only at frame_begin so a changed selection cannot tear a display frame.
+    // Transfer the composed 512-bit status_text buffer through a held-data
+    // toggle mailbox. The OLED domain acknowledges a complete snapshot, then
+    // applies it only at frame_begin so changing status cannot tear a frame.
     wire clk_6m25;
     oled_clk_div oled_div_i (.clk(clk), .clk_6m25(clk_6m25));
 
