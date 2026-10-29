@@ -37,6 +37,8 @@ module ball_physics (
     input  wire                         phys_en,      // 1 = PLAY: apply gravity
     input  wire [`COORD_W-1:0]          spawn_col,
     input  wire [`COORD_W-1:0]          spawn_row,
+    input  wire [`COORD_W-1:0]          goal_col,
+    input  wire [`COORD_W-1:0]          goal_row,
     input  wire signed [`TRIG_W-1:0]    sin_q,
     input  wire signed [`TRIG_W-1:0]    cos_q,
     input  wire [`RESTIT_SEL_W-1:0]     restitution_sel, // 0 = 0.5, 1 = 0.75, 2 = 0.625, 3 = 0.375
@@ -46,7 +48,8 @@ module ball_physics (
     output reg  signed [`POS_W-1:0]     ball_y,
     output reg  signed [`VEL_W-1:0]     vel_x,
     output reg  signed [`VEL_W-1:0]     vel_y,
-    output reg                          phys_done     // pulse once the new position is valid
+    output reg                          phys_done,    // pulse once the new position is valid
+    output wire                         in_goal       // ball centre inside the goal tile
 );
 
     localparam signed [`VEL_W-1:0] CAP   = `VEL_CAP;
@@ -58,6 +61,26 @@ module ball_physics (
     localparam integer AW = `POS_W + 1;
     localparam signed [AW-1:0] OFF = `MAP_DIM * `TILE_PX * (1 << (`POS_FRAC - 1));
     localparam signed [AW-1:0] R   = `BALL_RADIUS << `POS_FRAC;
+
+    // Convert an absolute map tile's left/top edge to maze-centred Q9.8.
+    // OFF is the 168 px map-centre offset; each tile is 1 << TILE_SHIFT units.
+    function signed [`POS_W-1:0] tile_min_q;
+        input [`COORD_W-1:0] tile;
+        reg signed [AW-1:0] tile_index;
+        reg signed [AW-1:0] edge_q;
+        begin
+            tile_index = $signed({1'b0, tile});
+            edge_q = (tile_index <<< `TILE_SHIFT) - OFF;
+            tile_min_q = edge_q[`POS_W-1:0];
+        end
+    endfunction
+
+    wire signed [`POS_W-1:0] goal_x_min = tile_min_q(goal_col);
+    wire signed [`POS_W-1:0] goal_y_min = tile_min_q(goal_row);
+    wire signed [`POS_W-1:0] goal_x_max = goal_x_min + (1 <<< `TILE_SHIFT);
+    wire signed [`POS_W-1:0] goal_y_max = goal_y_min + (1 <<< `TILE_SHIFT);
+    assign in_goal = (ball_x >= goal_x_min) && (ball_x < goal_x_max) &&
+                     (ball_y >= goal_y_min) && (ball_y < goal_y_max);
 
     // frame_tick -> angle updates -> registered ROM: sin/cos are valid when ft_d[1] is high
     reg [4:0] ft_d;

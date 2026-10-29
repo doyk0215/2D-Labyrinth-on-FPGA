@@ -15,11 +15,13 @@ module tb_ball_physics;
     reg phys_init = 1'b0;
     reg phys_en = 1'b1;
     reg [4:0] spawn_col = 5'd11, spawn_row = 5'd11;
+    reg [4:0] goal_col = 5'd1, goal_row = 5'd1;
     reg signed [15:0] sin_q = 16'sd0, cos_q = 16'sd16384;
     reg [1:0] restit = 2'd0;
     wire signed [17:0] ball_x, ball_y;
     wire signed [11:0] vel_x, vel_y;
     wire phys_done;
+    wire in_goal;
     wire [8:0] raddr_p;
     wire rdata_p;
 
@@ -37,9 +39,11 @@ module tb_ball_physics;
 
     ball_physics dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init), .phys_en(phys_en),
-        .spawn_col(spawn_col), .spawn_row(spawn_row), .sin_q(sin_q), .cos_q(cos_q),
+        .spawn_col(spawn_col), .spawn_row(spawn_row),
+        .goal_col(goal_col), .goal_row(goal_row), .sin_q(sin_q), .cos_q(cos_q),
         .restitution_sel(restit), .maze_raddr(raddr_p), .maze_rdata(rdata_p),
-        .ball_x(ball_x), .ball_y(ball_y), .vel_x(vel_x), .vel_y(vel_y), .phys_done(phys_done)
+        .ball_x(ball_x), .ball_y(ball_y), .vel_x(vel_x), .vel_y(vel_y),
+        .phys_done(phys_done), .in_goal(in_goal)
     );
 
     localparam real PI = 3.14159265358979323846;

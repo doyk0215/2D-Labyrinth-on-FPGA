@@ -9,6 +9,7 @@ module render (
     input  wire              rst,
     input  wire              ce_pix,
     input  wire              frame_tick,
+    input  wire [1:0]        game_state,
     input  wire [11:0]       angle,
     input  wire signed [15:0] sin_q,
     input  wire signed [15:0] cos_q,
@@ -44,6 +45,13 @@ module render (
 
     reg [1:0] frame_tick_d;
     reg [11:0] angle_snap;
+    reg win_frame;
+    wire win_panel, win_accent, win_text;
+    win_overlay win_i (
+        .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
+        .active_video(active_video), .panel_on(win_panel),
+        .accent_on(win_accent), .text_on(win_text)
+    );
     reg signed [26:0] walk_x_q, walk_y_q;
     reg signed [10:0] next_dy;
     reg signed [26:0] row_sin, row_cos;
@@ -75,6 +83,7 @@ module render (
         if (rst) begin
             frame_tick_d <= 2'b00;
             angle_snap <= 12'd0;
+            win_frame <= 1'b0;
             sin_snap <= 16'sd0;
             cos_snap <= 16'sd16384;
             walk_x_q <= -(27'sd152 <<< 14);
@@ -86,6 +95,9 @@ module render (
             // together on the following edge, in vertical blanking.
             if (frame_tick_d[1]) begin
                 angle_snap <= angle;
+                // game_ctrl changes state on frame_tick. Capture its new
+                // state with the angle/trig snapshot in vertical blanking.
+                win_frame <= (game_state == 2'b11);
                 sin_snap <= sin_q;
                 cos_snap <= cos_q;
             end
@@ -142,7 +154,15 @@ module render (
         vga_g = 4'h0;
         vga_b = 4'h0;
         if (active_video_d) begin
-            if (ball_on) begin
+            if (win_frame && (win_panel || win_accent)) begin
+                if (win_text) begin
+                    vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'hf;
+                end else if (win_accent) begin
+                    vga_r = 4'h0; vga_g = 4'hf; vga_b = 4'h0;
+                end else begin
+                    vga_r = 4'h0; vga_g = 4'h1; vga_b = 4'h3;
+                end
+            end else if (ball_on) begin
                 vga_r = BALL_R; vga_g = BALL_G; vga_b = BALL_B;
             end else if (in_map_d) begin
                 if (is_start_d) begin

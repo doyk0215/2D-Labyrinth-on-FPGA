@@ -210,8 +210,8 @@ module tb_top_story42_integration;
         wait_state(MENU);
         force dut.frame_tick = 1'b1;
 
-        // ... and from WIN. in_goal is tied low until Story 3.3, so force it
-        // to enter WIN, then hold frame_tick low to stay there for the press.
+        // ... and from WIN. Force the controller input here to isolate reset
+        // behavior; the Story 3.3 control bench covers real goal detection.
         press_button(2'd2);
         wait_state(PLAY);
         force dut.game_ctrl_i.in_goal = 1'b1;

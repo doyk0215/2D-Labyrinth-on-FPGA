@@ -75,6 +75,12 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2 (no `n_cells`: the maze is always centred in the map)
 - Outputs: `vga_r/g/b[3:0]`, `vga_hs`, `vga_vs`
 - C latches `angle`, `ball_x`, `ball_y` at frame start (AD-6)
+- Story 3.3 visual part: `render.game_state[1:0]` now consumes this existing
+  contract and snapshots WIN with angle/trig in vertical blanking. WIN adds a
+  fixed `YOU WIN` panel and green outline using `win_overlay` and `font_rom`;
+  its flags have the same one-clock pixel latency as the renderer. The top
+  enables map reads/display in PLAY and WIN, and masks MENU/GENERATE. QZ still
+  connects goal detection and supplies the approximately two-second WIN pause.
 
 ## 4. Dependencies and integration points
 

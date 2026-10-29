@@ -28,7 +28,7 @@ module tb_game_ctrl;
 
     always #5 clk = ~clk;
 
-    game_ctrl #(.START_IN_MENU(1'b1)) dut (
+    game_ctrl #(.START_IN_MENU(1'b1), .WIN_HOLD_FRAMES(3)) dut (
         .clk          (clk),
         .rst          (rst),
         .frame_tick   (frame_tick),
@@ -145,7 +145,13 @@ module tb_game_ctrl;
         wait (gen_start === 1'b1);
         complete_generation();
 
+        // A goal outside a frame boundary must not change game_state.
         @(negedge clk); in_goal = 1'b1;
+        repeat (2) @(negedge clk);
+        if (game_state !== PLAY) begin
+            $display("FAIL: goal changed state without frame_tick");
+            errors = errors + 1;
+        end
         pulse_frame();
         wait_state(WIN);
         if (phys_en !== 1'b0) begin
@@ -154,9 +160,20 @@ module tb_game_ctrl;
         end
         @(negedge clk); in_goal = 1'b0;
         pulse_frame();
+        pulse_frame();
+        if (game_state !== WIN || gen_start !== 1'b0) begin
+            $display("FAIL: WIN ended before the configured hold interval");
+            errors = errors + 1;
+        end
+        pulse_frame();
         wait_state(GENERATE);
         wait (gen_start === 1'b1);
         repeat (2) @(posedge clk);
+
+        if (active_game_cfg !== 8'hA5) begin
+            $display("FAIL: automatic replay changed the active game configuration");
+            errors = errors + 1;
+        end
 
         if (start_count != 3 || seed_count != 3 || init_count != 2) begin
             $display("FAIL: starts=%0d seed captures=%0d phys_init=%0d (expected 3,3,2)",
@@ -165,7 +182,7 @@ module tb_game_ctrl;
         end
 
         if (errors == 0)
-            $display("PASS: game_ctrl startup, regeneration, busy gating, frame handoff, and WIN path");
+            $display("PASS: game_ctrl startup, regeneration, busy gating, frame handoff, and timed WIN replay");
         else
             $display("FAIL: game_ctrl had %0d errors", errors);
         $finish;
