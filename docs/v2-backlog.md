@@ -125,21 +125,25 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
   - Gravity: low gravity (half of g), high gravity (double g), zero gravity (the ball drifts and keeps bouncing, since there is no friction), reverse gravity (the gravity vector is negated).
   - Controls: invert controls (left and right rotation swapped).
   - Visual: fog of war (only tiles within a radius of the ball are drawn).
-- **Rejected for now:** speed-cap changes, bounce (restitution) effects, trap immunity, time bonus or penalty, teleports, mirror view, ball-size changes, ghost mode and path reveal. See the open questions about trap immunity.
+  - Invincibility (buff box only): trap tiles (item 4) are ignored while it lasts, so entering one does nothing.
+- **Pools.** Buff box: low gravity, high gravity, zero gravity, invincibility. Debuff box: reverse gravity, invert controls, fog of war.
+- **Rejected for now:** speed-cap changes, bounce (restitution) effects, time bonus or penalty, teleports, mirror view, fast or slow rotation, ball-size changes, ghost mode and path reveal.
 - **Rules.** One effect is active at a time, and a new pickup replaces it. Duration is about 8 s (a parameter, to be playtested). The effect clears on a replay, on reset and on LOSE or WIN.
-- **Placement.** Boxes sit on floor cells that are not the start, goal, checkpoint or trap cells, so a box never blocks the route. The counts per stage are open.
+- **Placement and count.** Each stage has 2 buff boxes and 2 debuff boxes. They sit on floor cells that are not the start, goal, checkpoint or trap cells, so a box never blocks the route.
+- **Respawn.** Boxes respawn. After a pickup the box disappears from its cell and reappears there after a delay (a parameter, for example 15 s; to be playtested). If the ball is on the cell when the delay ends, the box waits until the ball leaves. Each pickup rolls a fresh random effect from that box's pool. Respawn timers clear on a new maze.
 - **Owner.** A new `item_ctrl` module is the single owner of the active effect and its remaining time (AD-5). It outputs the effect code to the consumers below.
 
 **How each effect is applied.**
 - Gravity: scale the product that `ball_physics` already computes per frame (shift right by one for low, shift left by one for high, zero for zero gravity, negate for reverse). Scaling after the multiply keeps the constant multiply in LUTs and keeps the 5 px/frame speed cap, so the no-tunnelling guarantee stays. The carried fraction bits (the dropped low bits of the product) must be scaled the same way, or the carry goes wrong when an effect starts or ends.
 - Invert controls: swap the sign of the rotation command in `angle_rot_cmd` in `My_Top_Module`, for the smooth path and for the snap path (mouse and buttons both).
+- Invincibility: gate the trap check from item 4 in `ball_physics` with the effect code. Checkpoints, boxes and the goal are unaffected.
 - Fog of war: in `render`, blank pixels whose screen distance from the ball exceeds a radius. `ball_overlay` already does a squared-distance test against a radius, so the same structure can be reused.
 - OLED: one line such as `ITEM: LOW GRAV 06` showing the name and the seconds left (`oled_status_text`).
 
 **Where.** `rtl/item_ctrl.v` (new), `rtl/maze_gen.v` and `rtl/maze_ram.v` (placement and storage, shared with item 4), `rtl/ball_physics.v`, `rtl/render.v`, `rtl/My_Top_Module.v`, `rtl/oled_status_text.v`.
 
 **Check.**
-- Testbench, per effect: with low and high gravity the velocity after N frames is half and double the normal value; reverse gravity moves the ball the opposite way; zero gravity leaves the velocity unchanged; invert controls turns left into right in both smooth and snap modes; fog blanks pixels beyond the radius and leaves those inside; each effect ends after its duration and clears on replay and reset; a new pickup replaces the old effect; no wall crossings with any gravity effect (reuse the tunnelling bench).
+- Testbench, per effect: with low and high gravity the velocity after N frames is half and double the normal value; reverse gravity moves the ball the opposite way; zero gravity leaves the velocity unchanged; invert controls turns left into right in both smooth and snap modes; invincibility makes a trap hit do nothing and a trap hit after it ends reset the ball; a picked-up box vanishes, reappears after the delay, waits while the ball stands on it, and re-rolls its effect; fog blanks pixels beyond the radius and leaves those inside; each effect ends after its duration and clears on replay and reset; a new pickup replaces the old effect; no wall crossings with any gravity effect (reuse the tunnelling bench).
 - Render: the buff box, the debuff box, and the fog edge pixels.
 - Board: pick up each effect and watch the behaviour and the OLED countdown.
 - Resources: LUT, FF and timing caps still met (AD-8).
@@ -159,7 +163,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 - Does a trap cost time in time-limit mode?
 - Does the win panel show elapsed time or time left in time-limit mode?
 - Loop density K: fixed per stage, or a settings option?
-- Item boxes: which accepted effects go in the buff pool and which in the debuff pool? Proposed: debuffs are reverse gravity, invert controls and fog of war; buffs are low gravity, high gravity and zero gravity. Only low gravity is clearly helpful, so the buff pool feels thin.
-- Item boxes: trap immunity was named in the first request but was in the "rejected" group of the second. Keep it out, or bring it back as a buff?
-- Item boxes: are boxes single-use (they disappear) or do they respawn, and how many per stage?
+- Item boxes: does "invincibility" mean only ignoring trap tiles (as written above), or also being immune to debuffs for its duration?
+- Item boxes: the respawn delay and the effect duration are placeholders (15 s and 8 s) that need playtesting.
+- Item boxes: high gravity and zero gravity are in the buff pool by proposal. Only low gravity and invincibility are clearly helpful, so the split may need adjusting after playtesting.
 - Item boxes: the debuff box is red and the buff box green and blue, while the start tile is red and the goal tile is green. Use a "?" glyph or a pattern so boxes are not confused with them.
