@@ -1,6 +1,6 @@
 # v2.0 Backlog — 2D Labyrinth on FPGA
 
-Features deferred past the graded v1.0 build. Each entry says why it came up, what it should do, and how to check it. Story details for v1.0 stay in `_bmad-output/planning-artifacts/epics.md`.
+Features deferred past the graded v1.0 build. Each entry says why it came up, what it should do, and how to check it. Story details for v1.0 stay in `_bmad-output/planning-artifacts/epics.md`. The v2.0 stories, with sizes, are in `_bmad-output/planning-artifacts/epics-v2.md`.
 
 ## 1. Long-press BTNC full reset
 
