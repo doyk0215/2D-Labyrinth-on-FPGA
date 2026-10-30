@@ -175,6 +175,30 @@ module tb_game_ctrl;
             errors = errors + 1;
         end
 
+        // Reset must dominate a simultaneous completion/frame handoff and
+        // discard all queued start, generation, and replay state.
+        @(negedge clk);
+        rst = 1'b1;
+        frame_tick = 1'b1;
+        start_game = 1'b1;
+        gen_busy = 1'b0;
+        gen_done = 1'b1;
+        in_goal = 1'b1;
+        regen_button = 1'b1;
+        @(posedge clk); #1;
+        if (game_state !== MENU || gen_start || seed_capture || phys_init ||
+            phys_en || active_game_cfg !== {2'b00, 2'b00, 4'd5}) begin
+            $display("FAIL: reset did not dominate simultaneous frame, generation-done, and goal events");
+            errors = errors + 1;
+        end
+        @(negedge clk);
+        rst = 1'b0;
+        frame_tick = 1'b0;
+        start_game = 1'b0;
+        gen_done = 1'b0;
+        in_goal = 1'b0;
+        regen_button = 1'b0;
+
         if (start_count != 3 || seed_count != 3 || init_count != 2) begin
             $display("FAIL: starts=%0d seed captures=%0d phys_init=%0d (expected 3,3,2)",
                      start_count, seed_count, init_count);
