@@ -283,7 +283,7 @@ So that I can choose to roll onto them.
 
 **Given** the render bench
 **When** boxes are drawn
-**Then** the buff box (green and blue) and debuff box (red) have a distinct "?" pattern that cannot be mistaken for the red start tile or the green goal tile
+**Then** the buff box (green and blue) and debuff box (red) each carry a white "?" glyph that cannot be mistaken for the red start tile or the green goal tile
 
 **Given** the generator bench
 **When** many seeds run
@@ -373,7 +373,7 @@ So that buff boxes are worth hitting.
 
 **Given** invincibility is active
 **When** the ball rolls onto a debuff box
-**Then** nothing starts and the invincibility continues; a buff box still works and replaces it; once it ends, debuff boxes work again
+**Then** nothing starts, the invincibility continues and the debuff box is consumed (it respawns after the normal delay); a buff box still works and replaces it; once it ends, debuff boxes work again
 
 **Given** a time bonus
 **When** it is picked up in time-limit mode
