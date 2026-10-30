@@ -37,9 +37,11 @@ No story is larger than M. Anything bigger was split. Streams follow `docs/paral
 | 9.3 | Gravity effects | M | A | 9.2 |
 | 9.4 | Invert controls and fog of war | M | B + C | 9.2 |
 | 9.5 | Invincibility and time bonus | S | B | 9.2, 8.2 |
-| 9.6 | Board playtest and tuning | S | A | 9.3, 9.4, 9.5 |
+| 9.6 | Item icons | S | C | none |
+| 9.7 | OLED item roulette | M | A + B | 9.2, 9.6 |
+| 9.8 | Board playtest and tuning | S | A | 9.3, 9.4, 9.5, 9.7 |
 
-Total: 16 stories (9 S, 7 M).
+Total: 18 stories (10 S, 8 M).
 
 Suggested order: 6.1 and 6.2 first (6.1 touches many files and 8.2 adds the LOSE state); then 7.1, then 7.2 to 7.4 with 7.5 alongside; 8.1 any time; 8.2 and 8.3 after 6.1; the item-box epic last.
 
@@ -343,7 +345,7 @@ So that the maze stays interesting.
 **When** an effect is active
 **Then** a line shows its name and the seconds left (for example `ITEM: LOW GRAV 06`)
 
-*(This story includes one stub effect, low gravity, so the engine can be tested end to end; the other effects are in 9.3 to 9.5.)*
+*(This story includes one stub effect, low gravity, so the engine can be tested end to end; the other effects are in 9.3 to 9.5. Here the effect starts at pickup; 9.7 delays the start until the OLED roulette stops.)*
 
 ### Story 9.3: Gravity effects
 
@@ -411,13 +413,72 @@ So that buff boxes are worth hitting.
 **When** they run
 **Then** both effects are covered, including a bonus near 00:00 that extends the game instead of ending it
 
-### Story 9.6: Board playtest and tuning
+### Story 9.6: Item icons
+
+As the player,
+I want each item to have its own picture,
+So that I can tell at a glance what I got.
+
+**Size:** S. **Needs:** none.
+
+**Design.**
+- 8 icons, one per effect: low gravity, invincibility and time bonus (buff); reverse, high and zero gravity, invert controls and fog of war (debuff).
+- Each icon is 16 x 16 pixels with 2-bit colour indices: 0 = black, 1 = frame, 2 and 3 = the icon's own two colours. Buff icons have a green frame and debuff icons a red one, matching the boxes.
+- A per-icon palette of four RGB565 colours sits beside the index ROM (8 x 256 x 2 bits, about 4 kbit, in LUT ROM or part of one block RAM).
+- The art is kept as text grids in the repository, with a script that turns them into the `.mem` file and a PNG preview sheet.
+
+**Acceptance Criteria:**
+
+**Given** the 8 icon grids
+**When** the script runs
+**Then** it writes the `.mem` file and a preview sheet, and the team has approved the preview
+
+**Given** the icon ROM bench
+**When** every pixel of every icon is read
+**Then** the colour matches the preview sheet
+
+### Story 9.7: OLED item roulette
+
+As the player,
+I want the OLED to spin through the possible items and stop on the one I got,
+So that picking up a box feels like a lucky draw.
+
+**Size:** M. **Needs:** 9.2, 9.6.
+
+**Design.**
+- `item_ctrl` still decides the effect at pickup (LFSR); the roulette only animates towards that result.
+- While the roulette runs, the OLED shows only the roulette: no text. The icon is drawn at 3x scale (48 x 48) in the middle of the 96 x 64 screen on black.
+- The icons of that box's pool (3 for a buff box, 5 for a debuff box) cycle in one slot, starting fast and slowing down, for about 1.5 s (a parameter), then stop on the chosen icon. The chosen icon stays for about 1 s (a parameter), then the OLED returns to the status page with the effect line.
+- The game keeps running during the roulette. The effect, or the time bonus, starts when the roulette stops.
+- Assumption: boxes are not picked up while a roulette is running; the ball rolls over them and they stay.
+- Assumption: a debuff box blocked by invincibility shows no roulette; the OLED shows the invincibility icon for about 1 s instead.
+- The OLED pixel stream gets a second source: `oled_text_pixel` for the status page, and a new icon source for the roulette, chosen per frame so a frame never mixes the two.
+
+**Acceptance Criteria:**
+
+**Given** a pickup in the bench
+**When** the roulette runs
+**Then** only icons from that box's pool appear, the steps slow down, and the last icon is the effect `item_ctrl` chose
+
+**Given** the roulette stops
+**When** the hold time ends
+**Then** the effect starts on that frame and the OLED returns to the status page
+
+**Given** the OLED frame bench
+**When** a roulette frame is captured
+**Then** it contains no text pixels and the icon matches the ROM at 3x scale
+
+**Given** a replay, reset, WIN or LOSE during a roulette
+**When** it happens
+**Then** the roulette stops, no effect starts and the OLED shows the page for the new state
+
+### Story 9.8: Board playtest and tuning
 
 As the examiner,
 I want the item boxes checked on the board,
 So that the placeholder numbers are replaced by playtested ones.
 
-**Size:** S. **Needs:** 9.3, 9.4, 9.5.
+**Size:** S. **Needs:** 9.3, 9.4, 9.5, 9.7.
 
 **Acceptance Criteria:**
 
@@ -425,7 +486,7 @@ So that the placeholder numbers are replaced by playtested ones.
 **When** every effect is picked up on EASY, HARD and N = 15
 **Then** each behaves as specified and the OLED countdown matches a watch
 
-**Given** the placeholders (effect duration, respawn delay, time bonus amount, fog radius, loop count K, time limits)
+**Given** the placeholders (effect duration, respawn delay, time bonus amount, fog radius, loop count K, time limits, roulette spin and hold times)
 **When** they are playtested
 **Then** final values are recorded in the spec and the v2.0 backlog
 
