@@ -103,8 +103,9 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
   - Controls: invert controls (left and right rotation swapped).
   - Visual: fog of war (only tiles within a radius of the ball are drawn).
   - Invincibility (buff box only): debuff boxes are ignored while it lasts. The ball can roll over them and nothing happens.
-- **Pools.** Buff box: low gravity, invincibility. Debuff box: reverse gravity, high gravity, zero gravity, invert controls, fog of war.
-- **Rejected for now:** checkpoints and trap tiles (dropped from the v2.0 list), speed-cap changes, bounce (restitution) effects, time bonus or penalty, teleports, mirror view, fast or slow rotation, ball-size changes, ghost mode and path reveal.
+  - Time bonus (buff box only): an instant effect with no duration. In time-limit mode (item 5) it adds seconds to the countdown; in normal mode it takes the same number of seconds off the elapsed time (never below 00:00). The amount is a parameter (for example 10 s). It does not replace the active effect, since it has no timer of its own.
+- **Pools.** Buff box: low gravity, invincibility, time bonus. Debuff box: reverse gravity, high gravity, zero gravity, invert controls, fog of war.
+- **Rejected for now:** checkpoints and trap tiles (dropped from the v2.0 list), speed-cap changes, bounce (restitution) effects, time penalty, teleports, mirror view, fast or slow rotation, ball-size changes, ghost mode and path reveal.
 - **Rules.** One effect is active at a time, and a new pickup replaces it. Duration is about 8 s (a parameter, to be playtested). The effect clears on a replay, on reset and on LOSE or WIN.
 - **Placement and count.** Each stage has 2 buff boxes and 2 debuff boxes. They sit on floor cells that are not the start or goal cell, and no two boxes share a cell. A box is a pickup, not an obstacle, so it never blocks the route.
 - **Respawn.** Boxes respawn. After a pickup the box disappears from its cell and reappears there after a delay (a parameter, for example 15 s; to be playtested). If the ball is on the cell when the delay ends, the box waits until the ball leaves. Each pickup rolls a fresh random effect from that box's pool. Respawn timers clear on a new maze.
@@ -114,13 +115,14 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 - Gravity: scale the product that `ball_physics` already computes per frame (shift right by one for low, shift left by one for high, zero for zero gravity, negate for reverse). Scaling after the multiply keeps the constant multiply in LUTs and keeps the 5 px/frame speed cap, so the no-tunnelling guarantee stays. The carried fraction bits (the dropped low bits of the product) must be scaled the same way, or the carry goes wrong when an effect starts or ends.
 - Invert controls: swap the sign of the rotation command in `angle_rot_cmd` in `My_Top_Module`, for the smooth path and for the snap path (mouse and buttons both).
 - Invincibility: while it is active, `item_ctrl` ignores a pickup of a debuff box. Picking up a buff box still works and replaces the current effect (one effect at a time), and picking up a debuff box while invincible neither starts a debuff nor ends the invincibility.
+- Time bonus: a one-cycle pulse from `item_ctrl` to `game_timer`, which adds seconds (time-limit mode) or subtracts them with a floor at zero (normal mode) in its BCD registers. This is a second timer change after the down-count mode in item 5, so the two share one design.
 - Fog of war: in `render`, blank pixels whose screen distance from the ball exceeds a radius. `ball_overlay` already does a squared-distance test against a radius, so the same structure can be reused.
 - OLED: one line such as `ITEM: LOW GRAV 06` showing the name and the seconds left (`oled_status_text`).
 
 **Where.** `rtl/item_ctrl.v` (new), `rtl/maze_gen.v` and `rtl/maze_ram.v` (placement and storage of the boxes), `rtl/ball_physics.v`, `rtl/render.v`, `rtl/My_Top_Module.v`, `rtl/oled_status_text.v`.
 
 **Check.**
-- Testbench, per effect: with low and high gravity the velocity after N frames is half and double the normal value; reverse gravity moves the ball the opposite way; zero gravity leaves the velocity unchanged; invert controls turns left into right in both smooth and snap modes; while invincible, a debuff box does nothing, and once invincibility ends a debuff box works again; a picked-up box vanishes, reappears after the delay, waits while the ball stands on it, and re-rolls its effect; fog blanks pixels beyond the radius and leaves those inside; each effect ends after its duration and clears on replay and reset; a new pickup replaces the old effect; no wall crossings with any gravity effect (reuse the tunnelling bench).
+- Testbench, per effect: with low and high gravity the velocity after N frames is half and double the normal value; reverse gravity moves the ball the opposite way; zero gravity leaves the velocity unchanged; invert controls turns left into right in both smooth and snap modes; while invincible, a debuff box does nothing, and once invincibility ends a debuff box works again; a time bonus adds the seconds to the countdown in time-limit mode (and a countdown near 00:00 is extended rather than ending the game), takes them off the elapsed time in normal mode with a floor at 00:00, and leaves the active effect running; a picked-up box vanishes, reappears after the delay, waits while the ball stands on it, and re-rolls its effect; fog blanks pixels beyond the radius and leaves those inside; each effect ends after its duration and clears on replay and reset; a new pickup replaces the old effect; no wall crossings with any gravity effect (reuse the tunnelling bench).
 - Render: the buff box, the debuff box, and the fog edge pixels.
 - Board: pick up each effect and watch the behaviour and the OLED countdown.
 - Resources: LUT, FF and timing caps still met (AD-8).
@@ -137,7 +139,8 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 - Larger stages: camera on the ball, smaller tiles, or a non-power-of-two tile?
 - Does the win panel show elapsed time or time left in time-limit mode?
 - Loop density K: fixed per stage, or a settings option?
-- Item boxes: the buff pool has two effects (low gravity, invincibility) and the debuff pool has five. Is that lopsided split intended, or should a buff be added (for example a time bonus in time-limit mode)?
+- Item boxes: the buff pool has three effects (low gravity, invincibility, time bonus) and the debuff pool has five. Is that split intended?
+- Item boxes: the time bonus amount (placeholder 10 s), and whether it should work in normal mode (as written, it takes seconds off the elapsed time) or be left out of the pool there.
 - Item boxes: when invincibility ignores a debuff box, does the box stay in place (still there to be hit later) or is it consumed and respawned as if picked up?
 - Item boxes: the respawn delay and the effect duration are placeholders (15 s and 8 s) that need playtesting.
 - Item boxes: the debuff box is red and the buff box green and blue, while the start tile is red and the goal tile is green. Use a "?" glyph or a pattern so boxes are not confused with them.
