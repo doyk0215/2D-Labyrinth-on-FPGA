@@ -425,13 +425,14 @@ So that I can tell at a glance what I got.
 - 8 icons, one per effect: low gravity, invincibility and time bonus (buff); reverse, high and zero gravity, invert controls and fog of war (debuff).
 - Each icon is 16 x 16 pixels with 2-bit colour indices: 0 = black, 1 = frame, 2 and 3 = the icon's own two colours. Buff icons have a green frame and debuff icons a red one, matching the boxes.
 - A per-icon palette of four RGB565 colours sits beside the index ROM (8 x 256 x 2 bits, about 4 kbit, in LUT ROM or part of one block RAM).
-- The art is kept as text grids in the repository, with a script that turns them into the `.mem` file and a PNG preview sheet.
+- The art is kept as text grids in `scripts/make_item_icons.ps1`, which writes `item_icons.mem` (indices), `item_icons_palette.mem` (RGB565) and a PNG preview sheet.
+- The art was approved on 2026-10-30; the approved sheet is `docs/v2-item-icons.png`. Changes to the grids or colours need the team's approval again.
 
 **Acceptance Criteria:**
 
 **Given** the 8 icon grids
 **When** the script runs
-**Then** it writes the `.mem` file and a preview sheet, and the team has approved the preview
+**Then** it writes both `.mem` files and a preview sheet that matches `docs/v2-item-icons.png`
 
 **Given** the icon ROM bench
 **When** every pixel of every icon is read
