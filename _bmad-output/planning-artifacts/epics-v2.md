@@ -25,7 +25,7 @@ No story is larger than M. Anything bigger was split. Streams follow `docs/paral
 | 6.1 | Shared game-state encoding | S | B | none |
 | 6.2 | Long-press BTNC full reset | S | B | none |
 | 7.1 | Map size follows the stage | M | A | none |
-| 7.2 | Decide how to show the N = 15 map | S | C | 7.1 |
+| 7.2 | Camera that follows the ball | S | C | 7.1 |
 | 7.3 | Draw the N = 15 map | M | C | 7.1, 7.2 |
 | 7.4 | Add the N = 15 stage | S | B | 7.1, 7.3 |
 | 7.5 | Loops on HARD and larger | M | A | 7.1 |
@@ -113,19 +113,41 @@ So that a larger stage needs no more structural change.
 **When** the existing bounce, tunnelling and goal tests run on a 31 x 31 map
 **Then** they pass
 
-### Story 7.2: Decide how to show the N = 15 map
+### Story 7.2: Camera that follows the ball
 
-As the team,
-I want a chosen way to fit a 496 px map into a 480-line picture,
-So that the render work in 7.3 starts from a decision.
+As the player,
+I want the view to follow the ball on the N = 15 stage without shaking,
+So that a maze larger than the screen is playable at any angle.
 
 **Size:** S. **Needs:** 7.1.
 
+**Decision.** The N = 15 map is shown through a camera that follows the ball. The other two options fail at 45 degrees: a 31 x 31 map needs a tile of about 10 px or less to fit rotated, which is no bigger than the ball, and a 15 px tile still clips (about 658 px across the diagonal). The camera keeps the 16 px tile, so physics, the ball and the goal test do not change. N = 5 and N = 10 keep the fixed view (camera pinned at the map centre), so they look as they do today.
+
+**Design.**
+- A new `camera` module owns the camera position `cam_x`, `cam_y` (Q9.8 maze pixels from the map centre, the same format as the ball position; AD-5 single writer).
+- It updates once per frame on `phys_done`, so it uses this frame's ball position. Capturing it with render's sin/cos snapshot would be one frame late, because that snapshot is taken before physics runs.
+- **Dead zone:** while the ball is within a box around the camera (parameter, about ±48 px in maze coordinates), the target does not move. Outside it, the target moves just far enough to bring the ball back to the box edge. Bounces (about 21 px high at EASY restitution and 47 px at HARD) stay inside the box, so the maze does not shake.
+- **Smoothing:** `cam += (target - cam) >>> CAM_SHIFT` (parameter, about 3), shift and add only, no multiplier.
+- **Snap:** on `phys_init` (new maze, replay, reset) the camera jumps straight to the ball, so it does not sweep across the maze.
+- **Fixed stages:** for N = 5 and N = 10 the camera output is the map centre.
+
 **Acceptance Criteria:**
 
-**Given** the three options in `docs/v2-backlog.md` item 2 (camera centred on the ball, a smaller tile, a tile that is not a power of two)
-**When** each is assessed for render changes, physics changes, timing and block RAM cost
-**Then** one is chosen and recorded with the reasons, and the start and goal visibility questions are answered
+**Given** the camera bench with a scripted ball path
+**When** the ball moves inside the dead zone, including repeated bounces of up to 47 px
+**Then** the camera does not move
+
+**Given** the ball leaves the dead zone at the 5 px/frame cap
+**When** frames pass
+**Then** the camera follows without overshoot, the ball's offset from the camera stays within the dead zone plus the smoothing lag (about 48 + 40 px), and the ball stays on screen at every angle
+
+**Given** `phys_init`
+**When** it pulses
+**Then** the camera equals the ball position on that frame
+
+**Given** an N = 5 or N = 10 game
+**When** it runs
+**Then** the camera output is the map centre on every frame
 
 ### Story 7.3: Draw the N = 15 map
 
@@ -135,11 +157,21 @@ So that I can play it.
 
 **Size:** M. **Needs:** 7.1, 7.2.
 
+**Design.**
+- `render` replaces the constant `MAP_CENTRE_Q` with the camera position (`cam << 6` plus the map centre, Q13.14). The per-frame part of the scanline start (camera minus 320 x cos or sin) is registered in vertical blanking, so the per-scanline adder is no deeper than today.
+- `ball_overlay` takes `ball - cam` instead of `ball`; its rotation is unchanged, so the DSP count does not change.
+- `render` draws only the stage's own tiles, not the whole 31 x 31 map, so N = 5 and N = 10 do not show a large wall border.
+- The camera, the ball overlay and the render snapshot all change in the same vertical blanking interval, so a frame never mixes two camera positions.
+
 **Acceptance Criteria:**
 
-**Given** an N = 15 maze
-**When** it is rendered at 0, 45, 90 and 135 degrees using the chosen approach
-**Then** the raster bench matches the software model and nothing is drawn outside the maze area
+**Given** an N = 15 maze and a set of camera positions, including near each map edge
+**When** it is rendered at 0, 45, 90 and 135 degrees
+**Then** the raster bench matches the software model, and pixels outside the map show the background
+
+**Given** the ball and the camera in the top-level bench
+**When** the ball moves and bounces
+**Then** the drawn ball stays aligned with the physics position and the picture does not tear
 
 **Given** the existing N = 5 and N = 10 stages
 **When** the render bench runs

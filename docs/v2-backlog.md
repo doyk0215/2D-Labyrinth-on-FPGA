@@ -27,18 +27,20 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 - `maze_gen`: the explicit stack grows from 100 to 225 entries and its pointer from 7 to 8 bits; the cell coordinates stay at 4 bits (0 to 14).
 - `menu_ctrl`, `oled_status_text` and `game_cfg` get a third stage entry (the stage list is currently two entries, selected by one bit).
 
-**Problem to settle first: the map does not fit the screen.** At 16 px per tile a 31-tile map is 496 px, taller than the 480-line picture, and its rotated corners are about 700 px from the centre. The v1.0 map (336 px, about 475 px across the diagonal) fits. Options:
-- A camera that stays centred on the ball, so only part of the maze is drawn at a time (changes `render`'s centre offset, and the start and goal may be off-screen).
-- A smaller tile for this stage only (for example 8 px, so 248 px). `TILE_SHIFT`, the ball radius (5 px) and the physics constants are tied to 16 px tiles, so this is a larger change.
-- A tile that is not a power of two (for example 14 px = 434 px). The tile index would need a divider or a lookup.
+**The map does not fit the screen.** At 16 px per tile a 31-tile map is 496 px, taller than the 480-line picture, and its rotated corners are about 700 px from the centre. The v1.0 map (336 px, about 475 px across the diagonal) fits. Options considered:
+- A camera that follows the ball, so only part of the maze is drawn at a time.
+- A smaller tile for this stage only. To fit at every angle it would need about 10 px or less, no bigger than the ball (10 px across), and `TILE_SHIFT`, the ball radius and the physics constants are tied to 16 px tiles.
+- A tile that is not a power of two (for example 15 px = 465 px). It still clips at 45 degrees (about 658 px across the diagonal), and the tile index would need a divider or a lookup.
 
-**Where.** `rtl/labyrinth_pkg.vh`, `rtl/maze_gen.v`, `rtl/maze_ram.v`, `rtl/render.v`, `rtl/ball_physics.v`, `rtl/menu_ctrl.v`, `rtl/oled_status_text.v`.
+**Decided: camera that follows the ball, on N = 15 only.** A locked camera would shake the whole maze on every bounce, so it has a dead zone (about ±48 px) and shift-only smoothing, and it snaps to the ball on a new maze. N = 5 and N = 10 keep the fixed view. The design is in stories 7.2 and 7.3 of `epics-v2.md`. The goal may be off-screen until the ball gets near it.
+
+**Where.** `rtl/labyrinth_pkg.vh`, `rtl/maze_gen.v`, `rtl/maze_ram.v`, `rtl/camera.v` (new), `rtl/render.v`, `rtl/ball_overlay.v`, `rtl/ball_physics.v`, `rtl/menu_ctrl.v`, `rtl/oled_status_text.v`.
 
 **Check.**
 - `tb_maze_gen`: N = 15 mazes are perfect and solvable for many seeds; the stack never overflows.
 - `tb_render`, `tb_ball_physics`: the existing checks pass at N = 15 (no tunnelling, bounce ratios, goal test).
 - Routed build: block RAM, LUT and timing caps still met (AD-8).
-- Board: the whole maze is playable and the start, goal and walls are readable.
+- Board: the whole maze is playable, the walls are readable, and the view does not shake when the ball bounces.
 
 ## 3. Loops in the maze (HARD and larger only)
 
@@ -135,6 +137,6 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 
 ## Open questions
 
-- Larger stages: camera on the ball, smaller tiles, or a non-power-of-two tile?
+- Larger stages: should there be a hint (for example an arrow at the screen edge) when the goal is off-screen? Decide after playing N = 15 on the board.
 - Item boxes: the time bonus amount (placeholder 10 s).
 - Item boxes: the respawn delay and the effect duration are placeholders (15 s and 8 s) that need playtesting.
