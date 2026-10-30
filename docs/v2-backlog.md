@@ -45,7 +45,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Why.** A perfect maze has exactly one route between any two cells, so the route is easy to find on a small map and offers no choice. Extra openings give alternative routes. EASY stays a perfect maze.
 
 **What.**
-- After the depth-first search finishes on the HARD stage and above, remove K interior wall tiles that separate two floor cells. K is a parameter (for example about N / 2); it needs playtesting.
+- After the depth-first search finishes on the HARD stage and above, remove K interior wall tiles that separate two floor cells. K is fixed per stage in `maze_gen` parameters, not a menu setting: EASY 0, HARD (N = 10) 5, N = 15 7. These are starting values that need playtesting.
 - Never remove outer-boundary walls.
 - The random choice comes from the same 32-bit LFSR. `maze_gen` stays the only writer of `maze_ram` (AD-5), so the pass lives inside `maze_gen` as an extra phase before it signals done.
 - The architecture spine states "perfect maze" as a property (AD-12 area); that text and the tests change to "connected, with K extra openings on loop stages".
@@ -136,6 +136,5 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 ## Open questions
 
 - Larger stages: camera on the ball, smaller tiles, or a non-power-of-two tile?
-- Loop density K: fixed per stage, or a settings option?
 - Item boxes: the time bonus amount (placeholder 10 s).
 - Item boxes: the respawn delay and the effect duration are placeholders (15 s and 8 s) that need playtesting.

@@ -183,7 +183,7 @@ So that the maze is not a single path to follow.
 
 **Given** a HARD or N = 15 maze
 **When** generation finishes
-**Then** K interior walls (a parameter, about N / 2) between two floor cells are removed, outer walls are untouched, and `maze_gen` is still the only writer of `maze_ram`
+**Then** K interior walls (a fixed per-stage parameter: HARD 5, N = 15 7) between two floor cells are removed, outer walls are untouched, and `maze_gen` is still the only writer of `maze_ram`
 
 **Given** the generator bench
 **When** many seeds run
