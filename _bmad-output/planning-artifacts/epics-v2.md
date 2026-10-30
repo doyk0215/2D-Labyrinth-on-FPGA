@@ -200,7 +200,7 @@ A better win screen and a countdown, in every game, that can end the game.
 ### Story 8.1: Win screen polish
 
 As the player,
-I want the win screen to show my time and highlight the goal,
+I want the win screen to show my time left and highlight the goal,
 So that finishing feels rewarded.
 
 **Size:** S. **Needs:** none.
@@ -209,7 +209,7 @@ So that finishing feels rewarded.
 
 **Given** WIN
 **When** the picture is drawn
-**Then** the goal tile blinks at a few Hz and the panel shows the finishing time as `mm:ss` from `game_timer`
+**Then** the goal tile blinks at a few Hz and the panel shows the time left as `mm:ss` from `game_timer`
 
 **Given** the render bench
 **When** `tb_win_render` runs at known frames

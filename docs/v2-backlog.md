@@ -64,7 +64,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **What.**
 - The goal tile blinks (a few Hz, from a frame counter) behind the panel during WIN.
 - The panel also shows the finishing time (`mm:ss`), taken from `game_timer`'s BCD outputs.
-- Open: with the countdown (item 5), the timer holds the time left at the win. Show that, or work out the elapsed time (limit minus time left).
+- Decided: with the countdown (item 5) the panel shows the time left at the win, straight from the timer registers.
 
 **Where.** `rtl/win_overlay.v` (a smaller text row, for example at 4x scale, and the time inputs), `rtl/render.v` (blink flag), `rtl/My_Top_Module.v` (wire the time into `render`).
 
@@ -136,8 +136,6 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 ## Open questions
 
 - Larger stages: camera on the ball, smaller tiles, or a non-power-of-two tile?
-- Does the win panel show the time left or the elapsed time?
 - Loop density K: fixed per stage, or a settings option?
-- Item boxes: the buff pool has three effects (low gravity, invincibility, time bonus) and the debuff pool has five. Is that split intended?
 - Item boxes: the time bonus amount (placeholder 10 s).
 - Item boxes: the respawn delay and the effect duration are placeholders (15 s and 8 s) that need playtesting.
