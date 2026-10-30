@@ -451,8 +451,8 @@ So that picking up a box feels like a lucky draw.
 - While the roulette runs, the OLED shows only the roulette: no text. The icon is drawn at 3x scale (48 x 48) in the middle of the 96 x 64 screen on black.
 - The icons of that box's pool (3 for a buff box, 5 for a debuff box) cycle in one slot, starting fast and slowing down, for about 1.5 s (a parameter), then stop on the chosen icon. The chosen icon stays for about 1 s (a parameter), then the OLED returns to the status page with the effect line.
 - The game keeps running during the roulette. The effect, or the time bonus, starts when the roulette stops.
-- Assumption: boxes are not picked up while a roulette is running; the ball rolls over them and they stay.
-- Assumption: a debuff box blocked by invincibility shows no roulette; the OLED shows the invincibility icon for about 1 s instead.
+- Boxes are not picked up while a roulette is running; the ball rolls over them and they stay.
+- A debuff box blocked by invincibility shows no roulette; the OLED shows the invincibility icon for about 1 s instead.
 - The OLED pixel stream gets a second source: `oled_text_pixel` for the status page, and a new icon source for the roulette, chosen per frame so a frame never mixes the two.
 
 **Acceptance Criteria:**
