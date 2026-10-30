@@ -22,7 +22,7 @@ No story is larger than M. Anything bigger was split. Streams follow `docs/paral
 
 | Story | Title | Size | Stream | Needs |
 | --- | --- | --- | --- | --- |
-| 6.1 | Shared state and config encodings | S | B | none |
+| 6.1 | Shared game-state encoding | S | B | none |
 | 6.2 | Long-press BTNC full reset | S | B | none |
 | 7.1 | Map size follows the stage | M | A | none |
 | 7.2 | Decide how to show the N = 15 map | S | C | 7.1 |
@@ -31,7 +31,7 @@ No story is larger than M. Anything bigger was split. Streams follow `docs/paral
 | 7.5 | Loops on HARD and larger | M | A | 7.1 |
 | 8.1 | Win screen polish | S | C | none |
 | 8.2 | Countdown timer and LOSE state | M | B | 6.1 |
-| 8.3 | Time-limit setting and TIME UP screens | M | B + C | 8.2 |
+| 8.3 | TIME UP screens | S | B + C | 8.2 |
 | 9.1 | Place and draw item boxes | M | A + C | 7.5 |
 | 9.2 | Pickup, effect timer and respawn | M | B | 9.1 |
 | 9.3 | Gravity effects | M | A | 9.2 |
@@ -39,19 +39,19 @@ No story is larger than M. Anything bigger was split. Streams follow `docs/paral
 | 9.5 | Invincibility and time bonus | S | B | 9.2, 8.2 |
 | 9.6 | Board playtest and tuning | S | A | 9.3, 9.4, 9.5 |
 
-Total: 16 stories (8 S, 8 M).
+Total: 16 stories (9 S, 7 M).
 
-Suggested order: 6.1 and 6.2 first (6.1 touches many files and every later story adds a state or config bit); then 7.1, then 7.2 to 7.4 with 7.5 alongside; 8.1 any time; 8.2 and 8.3 after 6.1; the item-box epic last.
+Suggested order: 6.1 and 6.2 first (6.1 touches many files and 8.2 adds the LOSE state); then 7.1, then 7.2 to 7.4 with 7.5 alongside; 8.1 any time; 8.2 and 8.3 after 6.1; the item-box epic last.
 
 ## Epic 6: v2.0 groundwork
 
 The design gets named state and config encodings, and a way out of a lock-up.
 
-### Story 6.1: Shared state and config encodings
+### Story 6.1: Shared game-state encoding
 
 As a developer,
-I want one definition of the game states and the config word,
-So that adding a state or a setting does not mean editing literals in five modules.
+I want one definition of the game states,
+So that adding a state does not mean editing literals in five modules.
 
 **Size:** S. **Needs:** none.
 
@@ -61,9 +61,9 @@ So that adding a state or a setting does not mean editing literals in five modul
 **When** the states are moved to shared `localparam`s (or macros in `labyrinth_pkg.vh`) and `game_state` is widened to 3 bits with LOSE reserved but unused
 **Then** the full regression passes unchanged and no file compares `game_state` to a bare number
 
-**Given** `game_cfg` is 8 bits with no spare bit
-**When** it is widened to 9 bits with a mode bit (NORMAL or TIME LIMIT) that is always 0 for now
-**Then** menu, `game_ctrl`, ball and OLED benches pass unchanged and the routed build still meets timing
+**Given** the routed build
+**When** `game_state` is 3 bits
+**Then** timing is still met and `game_cfg` stays at 8 bits (the time limit is not a setting)
 
 ### Story 6.2: Long-press BTNC full reset
 
@@ -193,9 +193,9 @@ So that the maze is not a single path to follow.
 **When** it is updated
 **Then** its "perfect maze" wording says "connected, with K extra openings on loop stages"
 
-## Epic 8: Win polish and time-limit mode
+## Epic 8: Win polish and time limit
 
-A better win screen and a countdown that can end the game.
+A better win screen and a countdown, in every game, that can end the game.
 
 ### Story 8.1: Win screen polish
 
@@ -229,38 +229,34 @@ So that there is pressure to finish.
 
 **Acceptance Criteria:**
 
-**Given** the mode bit set to TIME LIMIT
-**When** a game starts
-**Then** `game_timer` counts down from the stage's limit (parameters: EASY 60 s, HARD 120 s, N = 15 180 s) in PLAY and freezes in WIN
+**Given** any game
+**When** it starts
+**Then** `game_timer` counts down from the stage's limit (parameters: EASY 60 s, HARD 120 s, N = 15 180 s) in PLAY, freezes in WIN, and the OLED shows the time left
 
 **Given** the countdown reaches 00:00
 **When** the next frame is processed
 **Then** `game_ctrl` enters LOSE, physics and rotation freeze, and after a hold (about 2 s) the game returns to MENU
 
-**Given** the mode bit is NORMAL
-**When** the existing benches run
-**Then** the count-up timer and all Story 3.3 and 4.4 behaviour are unchanged
+**Given** the Story 4.4 benches
+**When** the timer changes from count-up to count-down
+**Then** they are updated to the new behaviour (clear on `phys_init`, PLAY-only counting, WIN freeze, reset), and all Story 3.3 behaviour is unchanged
 
-### Story 8.3: Time-limit setting and TIME UP screens
+### Story 8.3: TIME UP screens
 
 As the player,
-I want to choose time-limit mode and see when I lose,
-So that I can play it by choice and understand the result.
+I want to see clearly when I run out of time,
+So that I understand the result.
 
-**Size:** M. **Needs:** 8.2.
+**Size:** S. **Needs:** 8.2.
 
 **Acceptance Criteria:**
-
-**Given** the settings page
-**When** the mode switch (NORMAL or TIME LIMIT) is changed
-**Then** it is shown on the OLED, written to `game_cfg` and latched at game start
 
 **Given** LOSE
 **When** it is active
 **Then** the monitor shows a "TIME UP" panel and the OLED shows "TIME UP", and reset from LOSE returns to MENU
 
 **Given** the board
-**When** both modes are played on EASY and HARD
+**When** EASY and HARD are played to a timeout
 **Then** the countdown matches a watch and the TIME UP screen appears and returns to the menu
 
 ## Epic 9: Item boxes
@@ -376,8 +372,8 @@ So that buff boxes are worth hitting.
 **Then** nothing starts, the invincibility continues and the debuff box is consumed (it respawns after the normal delay); a buff box still works and replaces it; once it ends, debuff boxes work again
 
 **Given** a time bonus
-**When** it is picked up in time-limit mode
-**Then** the amount (a parameter, about 10 s) is added to the countdown, and in normal mode the same amount is taken off the elapsed time with a floor at 00:00, without replacing the active effect
+**When** it is picked up
+**Then** the amount (a parameter, about 10 s) is added to the countdown, capped at 99:59, without replacing the active effect
 
 **Given** the benches
 **When** they run
