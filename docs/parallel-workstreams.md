@@ -125,6 +125,8 @@ For v2.0 each person takes a different stream from v1, so everyone works across 
 | DY | A (physics engine) | C (graphics and top level) | `vga_timing`, `render`, `maze_ram`, `ball_overlay`, `My_Top_Module.v`, `constraints/basys3.xdc`; new: `camera`, item icon ROM |
 | Shared | | | `labyrinth_pkg.vh` (owner: DY; changes need all three owners to approve) |
 
+Files not named above follow their stream: `Oled_Display`, `oled_text_pixel`, `oled_xy`, `oled_clk_div` and `seed_source` go with QZ; `win_overlay` goes with DY.
+
 The v1.0 rules still hold: one owner per file (AD-5), feature branches, and a pull request reviewed by the owner of the touched interface. A story that touches a file of another person is paired: the second owner writes their own file and reviews the rest.
 
 For v2.0, add one more rule: the previous owner of a file reviews every pull request that touches it, because they know it best.
