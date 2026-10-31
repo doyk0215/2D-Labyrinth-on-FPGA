@@ -92,8 +92,8 @@ module tb_top_story14_integration;
             $display("FAIL: startup did not complete a maze before PLAY");
             errors = errors + 1;
         end
-        if (dut.start_col !== 5'd12 || dut.start_row !== 5'd12 ||
-            dut.goal_col !== 5'd8 || dut.goal_row !== 5'd8) begin
+        if (dut.start_col !== 5'd5 || dut.start_row !== 5'd5 ||
+            dut.goal_col !== 5'd1 || dut.goal_row !== 5'd1) begin
             $display("FAIL: N=3 start/goal incorrect: start=(%0d,%0d) goal=(%0d,%0d)",
                      dut.start_col, dut.start_row, dut.goal_col, dut.goal_row);
             errors = errors + 1;

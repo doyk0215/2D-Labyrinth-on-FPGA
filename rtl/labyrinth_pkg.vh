@@ -27,12 +27,13 @@
 // ---- Maze geometry ----
 `define TILE_PX        16       // pixels per tile
 `define TILE_SHIFT     12       // log2(TILE_PX) + POS_FRAC: Q9.8 maze pixels >> 12 = tile index
-`define MAP_DIM        21       // tile map is 21 x 21 (10 cells + walls)
-`define MAP_TILES      441      // 21 * 21
-`define MAP_ADDR_W     9        // addr = row * 21 + col
-`define MAP_MID        10       // centre tile index; an N-cell maze fills tiles (10-N)..(10+N)
-`define COORD_W        5        // tile column / row index width
-`define N_CELLS_W      4        // maze size in cells (up to 10)
+`define MAX_N_CELLS    15       // largest supported stage
+`define MAP_DIM        31       // maximum active map side: 2*N + 1
+`define MAP_TILES      961      // maximum storage: 31 * 31
+`define MAP_ADDR_W     10       // addresses 0..960
+`define MAP_MID        15       // maximum map's centre tile index
+`define COORD_W        5        // tile column / row index width (0..30)
+`define N_CELLS_W      4        // maze size in cells (2..15)
 `define BALL_RADIUS    5        // pixels
 
 // ---- Screen: VGA 640x480 @ 60 Hz, 25 MHz pixel enable ----

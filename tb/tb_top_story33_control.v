@@ -115,8 +115,8 @@ module tb_top_story33_control;
 
         // Put only the ball centre at the generated goal. Confirm the actual
         // physics detector, rather than forcing game_ctrl.in_goal.
-        goal_left = dut.goal_col * 4096 - 43008;
-        goal_top = dut.goal_row * 4096 - 43008;
+        goal_left = dut.goal_col * 4096 - (dut.n_cells * 4096 + 2048);
+        goal_top = dut.goal_row * 4096 - (dut.n_cells * 4096 + 2048);
         force dut.ball_i.ball_x = goal_left + 2048;
         force dut.ball_i.ball_y = goal_top + 2048;
         #1;
@@ -173,8 +173,8 @@ module tb_top_story33_control;
         pulse_frame();
         wait_state(PLAY);
         repeat (5) @(negedge clk);
-        expected_x = (dut.start_col - 10) * 4096;
-        expected_y = (dut.start_row - 10) * 4096;
+        expected_x = (dut.start_col - dut.n_cells) * 4096;
+        expected_y = (dut.start_row - dut.n_cells) * 4096;
         if ($signed(dut.ball_x) !== expected_x || $signed(dut.ball_y) !== expected_y)
             fail("new game did not respawn the ball at the red start centre");
         if (dut.in_goal || dut.render_i.win_frame)

@@ -22,11 +22,11 @@ module tb_ball_physics;
     wire signed [11:0] vel_x, vel_y;
     wire phys_done;
     wire in_goal;
-    wire [8:0] raddr_p;
+    wire [`MAP_ADDR_W-1:0] raddr_p;
     wire rdata_p;
 
     reg       map_we = 1'b0;
-    reg [8:0] map_waddr = 9'd0;
+    reg [`MAP_ADDR_W-1:0] map_waddr = 10'd0;
     reg       map_wdata = 1'b0;
 
     always #5 clk = ~clk;
@@ -34,13 +34,14 @@ module tb_ball_physics;
     maze_ram ram_i (
         .clk(clk), .we(map_we), .waddr(map_waddr), .wdata(map_wdata),
         .raddr_p(raddr_p), .rdata_p(rdata_p),
-        .ren_r(1'b0), .raddr_r(9'd0), .rdata_r()
+        .ren_r(1'b0), .raddr_r(10'd0), .rdata_r()
     );
 
     ball_physics dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init), .phys_en(phys_en),
         .spawn_col(spawn_col), .spawn_row(spawn_row),
         .goal_col(goal_col), .goal_row(goal_row), .sin_q(sin_q), .cos_q(cos_q),
+        .n_cells(4'd10),
         .restitution_sel(restit), .maze_raddr(raddr_p), .maze_rdata(rdata_p),
         .ball_x(ball_x), .ball_y(ball_y), .vel_x(vel_x), .vel_y(vel_y),
         .phys_done(phys_done), .in_goal(in_goal)

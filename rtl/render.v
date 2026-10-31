@@ -10,6 +10,7 @@ module render (
     input  wire              ce_pix,
     input  wire              frame_tick,
     input  wire [1:0]        game_state,
+    input  wire [3:0]        n_cells,
     input  wire [11:0]       angle,
     input  wire signed [15:0] sin_q,
     input  wire signed [15:0] cos_q,
@@ -18,7 +19,7 @@ module render (
     input  wire              active_video,
     input  wire              hsync_in,
     input  wire              vsync_in,
-    output wire [8:0]       maze_raddr,
+    output wire [9:0]       maze_raddr,
     input  wire              maze_rdata,
     input  wire [4:0]        start_col,
     input  wire [4:0]        start_row,
@@ -34,8 +35,10 @@ module render (
     output reg  signed [15:0] cos_snap
 );
 
-    localparam signed [26:0] MAP_CENTRE_Q = 27'sd168 <<< 14;
-    localparam signed [26:0] MAP_SIZE_Q   = 27'sd336 <<< 14;
+    wire [4:0] active_dim = {n_cells, 1'b0} + 5'd1;
+    wire signed [26:0] n_ext = $signed({23'd0, n_cells});
+    wire signed [26:0] active_centre_q = (n_ext <<< 18) + (27'sd8 <<< 14);
+    wire signed [26:0] active_size_q = $signed({22'd0, active_dim}) <<< 18;
     localparam [3:0] WALL_R = 4'hf, WALL_G = 4'hf, WALL_B = 4'hf;
     localparam [3:0] FLOOR_R = 4'h3, FLOOR_G = 4'h4, FLOOR_B = 4'h6;
     localparam [3:0] START_R = 4'hf, START_G = 4'h0, START_B = 4'h0;
@@ -72,11 +75,11 @@ module render (
 
     // At x=0, dx=-320. Positive angle rotates clockwise on a screen whose
     // Y axis points down. Inverse-map screen (dx,dy) to maze pixels:
-    // maze_x = 168 + dx*cos + dy*sin
-    // maze_y = 168 - dx*sin + dy*cos
-    wire signed [26:0] line_x_q = MAP_CENTRE_Q -
+    // maze_x = active-centre + dx*cos + dy*sin
+    // maze_y = active-centre - dx*sin + dy*cos
+    wire signed [26:0] line_x_q = active_centre_q -
         (cos_ext <<< 8) - (cos_ext <<< 6) + row_sin;
-    wire signed [26:0] line_y_q = MAP_CENTRE_Q +
+    wire signed [26:0] line_y_q = active_centre_q +
         (sin_ext <<< 8) + (sin_ext <<< 6) + row_cos;
 
     always @(posedge clk) begin
@@ -116,15 +119,13 @@ module render (
     end
 
     wire in_map_now = active_video &&
-        (walk_x_q >= 0) && (walk_x_q < MAP_SIZE_Q) &&
-        (walk_y_q >= 0) && (walk_y_q < MAP_SIZE_Q);
+        (walk_x_q >= 0) && (walk_x_q < active_size_q) &&
+        (walk_y_q >= 0) && (walk_y_q < active_size_q);
     wire [4:0] tile_col_now = walk_x_q[22:18];
     wire [4:0] tile_row_now = walk_y_q[22:18];
-    wire [8:0] row_base_addr = {tile_row_now, 4'b0000} +
-                               {2'b00, tile_row_now, 2'b00} +
-                               {4'b0000, tile_row_now};
+    wire [9:0] row_base_addr = {5'd0, tile_row_now} * {5'd0, active_dim};
     assign maze_raddr = in_map_now ?
-        row_base_addr + {4'b0000, tile_col_now} : 9'd0;
+        row_base_addr + {5'b0, tile_col_now} : 10'd0;
 
     reg in_map_d, is_start_d, is_goal_d, active_video_d;
     always @(posedge clk) begin

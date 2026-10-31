@@ -13,7 +13,7 @@ module tb_win_render;
     wire vga_hs, vga_vs;
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(game_state), .angle(12'd0), .sin_q(16'sd0), .cos_q(16'sd16384),
+        .game_state(game_state), .n_cells(4'd10), .angle(12'd0), .sin_q(16'sd0), .cos_q(16'sd16384),
         .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
         .hsync_in(hs), .vsync_in(vs), .maze_raddr(), .maze_rdata(1'b1),
         .start_col(5'd19), .start_row(5'd19), .goal_col(5'd1), .goal_row(5'd1),
