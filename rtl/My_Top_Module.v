@@ -430,6 +430,8 @@ module My_Top_Module #(
         .ce_pix       (ce_pix),
         .frame_tick   (frame_tick),
         .game_state   (game_state),
+        .time_min_bcd (elapsed_minutes_bcd),
+        .time_sec_bcd (elapsed_seconds_bcd),
         .angle        (angle),
         .sin_q        (sin_q),
         .cos_q        (cos_q),
