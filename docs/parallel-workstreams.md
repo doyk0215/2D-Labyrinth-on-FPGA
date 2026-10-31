@@ -66,6 +66,25 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Outputs: `gen_start`, `phys_init`, `phys_en`, `game_state`
 - Inputs: `gen_done`, `in_goal`, reset, `game_cfg` (from `menu_ctrl`)
 
+**CENTER and reset (Story 6.2)**
+- `centre_button` synchronizes/debounces BTNC. `short_press` is a one-clock
+  pulse on release of a short press. `full_reset` is a level after
+  `LONG_PRESS_CYCLES` of debounced hold (default 200,000,000 clocks, about 2 s)
+  and remains asserted until debounced release. A long hold never emits short.
+- The detector resets only on power-on reset, so its own full reset cannot
+  re-arm it while CENTER remains held.
+- `system_reset = por_reset | full_reset` clears menu preferences, input
+  filters, and both OLED text-mailbox endpoints, and restarts OLED power/init.
+  `rst = system_reset | game_reset_request` also resets the existing game,
+  angle, physics, generator, timer, seed, and mouse paths. A short gameplay
+  reset retains menu preferences and keeps the OLED running, as before.
+- `game_ctrl.full_reset` is a synchronous level that resets all controller
+  state and selects MENU even with the legacy `START_IN_MENU=0` debug option.
+  Ordinary `rst` retains that option's original behavior.
+- OLED reset asserts asynchronously and releases through two flip-flops in
+  the free-running 6.25 MHz OLED clock domain. Its clock divider is not reset.
+  The supplied `Oled_Display` and PS/2 VHDL sources remain unchanged.
+
 **Menu and OLED (B and A)**
 - `game_cfg` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start)
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`

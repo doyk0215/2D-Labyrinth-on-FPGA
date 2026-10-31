@@ -31,6 +31,7 @@ module tb_game_ctrl;
     game_ctrl #(.START_IN_MENU(1'b1), .WIN_HOLD_FRAMES(3)) dut (
         .clk          (clk),
         .rst          (rst),
+        .full_reset   (1'b0),
         .frame_tick   (frame_tick),
         .start_game   (start_game),
         .game_cfg     (8'hA5),

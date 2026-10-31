@@ -8,7 +8,8 @@
 //   sw[5]   = 90-degree snap fallback (off = smooth rotation)
 //   btnU/D  = stage navigation in MENU, rotation-rate selection in settings
 //   btnL    = open the settings page from the stage menu
-//   btnC    = confirm in MENU; return to MENU from other states
+//   btnC    = short release: confirm in MENU / return to MENU elsewhere;
+//             hold about 2 seconds: full reset, including menu/mouse/OLED
 //   btnD    = regenerate while playing
 //   Any of btnU/L/R/D latches the random seed (first press only).
 module My_Top_Module #(
@@ -17,7 +18,8 @@ module My_Top_Module #(
     parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz
     parameter integer WIN_HOLD_FRAMES = 120,            // about 2 s at 60 Hz
     parameter integer TIMER_CLK_HZ = 100_000_000,
-    parameter START_IN_MENU = 1'b1
+    parameter START_IN_MENU = 1'b1,
+    parameter integer LONG_PRESS_CYCLES = 200_000_000
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -56,22 +58,28 @@ module My_Top_Module #(
     end
 
     wire rst;
+    wire full_reset;
+    wire system_reset = por_reset | full_reset;
     wire game_reset_request;
     wire [1:0] game_state;
-    assign rst = por_reset | game_reset_request;
+    assign rst = system_reset | game_reset_request;
 
     wire btnU_press, btnD_menu_press, btnC_press, btnL_menu_press;
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnU_menu_i (
-        .clk(clk), .rst(por_reset), .level_in(btnU), .press(btnU_press)
+        .clk(clk), .rst(system_reset), .level_in(btnU), .press(btnU_press)
     );
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnD_menu_i (
-        .clk(clk), .rst(por_reset), .level_in(btnD), .press(btnD_menu_press)
+        .clk(clk), .rst(system_reset), .level_in(btnD), .press(btnD_menu_press)
     );
-    button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnC_menu_i (
-        .clk(clk), .rst(por_reset), .level_in(btnC), .press(btnC_press)
+    centre_button #(
+        .DEBOUNCE_CYCLES(MENU_DEBOUNCE_CYCLES),
+        .LONG_PRESS_CYCLES(LONG_PRESS_CYCLES)
+    ) btnC_menu_i (
+        .clk(clk), .por_reset(por_reset), .level_in(btnC),
+        .short_press(btnC_press), .full_reset(full_reset)
     );
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnL_menu_i (
-        .clk(clk), .rst(por_reset), .level_in(btnL), .press(btnL_menu_press)
+        .clk(clk), .rst(system_reset), .level_in(btnL), .press(btnL_menu_press)
     );
 
     wire start_game;
@@ -86,7 +94,7 @@ module My_Top_Module #(
 
     menu_ctrl menu_ctrl_i (
         .clk           (clk),
-        .rst           (por_reset),
+        .rst           (system_reset),
         .return_to_menu(game_reset_request),
         .menu_active   (menu_active),
         .btn_up        (btnU_press),
@@ -197,8 +205,13 @@ module My_Top_Module #(
     (* ASYNC_REG = "TRUE" *) reg [1:0] btnL_sync = 2'b00;
     (* ASYNC_REG = "TRUE" *) reg [1:0] btnR_sync = 2'b00;
     always @(posedge clk) begin
-        btnL_sync <= {btnL_sync[0], btnL};
-        btnR_sync <= {btnR_sync[0], btnR};
+        if (system_reset) begin
+            btnL_sync <= 2'b00;
+            btnR_sync <= 2'b00;
+        end else begin
+            btnL_sync <= {btnL_sync[0], btnL};
+            btnR_sync <= {btnR_sync[0], btnR};
+        end
     end
 
     input_mux input_mux_i (
@@ -225,14 +238,17 @@ module My_Top_Module #(
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
-    always @(posedge clk)
-        snap_sw_sync <= {snap_sw_sync[0], sw[5]};
+    always @(posedge clk) begin
+        if (system_reset) snap_sw_sync <= 2'b00;
+        else snap_sw_sync <= {snap_sw_sync[0], sw[5]};
+    end
 
     // Synchronize BTND and convert its rising edge into a one-cycle request.
     (* ASYNC_REG = "TRUE" *)
     reg [2:0] btnD_s = 3'b000;
     always @(posedge clk) begin
-        btnD_s <= {btnD_s[1:0], btnD};
+        if (system_reset) btnD_s <= 3'b000;
+        else btnD_s <= {btnD_s[1:0], btnD};
     end
     wire regen_request = btnD_s[1] & ~btnD_s[2];
     wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
@@ -248,6 +264,7 @@ module My_Top_Module #(
     ) game_ctrl_i (
         .clk          (clk),
         .rst          (rst),
+        .full_reset   (full_reset),
         .frame_tick   (frame_tick),
         .start_game   (start_game),
         .game_cfg     (game_cfg),
@@ -469,8 +486,10 @@ module My_Top_Module #(
     wire [12:0] oled_pixel_index;
     wire [15:0] oled_pixel_data;
     wire oled_frame_begin, oled_sending_pixels, oled_sample_pixel;
-    always @(posedge clk_6m25) begin
-        if (por_reset)
+    // Asynchronous assertion catches even a short reset; release is
+    // synchronized to the free-running OLED clock in two stages.
+    always @(posedge clk_6m25 or posedge system_reset) begin
+        if (system_reset)
             oled_reset_sync <= 2'b11;
         else
             oled_reset_sync <= {oled_reset_sync[0], 1'b0};
@@ -482,7 +501,7 @@ module My_Top_Module #(
     reg text_req_toggle = 1'b0;
     reg [511:0] text_mailbox = 512'd0;
     always @(posedge clk) begin
-        if (por_reset) begin
+        if (system_reset) begin
             text_ack_sync <= 2'b00;
             text_mailbox <= status_text;
             text_req_toggle <= 1'b1;
