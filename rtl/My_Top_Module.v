@@ -15,7 +15,7 @@ module My_Top_Module #(
     parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer MENU_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz
-    parameter integer WIN_HOLD_FRAMES = 120,            // about 2 s at 60 Hz
+    parameter integer WIN_HOLD_FRAMES = 180,            // about 3 s at 60 Hz
     parameter integer TIMER_CLK_HZ = 100_000_000,
     parameter START_IN_MENU = 1'b1
 ) (
