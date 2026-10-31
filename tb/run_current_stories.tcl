@@ -1,4 +1,4 @@
-# Compile current RTL and run the supported Story 1.1–4.4 regression plus Story 3.3.
+# Compile current RTL and run the supported v1 regression plus Story 6.2.
 # Run with Vivado Simulator 2025.2.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
@@ -43,6 +43,8 @@ foreach {top snapshot marker} {
     tb_top_rotation top_rotation_snapshot "PASS: top rotation command"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
+    tb_centre_button centre_button_snapshot "PASS: centre button"
+    tb_top_story62_reset top_story62_reset_snapshot "PASS: Story 6.2 long reset"
     tb_menu_ctrl menu_ctrl_snapshot "PASS: menu_ctrl"
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
     tb_top_story42_integration top_story42_snapshot "PASS: Story 4.2 top"
@@ -84,4 +86,4 @@ foreach {top snapshot marker} {
 # so they run from their own script.
 source [file join $tb_dir run_oled_display.tcl]
 
-puts "PASS regression for current RTL through Story 4.4, including both OLED display modes"
+puts "PASS regression for current RTL through Story 4.4 plus Story 6.2, including both OLED display modes"
