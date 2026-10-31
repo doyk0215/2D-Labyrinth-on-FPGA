@@ -84,7 +84,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   fixed `YOU WIN` panel and green outline using `win_overlay` and `font_rom`;
   its flags have the same one-clock pixel latency as the renderer. The top
   enables map reads/display in PLAY and WIN, and masks MENU/GENERATE. QZ still
-  connects goal detection and supplies the approximately two-second WIN pause.
+  connects goal detection and supplies the approximately three-second WIN pause.
 
 ## 4. Dependencies and integration points
 

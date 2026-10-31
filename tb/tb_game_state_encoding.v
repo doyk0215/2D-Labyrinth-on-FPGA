@@ -30,7 +30,7 @@ module tb_game_state_encoding;
     );
     wire [3:0] r, g, b;
     render render_i (
-        .clk(clk), .rst(rst), .ce_pix(1'b0), .frame_tick(frame_tick), .game_state(state_in),
+        .clk(clk), .rst(rst), .ce_pix(1'b0), .frame_tick(frame_tick), .game_state(state_in), .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(12'd0), .sin_q(16'sd0), .cos_q(16'sd16384),
         .pixel_x(10'd156), .pixel_y(10'd212), .active_video(1'b1),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(), .maze_rdata(1'b0),

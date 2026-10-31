@@ -4,13 +4,19 @@
 // Inverse-map the screen into the maze. Each scanline starts with two signed
 // products; each following pixel needs only one add per coordinate. Coordinates
 // are signed Q13.14 maze pixels. The maze RAM and the output flags share one
-// 100 MHz clock of latency.
-module render (
+// 100 MHz clock of latency. In WIN the goal tile blinks and the panel shows
+// the timer; both are latched with the frame snapshot, so they never change
+// in the middle of a picture.
+module render #(
+    parameter integer BLINK_FRAMES = 16   // frames per blink phase, about 2 Hz at 60 Hz
+) (
     input  wire              clk,
     input  wire              rst,
     input  wire              ce_pix,
     input  wire              frame_tick,
-    input  wire [`GAME_STATE_W-1:0]        game_state,
+    input  wire [`GAME_STATE_W-1:0] game_state,
+    input  wire [7:0]        time_min_bcd,
+    input  wire [7:0]        time_sec_bcd,
     input  wire [11:0]       angle,
     input  wire signed [15:0] sin_q,
     input  wire signed [15:0] cos_q,
@@ -47,10 +53,15 @@ module render (
     reg [1:0] frame_tick_d;
     reg [11:0] angle_snap;
     reg win_frame;
+    reg [7:0] win_min_bcd, win_sec_bcd;
+    reg [7:0] blink_count;
+    reg blink_phase;
     wire win_panel, win_accent, win_text;
     win_overlay win_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
-        .active_video(active_video), .panel_on(win_panel),
+        .active_video(active_video),
+        .time_min_bcd(win_min_bcd), .time_sec_bcd(win_sec_bcd),
+        .panel_on(win_panel),
         .accent_on(win_accent), .text_on(win_text)
     );
     reg signed [26:0] walk_x_q, walk_y_q;
@@ -85,6 +96,10 @@ module render (
             frame_tick_d <= 2'b00;
             angle_snap <= 12'd0;
             win_frame <= 1'b0;
+            win_min_bcd <= 8'h00;
+            win_sec_bcd <= 8'h00;
+            blink_count <= 8'd0;
+            blink_phase <= 1'b0;
             sin_snap <= 16'sd0;
             cos_snap <= 16'sd16384;
             walk_x_q <= -(27'sd152 <<< 14);
@@ -99,6 +114,19 @@ module render (
                 // game_ctrl changes state on frame_tick. Capture its new
                 // state with the angle/trig snapshot in vertical blanking.
                 win_frame <= (game_state == `ST_WIN);
+                win_min_bcd <= time_min_bcd;
+                win_sec_bcd <= time_sec_bcd;
+                // The goal blink restarts bright on the first WIN frame and
+                // flips every BLINK_FRAMES captured frames after that.
+                if (game_state != `ST_WIN || !win_frame) begin
+                    blink_count <= 8'd0;
+                    blink_phase <= 1'b0;
+                end else if (blink_count == BLINK_FRAMES - 1) begin
+                    blink_count <= 8'd0;
+                    blink_phase <= ~blink_phase;
+                end else begin
+                    blink_count <= blink_count + 8'd1;
+                end
                 sin_snap <= sin_q;
                 cos_snap <= cos_q;
             end
@@ -169,7 +197,11 @@ module render (
                 if (is_start_d) begin
                     vga_r = START_R; vga_g = START_G; vga_b = START_B;
                 end else if (is_goal_d) begin
-                    vga_r = GOAL_R; vga_g = GOAL_G; vga_b = GOAL_B;
+                    if (win_frame && blink_phase) begin
+                        vga_r = 4'h0; vga_g = 4'h3; vga_b = 4'h0;
+                    end else begin
+                        vga_r = GOAL_R; vga_g = GOAL_G; vga_b = GOAL_B;
+                    end
                 end else if (maze_rdata) begin
                     vga_r = WALL_R; vga_g = WALL_G; vga_b = WALL_B;
                 end else begin

@@ -31,7 +31,7 @@ module tb_rotated_render;
     );
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(`ST_PLAY),
+        .game_state(`ST_PLAY), .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .hsync_in(hsync_in), .vsync_in(vsync_in),
