@@ -98,6 +98,8 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 
 ## 5. Hardware and integration ownership
 
+*(This section is the v1.0 arrangement. For v2.0, board checks follow section 7.3.)*
+
 - DY holds the Basys 3, the Pmod OLED and the VGA display, and runs every integration check (end of week 1, end of week 2, final).
 - QZ and CJX verify with simulation and testbenches (AD-13) and hand over a branch that builds in Vivado 2025.2 with no errors and passes its testbenches.
 - Hardware checks for a story are requested from DY with the branch name and the story number; DY reports PASS/FAIL back with a photo or note.
@@ -109,3 +111,43 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 2. Who covers Story 2.3 (CJX's) if it slips. Streams are assigned: A = DY, B = QZ, C = CJX.
 3. Which of 5.2–5.4 each person takes.
 4. The course's open constraint questions (for example, IP cores allowed?) from the PRD.
+
+## 7. v2.0 ownership (from 2026-10-31)
+
+For v2.0 each person takes a different stream from v1, so everyone works across the design and the stories depend on each other's modules. The stories are in `_bmad-output/planning-artifacts/epics-v2.md` and GitHub issues #51 to #68.
+
+### 7.1 Streams and files
+
+| Person | v1.0 stream | v2.0 stream | Owns (files in `rtl/` and `tb/`) |
+| --- | --- | --- | --- |
+| QZ | B (input and game control) | A (physics, maze generation, OLED driver) | `ball_physics`, `maze_gen`, `sincos_rom`, `oled_driver`, `font_rom`; new: OLED roulette pixel source |
+| CJX | C (graphics) | B (input and game control) | `MouseCtl` wiring, `input_mux`, `angle_accumulator`, `game_ctrl`, `menu_ctrl`, `game_timer`, `oled_status_text`; new: `item_ctrl` |
+| DY | A (physics engine) | C (graphics and top level) | `vga_timing`, `render`, `maze_ram`, `ball_overlay`, `My_Top_Module.v`, `constraints/basys3.xdc`; new: `camera`, item icon ROM |
+| Shared | | | `labyrinth_pkg.vh` (owner: DY; changes need all three owners to approve) |
+
+Files not named above follow their stream: `Oled_Display`, `oled_text_pixel`, `oled_xy`, `oled_clk_div` and `seed_source` go with QZ; `win_overlay` goes with DY.
+
+The v1.0 rules still hold: one owner per file (AD-5), feature branches, and a pull request reviewed by the owner of the touched interface. A story that touches a file of another person is paired: the second owner writes their own file and reviews the rest.
+
+For v2.0, add one more rule: the previous owner of a file reviews every pull request that touches it, because they know it best.
+
+### 7.2 Stories and order of work
+
+| Step | Start these in parallel | Waits for |
+| --- | --- | --- |
+| 1 | QZ: 7.1. CJX: 6.1, then 6.2. DY: 8.1, then 9.6. | nothing |
+| 2 | QZ: 7.5. DY: 7.2, then 7.3. CJX: 8.2. | 7.5 and 7.2 need 7.1; 8.2 needs 6.1 |
+| 3 | DY: 9.1 (QZ writes the `maze_gen` placement). CJX: 8.3 (DY draws the monitor panel). | 9.1 needs 7.5; 8.3 needs 8.2 |
+| 4 | CJX: 9.2 first, then 7.4 when it fits. | 9.2 needs 9.1; 7.4 needs 7.3 |
+| 5 | QZ: 9.3, then 9.7 (CJX adds the `item_ctrl` hook). DY: 9.4 (CJX adds invert controls), then 9.5. | 9.3, 9.4, 9.7 and 9.5 need 9.2; 9.7 also needs 9.6; 9.5 also needs 8.2 |
+| 6 | All: 9.8 board playtest and tuning. | 9.3, 9.4, 9.5, 9.7 |
+
+The critical path is 7.1, 7.5, 9.1, 9.2, then 9.3 and 9.7, then 9.8. Stories on it come before anything else that is ready. If 7.5 finishes before 7.3, DY starts 9.1 first. Stories 6.2, 8.1 and 9.6 need nothing and can go in whenever there is a gap. If QZ falls behind on 9.3 and 9.7, CJX (free after 9.2) takes more of 9.7.
+
+### 7.3 Board checks
+
+Everyone has access to the Basys 3 and may run a board check and record PASS or FAIL. For v2.0:
+
+- The author of a story does not run its board check. Another person runs it and records PASS or FAIL, with the branch name, the story number and a photo or note, on the story's pull request.
+- Anyone may approve a pull request after its board check passes, except its author.
+- Integration checks (the end of each step in 7.2 and the final run in 9.8) are done by whoever is free, and the result is posted on the issue.
