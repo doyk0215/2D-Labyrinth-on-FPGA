@@ -1,10 +1,7 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_game_ctrl;
-    localparam [1:0] MENU     = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY     = 2'b10;
-    localparam [1:0] WIN      = 2'b11;
 
     reg clk = 1'b0;
     reg rst = 1'b1;
@@ -14,7 +11,7 @@ module tb_game_ctrl;
     reg gen_busy = 1'b0;
     reg gen_done = 1'b0;
     reg in_goal = 1'b0;
-    wire [1:0] game_state;
+    wire [`GAME_STATE_W-1:0] game_state;
     wire gen_start;
     wire seed_capture;
     wire phys_init;
@@ -62,7 +59,7 @@ module tb_game_ctrl;
     endtask
 
     task wait_state;
-        input [1:0] expected;
+        input [`GAME_STATE_W-1:0] expected;
         integer guard;
         begin
             guard = 0;
@@ -82,13 +79,13 @@ module tb_game_ctrl;
             @(negedge clk); gen_busy = 1'b1; gen_done = 1'b1;
             @(negedge clk); gen_done = 1'b0;
             pulse_frame();
-            if (game_state !== GENERATE) begin
+            if (game_state !== `ST_GENERATE) begin
                 $display("FAIL: entered PLAY while gen_busy was still high");
                 errors = errors + 1;
             end
             @(negedge clk); gen_busy = 1'b0;
             pulse_frame();
-            wait_state(PLAY);
+            wait_state(`ST_PLAY);
         end
     endtask
 
@@ -101,7 +98,7 @@ module tb_game_ctrl;
 
     initial begin
         repeat (3) @(posedge clk);
-        if (game_state !== MENU) begin
+        if (game_state !== `ST_MENU) begin
             $display("FAIL: START_IN_MENU option did not enter MENU on reset");
             errors = errors + 1;
         end
@@ -109,7 +106,7 @@ module tb_game_ctrl;
         @(negedge clk); start_game = 1'b1;
         pulse_frame();
         @(negedge clk); start_game = 1'b0;
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         if (active_game_cfg !== 8'hA5) begin
             $display("FAIL: start configuration was not captured at frame handoff");
             errors = errors + 1;
@@ -117,12 +114,12 @@ module tb_game_ctrl;
 
         wait (seed_capture === 1'b1);
         wait (gen_start === 1'b1);
-        if (game_state !== GENERATE || phys_en !== 1'b0) begin
+        if (game_state !== `ST_GENERATE || phys_en !== 1'b0) begin
             $display("FAIL: startup generation state/physics enable incorrect");
             errors = errors + 1;
         end
         pulse_regen();
-        if (game_state !== GENERATE) begin
+        if (game_state !== `ST_GENERATE) begin
             $display("FAIL: regenerate request was not ignored during GENERATE");
             errors = errors + 1;
         end
@@ -135,12 +132,12 @@ module tb_game_ctrl;
 
         // The short button event is held until the next frame boundary.
         pulse_regen();
-        if (game_state !== PLAY) begin
+        if (game_state !== `ST_PLAY) begin
             $display("FAIL: controller changed state before frame_tick");
             errors = errors + 1;
         end
         pulse_frame();
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         pulse_regen(); // must not queue a third generation
         wait (gen_start === 1'b1);
         complete_generation();
@@ -148,12 +145,12 @@ module tb_game_ctrl;
         // A goal outside a frame boundary must not change game_state.
         @(negedge clk); in_goal = 1'b1;
         repeat (2) @(negedge clk);
-        if (game_state !== PLAY) begin
+        if (game_state !== `ST_PLAY) begin
             $display("FAIL: goal changed state without frame_tick");
             errors = errors + 1;
         end
         pulse_frame();
-        wait_state(WIN);
+        wait_state(`ST_WIN);
         if (phys_en !== 1'b0) begin
             $display("FAIL: physics remained enabled in WIN");
             errors = errors + 1;
@@ -161,12 +158,12 @@ module tb_game_ctrl;
         @(negedge clk); in_goal = 1'b0;
         pulse_frame();
         pulse_frame();
-        if (game_state !== WIN || gen_start !== 1'b0) begin
+        if (game_state !== `ST_WIN || gen_start !== 1'b0) begin
             $display("FAIL: WIN ended before the configured hold interval");
             errors = errors + 1;
         end
         pulse_frame();
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         wait (gen_start === 1'b1);
         repeat (2) @(posedge clk);
 

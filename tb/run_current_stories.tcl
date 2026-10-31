@@ -1,4 +1,4 @@
-# Compile current RTL and run the supported Story 1.1–4.4 regression plus Story 3.3.
+# Compile current RTL and run the supported v1 regression plus Story 6.1.
 # Run with Vivado Simulator 2025.2.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
@@ -10,6 +10,9 @@ file mkdir $run_dir
 cd $run_dir
 set rtl_dir [file join $repo_root rtl]
 set tb_dir [file join $repo_root tb]
+
+# The item icon bench reads its data files from the simulator's working folder.
+foreach data_file [glob [file join $tb_dir data *.mem]] { file copy -force $data_file $run_dir }
 
 set vhdl_compile_cmd [list xvhdl -work work \
     [file join $rtl_dir Ps2Interface.vhd] \
@@ -45,6 +48,7 @@ foreach {top snapshot marker} {
     tb_story71_map story71_map_snapshot "PASS: Story 7.1 renderer"
     tb_story71_physics story71_physics_snapshot "PASS: Story 7.1 N=15 physics"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
+    tb_game_state_encoding game_state_encoding_snapshot "PASS: shared game state"
     tb_menu_ctrl menu_ctrl_snapshot "PASS: menu_ctrl"
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
     tb_top_story42_integration top_story42_snapshot "PASS: Story 4.2 top"
@@ -52,6 +56,7 @@ foreach {top snapshot marker} {
     tb_game_timer game_timer_snapshot "PASS: game_timer"
     tb_oled_status_text oled_status_snapshot "PASS: OLED status formatter"
     tb_top_story44_integration top_story44_snapshot "PASS: Story 4.4 top status"
+    tb_item_icon_rom item_icon_rom_snapshot "PASS: item icon ROM"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
     tb_sincos_rom sincos_snapshot "PASS: sincos_rom matches the model"
@@ -86,4 +91,4 @@ foreach {top snapshot marker} {
 # so they run from their own script.
 source [file join $tb_dir run_oled_display.tcl]
 
-puts "PASS regression for current RTL through Story 4.4, including both OLED display modes"
+puts "PASS regression for current RTL through Story 4.4 plus Story 6.1, including both OLED display modes"

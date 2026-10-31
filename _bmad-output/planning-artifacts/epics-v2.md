@@ -16,34 +16,34 @@ This document turns `docs/v2-backlog.md` into stories. v1.0 stories stay in `epi
 | S | About half a day to one day: one or two modules, one bench, one board check. |
 | M | About one to two days: three or more modules, or a new bench with real coverage. |
 
-No story is larger than M. Anything bigger was split. Streams follow `docs/parallel-workstreams.md`: A = physics, maze generation, OLED driver; B = input and game control; C = graphics and top level. Owners are not assigned yet.
+No story is larger than M. Anything bigger was split. Streams follow `docs/parallel-workstreams.md`: A = physics, maze generation, OLED driver; B = input and game control; C = graphics and top level. For v2.0 the people rotate across streams; owners, file ownership and the order of work are in `docs/parallel-workstreams.md`, section 7.
 
 ## Story list
 
-| Story | Title | Size | Stream | Needs |
-| --- | --- | --- | --- | --- |
-| 6.1 | Shared game-state encoding | S | B | none |
-| 6.2 | Long-press BTNC full reset | S | B | none |
-| 7.1 | Map size follows the stage | M | A | none |
-| 7.2 | Camera that follows the ball | S | C | 7.1 |
-| 7.3 | Draw the N = 15 map | M | C | 7.1, 7.2 |
-| 7.4 | Add the N = 15 stage | S | B | 7.1, 7.3 |
-| 7.5 | Loops on HARD and larger | M | A | 7.1 |
-| 8.1 | Win screen polish | S | C | none |
-| 8.2 | Countdown timer and LOSE state | M | B | 6.1 |
-| 8.3 | TIME UP screens | S | B + C | 8.2 |
-| 9.1 | Place and draw item boxes | M | A + C | 7.5 |
-| 9.2 | Pickup, effect timer and respawn | M | B | 9.1 |
-| 9.3 | Gravity effects | M | A | 9.2 |
-| 9.4 | Invert controls and fog of war | M | B + C | 9.2 |
-| 9.5 | Invincibility and time bonus | S | B | 9.2, 8.2 |
-| 9.6 | Item icons | S | C | none |
-| 9.7 | OLED item roulette | M | A + B | 9.2, 9.6 |
-| 9.8 | Board playtest and tuning | S | A | 9.3, 9.4, 9.5, 9.7 |
+| Story | Title | Size | Stream | Needs | Owner |
+| --- | --- | --- | --- | --- | --- |
+| 6.1 | Shared game-state encoding | S | B | none | CJX |
+| 6.2 | Long-press BTNC full reset | S | B | none | CJX |
+| 7.1 | Map size follows the stage | M | A | none | QZ |
+| 7.2 | Camera that follows the ball | S | C | 7.1 | DY |
+| 7.3 | Draw the N = 15 map | M | C | 7.1, 7.2 | DY |
+| 7.4 | Add the N = 15 stage | S | B | 7.1, 7.3 | CJX |
+| 7.5 | Loops on HARD and larger | M | A | 7.1 | QZ |
+| 8.1 | Win screen polish | S | C | none | DY |
+| 8.2 | Countdown timer and LOSE state | M | B | 6.1 | CJX |
+| 8.3 | TIME UP screens | S | B + C | 8.2 | CJX + DY |
+| 9.1 | Place and draw item boxes | M | A + C | 7.5 | DY + QZ |
+| 9.2 | Pickup, effect timer and respawn | M | B | 9.1 | CJX |
+| 9.3 | Gravity effects | M | A | 9.2 | QZ |
+| 9.4 | Invert controls and fog of war | M | B + C | 9.2 | DY + CJX |
+| 9.5 | Invincibility and time bonus | S | B | 9.2, 8.2 | DY |
+| 9.6 | Item icons | S | C | none | DY |
+| 9.7 | OLED item roulette | M | A + B | 9.2, 9.6 | QZ + CJX |
+| 9.8 | Board playtest and tuning | S | A | 9.3, 9.4, 9.5, 9.7 | QZ, DY, CJX |
 
-Total: 18 stories (10 S, 8 M).
+Total: 18 stories (9 S, 9 M). The first name in the Owner column is the primary owner; a second name owns the part of the story in their own files.
 
-Suggested order: 6.1 and 6.2 first (6.1 touches many files and 8.2 adds the LOSE state); then 7.1, then 7.2 to 7.4 with 7.5 alongside; 8.1 any time; 8.2 and 8.3 after 6.1; the item-box epic last.
+Order of work: see `docs/parallel-workstreams.md`, section 7.2.
 
 ## Epic 6: v2.0 groundwork
 
