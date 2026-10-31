@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Game-flow controller for Stories 1.4 and 4.2.
 // State values follow docs/parallel-workstreams.md. game_cfg is packed as
@@ -17,7 +18,7 @@ module game_ctrl #(
     input  wire       gen_busy,
     input  wire       gen_done,
     input  wire       in_goal,
-    output reg  [1:0] game_state,
+    output reg  [`GAME_STATE_W-1:0] game_state,
     output reg        gen_start,
     output reg        seed_capture,
     output reg        phys_init,
@@ -25,10 +26,6 @@ module game_ctrl #(
     output wire       phys_en
 );
 
-    localparam [1:0] MENU     = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY     = 2'b10;
-    localparam [1:0] WIN      = 2'b11;
 
     // GENERATE phases ensure the seed source captures its value one cycle
     // before maze_gen samples gen_start.
@@ -43,11 +40,11 @@ module game_ctrl #(
     reg [7:0] start_cfg_pending;
     reg [15:0] win_frames_elapsed;
 
-    assign phys_en = (game_state == PLAY);
+    assign phys_en = (game_state == `ST_PLAY);
 
     always @(posedge clk) begin
         if (rst) begin
-            game_state      <= START_IN_MENU ? MENU : GENERATE;
+            game_state      <= START_IN_MENU ? `ST_MENU : `ST_GENERATE;
             gen_start       <= 1'b0;
             seed_capture    <= 1'b0;
             phys_init       <= 1'b0;
@@ -65,23 +62,23 @@ module game_ctrl #(
 
             // Hold a short button event until a frame boundary. The event is
             // accepted only in PLAY, so presses during GENERATE are ignored.
-            if ((game_state == PLAY) && regen_button)
+            if ((game_state == `ST_PLAY) && regen_button)
                 regen_pending <= 1'b1;
 
-            if ((game_state == GENERATE) && gen_done)
+            if ((game_state == `ST_GENERATE) && gen_done)
                 gen_done_pending <= 1'b1;
 
             // A debounced confirm is only one system-clock cycle. Preserve
             // both the request and its configuration until frame_tick.
-            if ((game_state == MENU) && start_game) begin
+            if ((game_state == `ST_MENU) && start_game) begin
                 start_pending <= 1'b1;
                 start_cfg_pending <= game_cfg;
             end
 
             case (game_state)
-                MENU: begin
+                `ST_MENU: begin
                     if (frame_tick && (start_pending || start_game)) begin
-                        game_state       <= GENERATE;
+                        game_state       <= `ST_GENERATE;
                         gen_phase        <= CAPTURE_SEED;
                         regen_pending    <= 1'b0;
                         gen_done_pending <= 1'b0;
@@ -90,7 +87,7 @@ module game_ctrl #(
                     end
                 end
 
-                GENERATE: begin
+                `ST_GENERATE: begin
                     case (gen_phase)
                         CAPTURE_SEED: begin
                             seed_capture <= 1'b1;
@@ -105,7 +102,7 @@ module game_ctrl #(
                         default: begin
                             if (frame_tick &&
                                 (gen_done_pending || gen_done) && !gen_busy) begin
-                                game_state       <= PLAY;
+                                game_state       <= `ST_PLAY;
                                 gen_phase        <= CAPTURE_SEED;
                                 gen_done_pending <= 1'b0;
                                 phys_init        <= 1'b1;
@@ -114,14 +111,14 @@ module game_ctrl #(
                     endcase
                 end
 
-                PLAY: begin
+                `ST_PLAY: begin
                     if (frame_tick) begin
                         if (in_goal) begin
-                            game_state    <= WIN;
+                            game_state    <= `ST_WIN;
                             regen_pending <= 1'b0;
                             win_frames_elapsed <= 16'd0;
                         end else if (regen_pending || regen_button) begin
-                            game_state       <= GENERATE;
+                            game_state       <= `ST_GENERATE;
                             gen_phase        <= CAPTURE_SEED;
                             regen_pending    <= 1'b0;
                             gen_done_pending <= 1'b0;
@@ -129,10 +126,10 @@ module game_ctrl #(
                     end
                 end
 
-                WIN: begin
+                `ST_WIN: begin
                     if (frame_tick) begin
                         if (win_frames_elapsed >= WIN_HOLD_FRAMES - 1) begin
-                            game_state       <= GENERATE;
+                            game_state       <= `ST_GENERATE;
                             gen_phase        <= CAPTURE_SEED;
                             regen_pending    <= 1'b0;
                             gen_done_pending <= 1'b0;
@@ -144,7 +141,7 @@ module game_ctrl #(
                 end
 
                 default: begin
-                    game_state       <= GENERATE;
+                    game_state       <= `ST_GENERATE;
                     gen_phase        <= CAPTURE_SEED;
                     regen_pending    <= 1'b0;
                     gen_done_pending <= 1'b0;

@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // End-to-end Story 3.3 control flow with abbreviated frame timing.
 module tb_top_story33_control;
-    localparam [1:0] MENU = 2'b00, GENERATE = 2'b01, PLAY = 2'b10, WIN = 2'b11;
 
     reg clk = 1'b0;
     reg btnC = 1'b0;
@@ -53,7 +53,7 @@ module tb_top_story33_control;
     endtask
 
     task wait_state;
-        input [1:0] expected;
+        input [`GAME_STATE_W-1:0] expected;
         begin
             guard = 0;
             while (dut.game_state !== expected && guard < 20000) begin
@@ -97,16 +97,16 @@ module tb_top_story33_control;
     initial begin
         force dut.frame_tick = 1'b0;
         repeat (10) @(negedge clk);
-        wait_state(MENU);
+        wait_state(`ST_MENU);
 
         press_start();
         pulse_frame();
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         wait_gen_done();
         first_seed = dut.seed;
         first_cfg = dut.active_game_cfg;
         pulse_frame();
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         repeat (4) @(negedge clk);
         if (gen_start_count != 1 || seed_capture_count != 1 || phys_init_count != 1)
             fail("initial generation/start handoff counts are incorrect");
@@ -124,9 +124,9 @@ module tb_top_story33_control;
 
         // A high goal level alone cannot change state; the frame boundary does.
         repeat (2) @(negedge clk);
-        if (dut.game_state !== PLAY) fail("goal bypassed the frame boundary");
+        if (dut.game_state !== `ST_PLAY) fail("goal bypassed the frame boundary");
         pulse_frame();
-        wait_state(WIN);
+        wait_state(`ST_WIN);
         release dut.ball_i.ball_x;
         release dut.ball_i.ball_y;
         repeat (8) @(negedge clk);
@@ -138,12 +138,12 @@ module tb_top_story33_control;
         force dut.rot_cmd = 2'sd1;
 
         pulse_frame();
-        if (dut.game_state !== WIN || gen_start_count != 1 || !dut.render_i.win_frame)
+        if (dut.game_state !== `ST_WIN || gen_start_count != 1 || !dut.render_i.win_frame)
             fail("WIN did not persist through the first hold frame");
         if (dut.angle_rot_cmd !== 2'sd0 || dut.angle !== stopped_angle)
             fail("maze rotation was not frozen during WIN");
         pulse_frame();
-        if (dut.game_state !== WIN || gen_start_count != 1 || !dut.render_i.win_frame)
+        if (dut.game_state !== `ST_WIN || gen_start_count != 1 || !dut.render_i.win_frame)
             fail("WIN did not persist through the second hold frame");
         if (dut.angle_rot_cmd !== 2'sd0 || dut.angle !== stopped_angle)
             fail("maze rotation changed before the WIN interval ended");
@@ -151,7 +151,7 @@ module tb_top_story33_control;
             fail("ball moved while WIN was held");
         pulse_frame();
         release dut.rot_cmd;
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         guard = 0;
         while (gen_start_count < 2 && guard < 50) begin
             @(negedge clk); guard = guard + 1;
@@ -171,7 +171,7 @@ module tb_top_story33_control;
         if (!map_changed) fail("new seed produced the same maze image");
 
         pulse_frame();
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         repeat (5) @(negedge clk);
         expected_x = (dut.start_col - 10) * 4096;
         expected_y = (dut.start_row - 10) * 4096;

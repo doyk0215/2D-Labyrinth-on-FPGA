@@ -1,9 +1,7 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_top_story43_integration;
-    localparam [1:0] MENU = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY = 2'b10;
 
     reg clk = 1'b0;
     reg btnC = 1'b0;
@@ -69,7 +67,7 @@ module tb_top_story43_integration;
     endtask
 
     task wait_state;
-        input [1:0] expected;
+        input [`GAME_STATE_W-1:0] expected;
         begin
             timeout = 0;
             while ((dut.game_state !== expected) && (timeout < 20000)) begin
@@ -127,7 +125,7 @@ module tb_top_story43_integration;
         force dut.frame_tick = 1'b1;
         repeat (12) @(posedge clk);
         #1;
-        if (dut.game_state !== MENU || dut.game_cfg !== 8'h05 ||
+        if (dut.game_state !== `ST_MENU || dut.game_cfg !== 8'h05 ||
             dut.gen_start !== 1'b0 || gen_start_count != 0) begin
             $display("FAIL: startup was not in stage-selection MENU");
             errors = errors + 1;
@@ -142,7 +140,7 @@ module tb_top_story43_integration;
         angle_before_settings = dut.angle;
         check_oled_update(3'd0); // BTNL opens settings page
         if (!dut.menu_ctrl_i.settings_page || dut.game_cfg !== 8'h1A ||
-            dut.game_state !== MENU || gen_start_count != 0 ||
+            dut.game_state !== `ST_MENU || gen_start_count != 0 ||
             dut.angle !== angle_before_settings) begin
             $display("FAIL: BTNL did not open settings without starting a game");
             errors = errors + 1;
@@ -162,13 +160,13 @@ module tb_top_story43_integration;
         end
 
         press_button(3'd2); // BTNC on stage page starts
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         if (dut.active_game_cfg !== 8'h9A ||
             dut.angle_i.rot_speed_sel !== 2'b10) begin
             $display("FAIL: selected FAST configuration was not latched for the game");
             errors = errors + 1;
         end
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         if (gen_start_count != 1) begin
             $display("FAIL: expected one maze generation, got %0d", gen_start_count);
             errors = errors + 1;
@@ -205,7 +203,7 @@ module tb_top_story43_integration;
 
         // Reset from PLAY returns to MENU, clears the stage but retains FAST.
         press_button(3'd2);
-        wait_state(MENU);
+        wait_state(`ST_MENU);
         if (dut.game_cfg !== 8'h85 || dut.menu_ctrl_i.settings_page ||
             dut.menu_ctrl_i.selected_stage !== 1'b0) begin
             $display("FAIL: game reset did not preserve speed and reset the stage page");

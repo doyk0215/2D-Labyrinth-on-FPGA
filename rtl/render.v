@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Inverse-map the screen into the maze. Each scanline starts with two signed
 // products; each following pixel needs only one add per coordinate. Coordinates
@@ -13,7 +14,7 @@ module render #(
     input  wire              rst,
     input  wire              ce_pix,
     input  wire              frame_tick,
-    input  wire [1:0]        game_state,
+    input  wire [`GAME_STATE_W-1:0] game_state,
     input  wire [7:0]        time_min_bcd,
     input  wire [7:0]        time_sec_bcd,
     input  wire [11:0]       angle,
@@ -112,12 +113,12 @@ module render #(
                 angle_snap <= angle;
                 // game_ctrl changes state on frame_tick. Capture its new
                 // state with the angle/trig snapshot in vertical blanking.
-                win_frame <= (game_state == 2'b11);
+                win_frame <= (game_state == `ST_WIN);
                 win_min_bcd <= time_min_bcd;
                 win_sec_bcd <= time_sec_bcd;
                 // The goal blink restarts bright on the first WIN frame and
                 // flips every BLINK_FRAMES captured frames after that.
-                if (game_state != 2'b11 || !win_frame) begin
+                if (game_state != `ST_WIN || !win_frame) begin
                     blink_count <= 8'd0;
                     blink_phase <= 1'b0;
                 end else if (blink_count == BLINK_FRAMES - 1) begin

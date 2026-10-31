@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Integration top: game_ctrl sequences generation/play, and the renderer is
 // held off while maze_gen writes the single map; rotation supports the SW5
@@ -57,7 +58,7 @@ module My_Top_Module #(
 
     wire rst;
     wire game_reset_request;
-    wire [1:0] game_state;
+    wire [`GAME_STATE_W-1:0] game_state;
     assign rst = por_reset | game_reset_request;
 
     wire btnU_press, btnD_menu_press, btnC_press, btnL_menu_press;
@@ -81,7 +82,7 @@ module My_Top_Module #(
     wire [511:0] menu_page_text;
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
-    wire menu_active = (game_state == 2'b00);
+    wire menu_active = (game_state == `ST_MENU);
     assign game_reset_request = btnC_press && !menu_active;
 
     menu_ctrl menu_ctrl_i (
@@ -221,7 +222,7 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
-    assign angle_rot_cmd = (menu_active || (game_state == 2'b11)) ? 2'sd0 :
+    assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
@@ -240,7 +241,7 @@ module My_Top_Module #(
 
     // Keep the completed maze visible behind the Story 3.3 win indication.
     // MENU and GENERATE still mask the display and disable map reads.
-    assign render_enable = (game_state == 2'b10) || (game_state == 2'b11);
+    assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN);
 
     game_ctrl #(
         .START_IN_MENU(START_IN_MENU),

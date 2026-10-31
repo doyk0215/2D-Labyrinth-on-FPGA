@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Pixel-level checks against a row-bitmap model independent of font_rom's
 // column ROM. A full VGA raster includes blanking and one-clock sync checks.
@@ -6,7 +7,7 @@ module tb_win_render;
     reg clk = 1'b0;
     always #5 clk = ~clk;
     reg rst = 1'b1, ce_pix = 1'b0, frame_tick = 1'b0;
-    reg [1:0] game_state = 2'b10;
+    reg [`GAME_STATE_W-1:0] game_state = `ST_PLAY;
     reg [9:0] pixel_x = 0, pixel_y = 0;
     reg active_video = 1'b1, hs = 1'b1, vs = 1'b1, ball_on = 1'b1;
     reg [7:0] tmin = 8'h00, tsec = 8'h00;
@@ -160,12 +161,12 @@ module tb_win_render;
         rst = 1'b0;
         pixel_x = 156; pixel_y = 212;
         check_colour(12'hfc0); // ball remains unchanged in PLAY
-        game_state = 2'b11;
+        game_state = `ST_WIN;
         check_colour(12'hfc0); // WIN does not appear mid-frame
         capture_frame();
         check_colour(12'hfff); // text takes priority over the ball
         repeat (3) begin capture_frame(); check_colour(12'hfff); end
-        game_state = 2'b10;
+        game_state = `ST_PLAY;
         check_colour(12'hfff); // WIN does not disappear mid-frame
         capture_frame();
         check_colour(12'hfc0);
@@ -173,7 +174,7 @@ module tb_win_render;
         // Time line: the value is latched with the frame, never mid-frame.
         // Cell 5 is the minutes tens digit and cell 6 the ones digit.
         tmin = 8'h01; tsec = 8'h23;
-        game_state = 2'b11;
+        game_state = `ST_WIN;
         capture_frame();
         goto_pixel(320, 288); check_colour(12'hfff); // '0': column 0, row 1 is lit
         goto_pixel(360, 288); check_colour(12'hfff); // '1': column 2, row 1 is lit
@@ -186,20 +187,20 @@ module tb_win_render;
         // Goal blink: bright in PLAY, then bright for BLINK frames and dark
         // for BLINK frames, starting with the first WIN frame.
         ball_on = 1'b0;
-        game_state = 2'b10; capture_frame(); sample_goal();
+        game_state = `ST_PLAY; capture_frame(); sample_goal();
         if (goal_rgb !== 12'h0f0) fail("goal tile is not plain green in PLAY");
-        game_state = 2'b11;
+        game_state = `ST_WIN;
         for (k = 0; k < 4 * BLINK; k = k + 1) begin
             capture_frame(); sample_goal();
             if (goal_rgb !== (((k / BLINK) % 2) ? 12'h030 : 12'h0f0))
                 fail("goal blink phase does not match the frame count");
         end
-        game_state = 2'b10; capture_frame(); sample_goal();
+        game_state = `ST_PLAY; capture_frame(); sample_goal();
         if (goal_rgb !== 12'h0f0) fail("goal tile still blinks after leaving WIN");
         goto_pixel(156, 212);
 
         tmin = 8'h12; tsec = 8'h34;
-        game_state = 2'b11;
+        game_state = `ST_WIN;
         capture_frame();
         ce_pix = 1'b1;
         image_file = $fopen("win_indication.ppm", "wb");
@@ -236,7 +237,7 @@ module tb_win_render;
         if (time_pixels == 0) fail("time line had no foreground pixels");
         @(negedge clk); rst = 1'b1; active_video = 1'b1; pixel_x = 156; pixel_y = 212;
         check_colour(12'h000);
-        rst = 1'b0; game_state = 2'b10; ball_on = 1'b1;
+        rst = 1'b0; game_state = `ST_PLAY; ball_on = 1'b1;
         check_colour(12'hfc0); // reset clears a stale WIN without another frame
         $display("PASS: win render YOU WIN and TIME glyphs, goal blink, frame latching, priority, reset, blanking and sync; %0d pixels checked", checked);
         $finish;

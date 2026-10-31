@@ -1,19 +1,16 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Selects and formats the single 4x16 ASCII status buffer consumed by the
 // existing OLED mailbox. The OLED pixel driver remains unaware of game state.
 module oled_status_text (
     input  wire [511:0] menu_text,
-    input  wire [1:0]   game_state,
+    input  wire [`GAME_STATE_W-1:0]   game_state,
     input  wire [7:0]   active_game_cfg,
     input  wire [7:0]   elapsed_minutes_bcd,
     input  wire [7:0]   elapsed_seconds_bcd,
     output reg  [511:0] status_text
 );
-    localparam [1:0] MENU     = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY     = 2'b10;
-    localparam [1:0] WIN      = 2'b11;
 
     function [511:0] pack_text;
         input [127:0] r0;
@@ -63,17 +60,17 @@ module oled_status_text (
         endcase
 
         case (game_state)
-            MENU: status_text = menu_text;
-            GENERATE: status_text = pack_text(
+            `ST_MENU: status_text = menu_text;
+            `ST_GENERATE: status_text = pack_text(
                 stage_text, "TIME 00:00      ",
                 "GENERATING...   ", "PLEASE WAIT     "
             );
-            PLAY: status_text = pack_text(
+            `ST_PLAY: status_text = pack_text(
                 stage_text, format_time(elapsed_minutes_bcd,
                                         elapsed_seconds_bcd),
                 "PLAYING         ", "BTNC RESET      "
             );
-            WIN: status_text = pack_text(
+            `ST_WIN: status_text = pack_text(
                 stage_text, format_time(elapsed_minutes_bcd,
                                         elapsed_seconds_bcd),
                 "YOU WIN         ", "AUTO REPLAY     "

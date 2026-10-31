@@ -1,8 +1,7 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_top_story14_integration;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY     = 2'b10;
 
     reg clk = 1'b0;
     reg btnC = 1'b0;
@@ -49,14 +48,14 @@ module tb_top_story14_integration;
     always @(posedge clk) begin
         if (!btnC && dut.gen_start)
             start_count = start_count + 1;
-        if (!btnC && (dut.game_state == GENERATE) && dut.maze_ram_i.ren_r !== 1'b0) begin
+        if (!btnC && (dut.game_state == `ST_GENERATE) && dut.maze_ram_i.ren_r !== 1'b0) begin
             $display("FAIL: render RAM read enabled during GENERATE");
             errors = errors + 1;
         end
     end
 
     task wait_state;
-        input [1:0] expected;
+        input [`GAME_STATE_W-1:0] expected;
         integer guard;
         begin
             guard = 0;
@@ -87,7 +86,7 @@ module tb_top_story14_integration;
         force dut.frame_tick = 1'b1;
         repeat (5) @(posedge clk);
 
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         if (dut.gen_done_seen !== 1'b1 || dut.gen_busy !== 1'b0) begin
             $display("FAIL: startup did not complete a maze before PLAY");
             errors = errors + 1;
@@ -105,7 +104,7 @@ module tb_top_story14_integration;
         @(negedge clk); btnD = 1'b1;
         repeat (4) @(negedge clk);
         btnD = 1'b0;
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         repeat (3) @(negedge clk);
         if (dut.maze_ram_i.ren_r !== 1'b0 || dut.render_enable_d !== 1'b0) begin
             $display("FAIL: render remained enabled during regeneration");
@@ -122,7 +121,7 @@ module tb_top_story14_integration;
         @(negedge clk); btnD = 1'b1;
         repeat (4) @(negedge clk);
         btnD = 1'b0;
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         seed_second = dut.seed;
         compute_map_hash(hash_second);
         if (seed_second === seed_first) begin
