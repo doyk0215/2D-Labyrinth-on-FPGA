@@ -50,6 +50,8 @@ foreach {top snapshot marker} {
     tb_game_timer game_timer_snapshot "PASS: game_timer"
     tb_oled_status_text oled_status_snapshot "PASS: OLED status formatter"
     tb_top_story44_integration top_story44_snapshot "PASS: Story 4.4 top status"
+    tb_top_story34_reset top_story34_reset_snapshot "PASS: Story 3.4 reset"
+    tb_story34_frame_budget story34_frame_budget_snapshot "PASS: Story 3.4 physics frame budget"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"
     tb_sincos_rom sincos_snapshot "PASS: sincos_rom matches the model"
