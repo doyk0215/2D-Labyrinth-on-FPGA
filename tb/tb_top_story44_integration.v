@@ -1,10 +1,7 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_top_story44_integration;
-    localparam [1:0] MENU = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY = 2'b10;
-    localparam [1:0] WIN = 2'b11;
     localparam integer TIMER_CLK_HZ = 100_000;
 
     reg clk = 1'b0;
@@ -62,7 +59,7 @@ module tb_top_story44_integration;
     endtask
 
     task wait_state;
-        input [1:0] expected;
+        input [`GAME_STATE_W-1:0] expected;
         begin
             timeout = 0;
             while ((dut.game_state !== expected) && (timeout < 200000)) begin
@@ -89,7 +86,7 @@ module tb_top_story44_integration;
                 errors = errors + 1;
             end
             pulse_frame;
-            wait_state(PLAY);
+            wait_state(`ST_PLAY);
         end
     endtask
 
@@ -152,7 +149,7 @@ module tb_top_story44_integration;
         force dut.oled_frame_begin = 1'b0;
         repeat (12) @(posedge clk);
         #1;
-        if (dut.game_state !== MENU) begin
+        if (dut.game_state !== `ST_MENU) begin
             $display("FAIL Story 4.4 integration: power-on did not show MENU");
             errors = errors + 1;
         end
@@ -160,7 +157,7 @@ module tb_top_story44_integration;
 
         press_confirm;
         pulse_frame;
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         if (dut.active_game_cfg !== 8'h05) begin
             $display("FAIL Story 4.4 integration: EASY stage not captured at start");
             errors = errors + 1;
@@ -216,7 +213,7 @@ module tb_top_story44_integration;
         force dut.in_goal = 1'b1;
         pulse_frame;
         release dut.in_goal;
-        wait_state(WIN);
+        wait_state(`ST_WIN);
         if (dut.status_text[8*32 +: 8] !== "Y") begin
             $display("FAIL Story 4.4 integration: OLED did not display retained WIN status");
             errors = errors + 1;
@@ -230,7 +227,7 @@ module tb_top_story44_integration;
 
         pulse_frame;
         pulse_frame;
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         wait_generation_done;
         @(posedge clk); #1;
         if (gen_start_count != 2 || dut.elapsed_minutes_bcd !== 8'h00 ||
@@ -240,7 +237,7 @@ module tb_top_story44_integration;
         end
 
         press_confirm;
-        wait_state(MENU);
+        wait_state(`ST_MENU);
         if (dut.elapsed_minutes_bcd !== 8'h00 || dut.elapsed_seconds_bcd !== 8'h00 ||
             dut.status_text[7:0] !== "S") begin
             $display("FAIL Story 4.4 integration: reset did not clear time and restore menu text");

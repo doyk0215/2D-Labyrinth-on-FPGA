@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Independent real-number inverse mapping for the affine renderer. This uses
 // the fixed maze RAM, rather than copying the RTL's incremental arithmetic.
@@ -30,7 +31,7 @@ module tb_rotated_render;
     );
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(2'b10),
+        .game_state(`ST_PLAY),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .hsync_in(hsync_in), .vsync_in(vsync_in),

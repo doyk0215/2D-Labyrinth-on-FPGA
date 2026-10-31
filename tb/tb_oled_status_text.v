@@ -1,13 +1,10 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_oled_status_text;
-    localparam [1:0] MENU = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY = 2'b10;
-    localparam [1:0] WIN = 2'b11;
 
     reg [511:0] menu_text = 512'd0;
-    reg [1:0] game_state = MENU;
+    reg [`GAME_STATE_W-1:0] game_state = `ST_MENU;
     reg [7:0] active_game_cfg = 8'h05;
     reg [7:0] elapsed_minutes_bcd = 8'h00;
     reg [7:0] elapsed_seconds_bcd = 8'h00;
@@ -48,7 +45,7 @@ module tb_oled_status_text;
         active_game_cfg = 8'h05;
         elapsed_minutes_bcd = 8'h09;
         elapsed_seconds_bcd = 8'h42;
-        game_state = PLAY;
+        game_state = `ST_PLAY;
         #1;
         check_char(0, "S", "stage-one header");
         check_char(6, "1", "stage-one number");
@@ -66,12 +63,12 @@ module tb_oled_status_text;
         check_char(6, "2", "stage-two number from active configuration");
         check_char(8, "H", "hard label");
 
-        game_state = WIN;
+        game_state = `ST_WIN;
         #1;
         check_char(32, "Y", "WIN status");
         check_char(21, "0", "final time retained on WIN");
 
-        game_state = GENERATE;
+        game_state = `ST_GENERATE;
         #1;
         check_char(32, "G", "generation status");
         check_char(16, "T", "generation timer reset display");

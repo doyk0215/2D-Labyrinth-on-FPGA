@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Visual/control integration uses a short WIN interval. Goal detection and
 // replay duration are covered by the dedicated Story 3.3 control bench.
@@ -19,7 +20,7 @@ module tb_top_win_indication;
         begin $display("FAIL top win: %0s (state=%b RGB=%h)", message, dut.game_state, {r,g,b}); $fatal(1); end
     endtask
     task wait_state;
-        input [1:0] state;
+        input [`GAME_STATE_W-1:0] state;
         integer guard;
         begin
             guard = 0;
@@ -61,17 +62,17 @@ module tb_top_win_indication;
         force dut.active_video = 1'b1;
         force dut.ball_on = 1'b1; // contrasting underlay checks win priority
         repeat (20) @(negedge clk);
-        wait_state(2'b00);
+        wait_state(`ST_MENU);
         check_pixel(156,212,12'h002); // MENU masks even a forced ball
         press_centre();
-        wait_state(2'b10);
+        wait_state(`ST_PLAY);
         force dut.frame_tick = 1'b0;
         repeat (10) @(negedge clk);
         check_pixel(156,212,12'hfc0);
 
         force dut.game_ctrl_i.in_goal = 1'b1;
         frame();
-        wait_state(2'b11);
+        wait_state(`ST_WIN);
         force dut.game_ctrl_i.in_goal = 1'b0;
         if (!dut.render_enable_d || !dut.maze_ram_i.ren_r || dut.phys_en)
             fail("WIN must retain render reads and disable physics");
@@ -87,28 +88,28 @@ module tb_top_win_indication;
         // The integration uses a short three-frame WIN interval. The panel
         // must persist for two frame ticks and disappear in GENERATE.
         frame();
-        if (dut.game_state !== 2'b11) fail("WIN ended after one frame");
+        if (dut.game_state !== `ST_WIN) fail("WIN ended after one frame");
         frame();
-        if (dut.game_state !== 2'b11) fail("WIN ended before the third frame");
+        if (dut.game_state !== `ST_WIN) fail("WIN ended before the third frame");
         frame();
-        wait_state(2'b01);
+        wait_state(`ST_GENERATE);
         if (dut.maze_ram_i.ren_r || dut.render_enable_d) fail("render reads enabled in GENERATE");
         check_pixel(156,212,12'h002);
         wait (dut.gen_done === 1'b1);
         repeat (3) @(negedge clk);
         frame();
-        wait_state(2'b10);
+        wait_state(`ST_PLAY);
         check_pixel(156,212,12'hfc0);
 
         // A second WIN followed by the real debounced reset returns to MENU
         // without keeping a banner or enabling renderer reads there.
         force dut.game_ctrl_i.in_goal = 1'b1;
         frame();
-        wait_state(2'b11);
+        wait_state(`ST_WIN);
         force dut.game_ctrl_i.in_goal = 1'b0;
         check_pixel(156,212,12'hfff);
         press_centre();
-        wait_state(2'b00);
+        wait_state(`ST_MENU);
         if (dut.maze_ram_i.ren_r || dut.render_i.win_frame) fail("reset retained win state");
         check_pixel(156,212,12'h002);
         release dut.game_ctrl_i.in_goal;

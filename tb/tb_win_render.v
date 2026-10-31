@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Pixel-level checks against a row-bitmap model independent of font_rom's
 // column ROM. A full VGA raster includes blanking and one-clock sync checks.
@@ -6,7 +7,7 @@ module tb_win_render;
     reg clk = 1'b0;
     always #5 clk = ~clk;
     reg rst = 1'b1, ce_pix = 1'b0, frame_tick = 1'b0;
-    reg [1:0] game_state = 2'b10;
+    reg [`GAME_STATE_W-1:0] game_state = `ST_PLAY;
     reg [9:0] pixel_x = 0, pixel_y = 0;
     reg active_video = 1'b1, hs = 1'b1, vs = 1'b1, ball_on = 1'b1;
     wire [3:0] r, g, b;
@@ -76,16 +77,16 @@ module tb_win_render;
         rst = 1'b0;
         pixel_x = 156; pixel_y = 212;
         check_colour(12'hfc0); // ball remains unchanged in PLAY
-        game_state = 2'b11;
+        game_state = `ST_WIN;
         check_colour(12'hfc0); // WIN does not appear mid-frame
         capture_frame();
         check_colour(12'hfff); // text takes priority over the ball
         repeat (3) begin capture_frame(); check_colour(12'hfff); end
-        game_state = 2'b10;
+        game_state = `ST_PLAY;
         check_colour(12'hfff); // WIN does not disappear mid-frame
         capture_frame();
         check_colour(12'hfc0);
-        game_state = 2'b11;
+        game_state = `ST_WIN;
         capture_frame();
         ball_on = 1'b0;
         ce_pix = 1'b1;
@@ -120,7 +121,7 @@ module tb_win_render;
         if (text_pixels == 0) fail("message had no foreground pixels");
         @(negedge clk); rst = 1'b1; active_video = 1'b1; pixel_x = 156; pixel_y = 212;
         check_colour(12'h000);
-        rst = 1'b0; game_state = 2'b10; ball_on = 1'b1;
+        rst = 1'b0; game_state = `ST_PLAY; ball_on = 1'b1;
         check_colour(12'hfc0); // reset clears a stale WIN without another frame
         $display("PASS: win render YOU WIN glyphs, frame latching, priority, reset, blanking and sync; %0d pixels checked", checked);
         $finish;

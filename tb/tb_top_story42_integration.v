@@ -1,10 +1,7 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_top_story42_integration;
-    localparam [1:0] MENU = 2'b00;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY = 2'b10;
-    localparam [1:0] WIN = 2'b11;
 
     reg clk = 1'b0;
     reg btnC = 1'b0;
@@ -36,7 +33,7 @@ module tb_top_story42_integration;
     always @(posedge clk) begin
         if (dut.gen_start)
             gen_start_count = gen_start_count + 1;
-        if ((dut.game_state == MENU) && dut.active_video_d &&
+        if ((dut.game_state == `ST_MENU) && dut.active_video_d &&
             {vga_r, vga_g, vga_b} !== 12'h002) begin
             $display("FAIL: menu pixels leaked into VGA output");
             errors = errors + 1;
@@ -65,7 +62,7 @@ module tb_top_story42_integration;
     endtask
 
     task wait_state;
-        input [1:0] expected;
+        input [`GAME_STATE_W-1:0] expected;
         begin
             timeout = 0;
             while ((dut.game_state !== expected) && (timeout < 20000)) begin
@@ -122,14 +119,14 @@ module tb_top_story42_integration;
         force dut.frame_tick = 1'b1;
         repeat (12) @(posedge clk);
         #1;
-        if (dut.game_state !== MENU || dut.game_cfg !== 8'h05 ||
+        if (dut.game_state !== `ST_MENU || dut.game_cfg !== 8'h05 ||
             dut.gen_start !== 1'b0 || gen_start_count != 0) begin
             $display("FAIL: startup did not remain in MENU awaiting confirmation");
             errors = errors + 1;
         end
 
         repeat (30) @(posedge clk);
-        if (dut.game_state !== MENU || gen_start_count != 0) begin
+        if (dut.game_state !== `ST_MENU || gen_start_count != 0) begin
             $display("FAIL: game generated before stage confirmation");
             errors = errors + 1;
         end
@@ -153,7 +150,7 @@ module tb_top_story42_integration;
         end
 
         press_button(2'd2);
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         if (dut.active_game_cfg !== 8'h05) begin
             $display("FAIL: game controller did not capture selected EASY configuration");
             errors = errors + 1;
@@ -176,7 +173,7 @@ module tb_top_story42_integration;
             errors = errors + 1;
         end
 
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         if (dut.start_col !== 5'd14 || dut.goal_col !== 5'd6 ||
             dut.start_row !== 5'd14 || dut.goal_row !== 5'd6) begin
             $display("FAIL: N=5 maze was not centred in the tile map");
@@ -191,7 +188,7 @@ module tb_top_story42_integration;
 
         // The same debounced center button returns active play to the menu.
         press_button(2'd2);
-        wait_state(MENU);
+        wait_state(`ST_MENU);
         if (dut.menu_ctrl_i.selected_stage !== 1'b0 || dut.game_cfg !== 8'h05) begin
             $display("FAIL: BTNC reset did not restore the initial menu selection");
             errors = errors + 1;
@@ -204,29 +201,29 @@ module tb_top_story42_integration;
         // BTNC must also return to MENU from GENERATE. Hold frame_tick low
         // once generating, so the state cannot reach PLAY before the press.
         press_button(2'd2);
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         force dut.frame_tick = 1'b0;
         press_button(2'd2);
-        wait_state(MENU);
+        wait_state(`ST_MENU);
         force dut.frame_tick = 1'b1;
 
         // ... and from WIN. Force the controller input here to isolate reset
         // behavior; the Story 3.3 control bench covers real goal detection.
         press_button(2'd2);
-        wait_state(PLAY);
+        wait_state(`ST_PLAY);
         force dut.game_ctrl_i.in_goal = 1'b1;
-        wait_state(WIN);
+        wait_state(`ST_WIN);
         force dut.frame_tick = 1'b0;
         release dut.game_ctrl_i.in_goal;
         press_button(2'd2);
-        wait_state(MENU);
+        wait_state(`ST_MENU);
         force dut.frame_tick = 1'b1;
 
         // HARD reaches the ball as restitution 1 (Story 3.2). Checked while
         // generating, so the bench does not wait for a full N=10 maze.
         press_button(2'd3);
         press_button(2'd2);
-        wait_state(GENERATE);
+        wait_state(`ST_GENERATE);
         if (dut.active_game_cfg !== 8'h1A || dut.ball_i.restitution_sel !== 2'd1) begin
             $display("FAIL: HARD stage gave cfg %h and ball restitution %0d, expected 1a and 1",
                      dut.active_game_cfg, dut.ball_i.restitution_sel);
@@ -234,7 +231,7 @@ module tb_top_story42_integration;
         end
         force dut.frame_tick = 1'b0;
         press_button(2'd2);
-        wait_state(MENU);
+        wait_state(`ST_MENU);
         force dut.frame_tick = 1'b1;
 
         if (errors == 0)

@@ -43,11 +43,14 @@
 `define SCREEN_CX      320      // maze rotation centre on screen
 `define SCREEN_CY      240
 
-// ---- Game state codes (game_state[1:0]) ----
-`define ST_MENU        2'd0
-`define ST_GENERATE    2'd1
-`define ST_PLAY        2'd2
-`define ST_WIN         2'd3
+// ---- Shared game state (Story 6.1) ----
+// Keep v1's codes; ST_LOSE is reserved for Story 8.2 and is not entered yet.
+`define GAME_STATE_W   3
+`define ST_MENU        3'd0
+`define ST_GENERATE    3'd1
+`define ST_PLAY        3'd2
+`define ST_WIN         3'd3
+`define ST_LOSE        3'd4
 
 // ---- Rotation command (rot_cmd[1:0], signed) ----
 `define ROT_CCW        2'b11    // -1
