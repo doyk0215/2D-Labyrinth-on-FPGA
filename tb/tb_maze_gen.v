@@ -14,7 +14,7 @@ module tb_maze_gen;
     reg  [3:0]  n_cells = 4'd10;
     reg  [31:0] seed = 32'd1;
     wire        gen_busy, gen_done, we, wdata;
-    wire [8:0]  waddr;
+    wire [`MAP_ADDR_W-1:0] waddr;
     wire [4:0]  start_col, start_row, goal_col, goal_row;
 
     always #5 clk = ~clk;
@@ -25,7 +25,7 @@ module tb_maze_gen;
         .start_col(start_col), .start_row(start_row), .goal_col(goal_col), .goal_row(goal_row)
     );
 
-    // ---- behavioural maze_ram (441 tiles, 1 = wall) ----
+    // ---- behavioural maze RAM (961 maximum-capacity tiles, 1 = wall) ----
     reg mem [0:`MAP_TILES-1];
     integer i;
     initial for (i = 0; i < `MAP_TILES; i = i + 1) mem[i] = 1'b0;   // stale floor on purpose
@@ -36,12 +36,20 @@ module tb_maze_gen;
     integer runs;
     integer cycles, max_cycles;
     integer done_pulses;
+    integer max_stack_depth = 0;
     always @(posedge clk) if (gen_done) done_pulses <= done_pulses + 1;
+    always @(negedge clk) if (gen_busy) begin
+        if (dut.sp > 225) begin
+            errors = errors + 1;
+            $display("FAIL: DFS stack pointer exceeded 225 (%0d)", dut.sp);
+        end
+        if (dut.sp > max_stack_depth) max_stack_depth = dut.sp;
+    end
 
     // ---- BFS over floor tiles ----
     reg      seen [0:`MAP_TILES-1];
     integer  queue [0:`MAP_TILES-1];
-    integer  qh, qt, floor_total, reached, cur, c, r, nb;
+    integer  qh, qt, floor_total, reached, cur, c, r, nb, dim;
     reg      goal_reached;
 
     task bfs_check;
@@ -49,22 +57,22 @@ module tb_maze_gen;
         input integer sc, sr, gc, gr;
         integer k;
         begin
-            floor_total = 0;
+            floor_total = 0; dim = 2 * N + 1;
             for (k = 0; k < `MAP_TILES; k = k + 1) begin
                 seen[k] = 1'b0;
                 if (!mem[k]) floor_total = floor_total + 1;
             end
             qh = 0; qt = 0; reached = 0; goal_reached = 1'b0;
-            queue[qt] = sr * 21 + sc; qt = qt + 1; seen[sr * 21 + sc] = 1'b1;
+            queue[qt] = sr * dim + sc; qt = qt + 1; seen[sr * dim + sc] = 1'b1;
             while (qh < qt) begin
                 cur = queue[qh]; qh = qh + 1;
                 reached = reached + 1;
-                c = cur % 21; r = cur / 21;
+                c = cur % dim; r = cur / dim;
                 if (c == gc && r == gr) goal_reached = 1'b1;
-                if (r > 0)  begin nb = cur - 21; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
-                if (r < 20) begin nb = cur + 21; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
+                if (r > 0)  begin nb = cur - dim; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
+                if (r < dim-1) begin nb = cur + dim; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
                 if (c > 0)  begin nb = cur - 1;  if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
-                if (c < 20) begin nb = cur + 1;  if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
+                if (c < dim-1) begin nb = cur + 1;  if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
             end
         end
     endtask
@@ -90,17 +98,17 @@ module tb_maze_gen;
         begin run_gen2(N, N, s); end
     endtask
 
-    // N = expected size, drive = value put on n_cells (differs only for the clamp test)
+    // N = expected size; drive = value put on n_cells.
     task run_gen2;
         input integer N;
         input integer drive;
         input [31:0] s;
-        integer limit, k, outside_floor, perimeter_floor, off;
+        integer limit, k, outside_floor, perimeter_floor, map_dim, map_tiles, map_col, map_row;
         begin
-            n_cells = drive[3:0]; seed = s; off = 10 - N;
+            n_cells = drive[3:0]; seed = s; map_dim = 2 * N + 1; map_tiles = map_dim * map_dim;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
-            cycles = 0; limit = 20000;
+            cycles = 0; limit = 100000;
             while (!gen_done && cycles < limit) begin @(posedge clk); cycles = cycles + 1; end
             @(negedge clk);
             if (cycles >= limit) begin
@@ -110,24 +118,25 @@ module tb_maze_gen;
                 if (gen_busy) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: busy after done", N, s); end
 
                 // start/goal tiles: start bottom-right, goal top-left
-                if (start_col !== (off + 2 * N - 1) || start_row !== (off + 2 * N - 1) ||
-                    goal_col !== (off + 1) || goal_row !== (off + 1)) begin
+                if (start_col !== (2 * N - 1) || start_row !== (2 * N - 1) ||
+                    goal_col !== 1 || goal_row !== 1) begin
                     errors = errors + 1;
                     $display("FAIL N=%0d seed=%h: start (%0d,%0d) goal (%0d,%0d)", N, s,
                              start_col, start_row, goal_col, goal_row);
                 end
-                if (mem[start_row * 21 + start_col] || mem[goal_row * 21 + goal_col]) begin
+                if (mem[start_row * map_dim + start_col] || mem[goal_row * map_dim + goal_col]) begin
                     errors = errors + 1; $display("FAIL N=%0d seed=%h: start or goal is a wall", N, s);
                 end
 
-                // nothing outside the maze region (tiles beyond 2N) and an intact outer wall
+                // Nothing outside the active stage map, and an intact outer wall.
                 outside_floor = 0; perimeter_floor = 0;
                 for (k = 0; k < `MAP_TILES; k = k + 1) begin
-                    c = k % 21; r = k / 21;
-                    if ((c < off || c > off + 2 * N || r < off || r > off + 2 * N) && !mem[k])
+                    map_col = (k < map_tiles) ? (k % map_dim) : map_dim;
+                    map_row = (k < map_tiles) ? (k / map_dim) : map_dim;
+                    if ((k >= map_tiles || map_col > 2 * N || map_row > 2 * N) && !mem[k])
                         outside_floor = outside_floor + 1;
-                    if ((c == off || r == off || c == off + 2 * N || r == off + 2 * N) &&
-                        c >= off && c <= off + 2 * N && r >= off && r <= off + 2 * N && !mem[k])
+                    if ((map_col == 0 || map_row == 0 || map_col == 2 * N || map_row == 2 * N) &&
+                        k < map_tiles && !mem[k])
                         perimeter_floor = perimeter_floor + 1;
                 end
                 if (outside_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles outside the centred region", N, s, outside_floor); end
@@ -161,21 +170,21 @@ module tb_maze_gen;
         rst = 1'b0; ss_rst = 1'b0;
         repeat (4) @(posedge clk);
 
-        // 1) 200 seeds at the full size N = 10
+        // 1) 200 seeds at N = 10 preserve the original large-stage diversity check.
         for (s = 0; s < 200; s = s + 1) begin
             run_gen(10, 32'h1000_0000 + s * 32'h9E37_79B1);
             hashes[s] = last_hash;
         end
 
-        // 2) every size 2..10, 25 seeds each (previous bigger maze is left in memory)
-        for (nn = 10; nn >= 2; nn = nn - 1)
+        // 2) every size 2..15, 25 seeds each, stressing N=15 stack capacity.
+        for (nn = 15; nn >= 2; nn = nn - 1)
             for (s = 0; s < 25; s = s + 1)
                 run_gen(nn, 32'hA5A5_0000 + nn * 1000 + s);
 
         // 3) determinism: same seed and size twice, with another maze generated in between
-        run_gen(10, 32'hDEAD_BEEF); h1 = last_hash;
+        run_gen(15, 32'hDEAD_BEEF); h1 = last_hash;
         run_gen(6,  32'h0000_0777);
-        run_gen(10, 32'hDEAD_BEEF); h2 = last_hash;
+        run_gen(15, 32'hDEAD_BEEF); h2 = last_hash;
         if (h1 !== h2) begin errors = errors + 1; $display("FAIL: same seed gave different mazes"); end
 
         // 4) different seeds give different mazes (200 seeds at N=10)
@@ -185,9 +194,9 @@ module tb_maze_gen;
                 if (hashes[a] === hashes[b]) same_pairs = same_pairs + 1;
         if (same_pairs != 0) begin errors = errors + 1; $display("FAIL: %0d duplicate mazes among 200 seeds", same_pairs); end
 
-        // 5) seed 0 and out-of-range sizes are handled (0/1 -> 2, 12 -> 10)
-        run_gen(10, 32'd0);
-        run_gen2(10, 12, 32'h1234_5678);
+        // 5) seed 0 and out-of-range sizes are handled (0/1 -> 2; 15 is max).
+        run_gen(15, 32'd0);
+        run_gen2(15, 15, 32'h1234_5678);
         run_gen2(2, 0, 32'h0000_0042);
         run_gen2(2, 1, 32'h0000_0043);
 
@@ -208,8 +217,8 @@ module tb_maze_gen;
         repeat (3) @(posedge clk);
         if (ss_seed !== snap2) begin errors = errors + 1; $display("FAIL: fresh seed was not held for its generation"); end
 
-        $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), done pulses: %0d",
-                 runs, max_cycles, max_cycles / 100, done_pulses);
+        $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), max DFS stack depth: %0d/225, done pulses: %0d",
+                 runs, max_cycles, max_cycles / 100, max_stack_depth, done_pulses);
         if (errors == 0) $display("PASS: maze_gen - all mazes perfect and solvable, deterministic per seed, seed_source ok");
         else             $display("FAIL: %0d errors", errors);
         $finish;

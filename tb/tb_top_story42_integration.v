@@ -177,8 +177,8 @@ module tb_top_story42_integration;
         end
 
         wait_state(PLAY);
-        if (dut.start_col !== 5'd14 || dut.goal_col !== 5'd6 ||
-            dut.start_row !== 5'd14 || dut.goal_row !== 5'd6) begin
+        if (dut.start_col !== 5'd9 || dut.goal_col !== 5'd1 ||
+            dut.start_row !== 5'd9 || dut.goal_row !== 5'd1) begin
             $display("FAIL: N=5 maze was not centred in the tile map");
             errors = errors + 1;
         end

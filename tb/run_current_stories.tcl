@@ -42,6 +42,8 @@ foreach {top snapshot marker} {
     tb_top_story33_control top_story33_control_snapshot "PASS: Story 3.3 goal detector"
     tb_top_rotation top_rotation_snapshot "PASS: top rotation command"
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
+    tb_story71_map story71_map_snapshot "PASS: Story 7.1 renderer"
+    tb_story71_physics story71_physics_snapshot "PASS: Story 7.1 N=15 physics"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
     tb_menu_ctrl menu_ctrl_snapshot "PASS: menu_ctrl"
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
