@@ -122,3 +122,29 @@ Verified with AMD Vivado 2025.2:
 
 No FPGA synthesis/resource report or physical board test was run for this
 story. The test results establish simulation coverage only.
+
+## Review change: fixed 32-tile row (DY, 2026-10-31)
+
+Merged with `main` (Stories 6.1, 8.1 and 9.6), the packed layout failed
+routed timing at 100 MHz: WNS -0.911 ns on the physics read address, where
+`row * (2N+1)` became a long LUT carry chain. Two changes fix it:
+
+- The maze is stored at `addr = {row, col}` (a fixed 32-tile row, 1,024
+  tiles) on every stage. Physics, the generator and the renderer no longer
+  multiply; the generator clears all 1,024 tiles; the 21 x 21 fixed map is
+  placed in rows and columns 0..20. `MAP_STRIDE` is added to the package.
+- `ball_physics` registers its map-edge test (`oob_r`) in `S_READ0` with the
+  other per-axis results, as the compare against the stage size came after
+  the move adders.
+
+The benches use the 32-tile row (`tb_maze_gen`, `tb_ball_physics`,
+`tb_story71_*`, `tb_render`, `tb_rotated_render`, `tb_top_ball`,
+`tb_top_story14/33`), and `docs/parallel-workstreams.md` records the new
+maze memory contract.
+
+Vivado 2025.2 on the merged result: `tb/run_current_stories.tcl` PASS (33
+PASS lines, both OLED modes). Routed `scripts/check_timing.tcl`: WNS +0.524 ns,
+WHS +0.097 ns, all constraints met; 3,336 LUTs, 3,530 registers, 2.5 BRAM
+tiles, 6 DSPs (main: +0.366 ns, 2,958 LUTs, 2,603 registers, 1.5 BRAM).
+The extra registers come mostly from the 225-entry generator stack. Board
+test still to do.

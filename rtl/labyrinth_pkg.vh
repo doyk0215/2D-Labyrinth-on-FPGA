@@ -29,8 +29,9 @@
 `define TILE_SHIFT     12       // log2(TILE_PX) + POS_FRAC: Q9.8 maze pixels >> 12 = tile index
 `define MAX_N_CELLS    15       // largest supported stage
 `define MAP_DIM        31       // maximum active map side: 2*N + 1
-`define MAP_TILES      961      // maximum storage: 31 * 31
-`define MAP_ADDR_W     10       // addresses 0..960
+`define MAP_STRIDE     32       // tiles per stored row on every stage: addr = {row, col}
+`define MAP_TILES      1024     // storage: 32 rows x 32 columns (rows/columns 31 unused)
+`define MAP_ADDR_W     10       // addr[9:5] = row, addr[4:0] = col
 `define MAP_MID        15       // maximum map's centre tile index
 `define COORD_W        5        // tile column / row index width (0..30)
 `define N_CELLS_W      4        // maze size in cells (2..15)

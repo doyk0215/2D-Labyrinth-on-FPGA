@@ -1,8 +1,9 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
-// Maximum-capacity 31x31 one-bit maze memory. Active maps use packed addresses
-// with the stage's (2N+1) row stride. The two synchronous read ports serve physics
-// and rendering; maze_gen is the sole runtime writer through the write port.
+// One-bit maze memory, 32 x 32 tiles at addr = {row, col}; the largest stage
+// (N=15) uses rows and columns 0..30. The two synchronous read ports serve
+// physics and rendering; maze_gen is the sole runtime writer through the write port.
 module maze_ram (
     input  wire       clk,
     input  wire       we,
@@ -37,16 +38,17 @@ module maze_ram (
     };
 
     reg tile_mem [0:`MAP_TILES-1];
-    integer init_index;
+    integer init_row, init_col;
 
     // Vivado carries these constant initial values into the FPGA RAM init.
+    // The 21x21 fixed map sits in rows and columns 0..20; the rest is wall.
     initial begin
         rdata_p = 1'b0;
         rdata_r = 1'b0;
-        for (init_index = 0; init_index < `MAP_TILES; init_index = init_index + 1)
-            tile_mem[init_index] = 1'b1;
-        for (init_index = 0; init_index < 441; init_index = init_index + 1)
-            tile_mem[init_index] = FIXED_MAP[init_index];
+        for (init_row = 0; init_row < 32; init_row = init_row + 1)
+            for (init_col = 0; init_col < 32; init_col = init_col + 1)
+                tile_mem[init_row * `MAP_STRIDE + init_col] =
+                    (init_row < 21 && init_col < 21) ? FIXED_MAP[init_row * 21 + init_col] : 1'b1;
     end
 
     always @(posedge clk) begin

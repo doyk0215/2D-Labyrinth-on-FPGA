@@ -27,8 +27,8 @@
 // axis, right/bottom edge exclusive, so it covers at most two tiles across
 // (10 px < 16 px). At the start of a frame the box never overlaps a wall, and
 // a step is at most 5 px, so only the leading column (or row) can be newly
-// entered: two reads of maze_ram per axis decide it. Tiles outside the 21x21
-// map count as wall. maze_ram's physics port has one clock of read latency.
+// entered: two reads of maze_ram per axis decide it. Tiles outside the active
+// (2N+1)x(2N+1) map count as wall. maze_ram's physics port has one clock of read latency.
 module ball_physics (
     input  wire                         clk,
     input  wire                         rst,
@@ -138,24 +138,13 @@ module ball_physics (
         end
     endfunction
 
-    // Packed active-map address: row*(2N+1)+col.
-    function [`MAP_ADDR_W-1:0] tile_addr;
-        input [`COORD_W-1:0] col;
-        input [`COORD_W-1:0] row;
-        input [`N_CELLS_W-1:0] maze_n;
-        reg [9:0] dim;
-        begin
-            dim = ({6'd0, maze_n} << 1) + 10'd1;
-            if ((row < dim) && (col < dim)) tile_addr = row * dim + col;
-            else                            tile_addr = 10'd0;
-        end
-    endfunction
-
+    // addr = {row, col}: a fixed 32-tile row, so no multiply. A tile outside
+    // the active map gives some address, but oob0/oob1 already block it.
     wire [`COORD_W-1:0] lead_t = lead[`COORD_W-1:0];
     wire [`COORD_W-1:0] o0_t   = o0[`COORD_W-1:0];
     wire [`COORD_W-1:0] o1_t   = o1[`COORD_W-1:0];
-    wire [`MAP_ADDR_W-1:0] addr0 = axis ? tile_addr(o0_t, lead_t, n_cells) : tile_addr(lead_t, o0_t, n_cells);
-    wire [`MAP_ADDR_W-1:0] addr1 = axis ? tile_addr(o1_t, lead_t, n_cells) : tile_addr(lead_t, o1_t, n_cells);
+    wire [`MAP_ADDR_W-1:0] addr0 = axis ? {lead_t, o0_t} : {o0_t, lead_t};
+    wire [`MAP_ADDR_W-1:0] addr1 = axis ? {lead_t, o1_t} : {o1_t, lead_t};
     wire oob0 = !(in_map(lead) && in_map(o0));
     wire oob1 = !(in_map(lead) && in_map(o1));
 
@@ -179,10 +168,12 @@ module ball_physics (
     end
     wire signed [`VEL_W-1:0] v_bounce = vel_m[`VEL_W-1] ? $signed(mag_b) : -$signed(mag_b);
 
-    wire blocked = wall0 | oob0 | maze_rdata | oob1;
-
     // The moving axis, positions and velocities hold from S_ADDR0 to S_RESOLVE,
     // so both outcomes are registered in S_READ0; S_RESOLVE only chooses one.
+    // The map-edge test is registered there too: it compares against the
+    // stage size, and that compare after the move adders misses 100 MHz.
+    reg oob_r;
+    wire blocked = wall0 | oob_r | maze_rdata;
     reg signed [`POS_W-1:0] p_clamp_r, p_free_r;
     reg signed [`VEL_W-1:0] v_bounce_r;
 
@@ -193,7 +184,7 @@ module ball_physics (
             gx <= 0; gy <= 0; gx_frac <= 0; gy_frac <= 0;
             sin_g_r <= 0; cos_g_r <= 0; gx_prod_r <= 0; gy_prod_r <= 0;
             ball_x <= 0; ball_y <= 0; vel_x <= 0; vel_y <= 0;
-            state <= S_IDLE; axis <= 1'b0; wall0 <= 1'b0;
+            state <= S_IDLE; axis <= 1'b0; wall0 <= 1'b0; oob_r <= 1'b0;
             maze_raddr <= 0;
         end else begin
             ft_d <= {ft_d[3:0], frame_tick};
@@ -254,6 +245,7 @@ module ball_physics (
 
                 S_READ0: begin                               // addr0's tile is on maze_rdata
                     wall0 <= maze_rdata;
+                    oob_r <= oob0 | oob1;
                     p_clamp_r  <= p_clamp[`POS_W-1:0];
                     p_free_r   <= p_free[`POS_W-1:0];
                     v_bounce_r <= v_bounce;

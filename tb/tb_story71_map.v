@@ -35,23 +35,23 @@ module tb_story71_map;
         rst = 1'b0;
         #1;
 
-        // Last tile of N=15 must be inside the active map and address 960.
+        // Last tile of N=15 (row 30, col 30) must be inside the active map at {30, 30}.
         force dut.walk_x_q = (30 * 16 + 8) <<< 14;
         force dut.walk_y_q = (30 * 16 + 8) <<< 14;
         #1;
-        if (!dut.in_map_now || maze_raddr !== 10'd960) begin
+        if (!dut.in_map_now || maze_raddr !== {5'd30, 5'd30}) begin
             $display("FAIL: N=15 last tile not addressed (in_map=%b addr=%0d)", dut.in_map_now, maze_raddr);
             errors = errors + 1;
         end
         release dut.walk_x_q;
         release dut.walk_y_q;
 
-        // The same renderer must honor the smaller active extent and stride.
+        // The same renderer must honour the smaller active extent; the row stays 32 tiles.
         n_cells = 4'd5;
         force dut.walk_x_q = (10 * 16 + 8) <<< 14;
         force dut.walk_y_q = (10 * 16 + 8) <<< 14;
         #1;
-        if (!dut.in_map_now || maze_raddr !== 10'd120) begin
+        if (!dut.in_map_now || maze_raddr !== {5'd10, 5'd10}) begin
             $display("FAIL: N=5 last tile address wrong (in_map=%b addr=%0d)", dut.in_map_now, maze_raddr);
             errors = errors + 1;
         end
@@ -64,7 +64,7 @@ module tb_story71_map;
         release dut.walk_x_q;
         release dut.walk_y_q;
 
-        if (errors == 0) $display("PASS: Story 7.1 renderer stage bounds and packed tile addresses through N=15");
+        if (errors == 0) $display("PASS: Story 7.1 renderer stage bounds and {row, col} tile addresses through N=15");
         else             $display("FAIL: Story 7.1 renderer had %0d errors", errors);
         $finish;
     end

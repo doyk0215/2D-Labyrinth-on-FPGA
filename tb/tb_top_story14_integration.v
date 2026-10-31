@@ -75,7 +75,7 @@ module tb_top_story14_integration;
         integer idx;
         begin
             hash = 32'h1357_9BDF;
-            for (idx = 0; idx < 441; idx = idx + 1)
+            for (idx = 0; idx < `MAP_TILES; idx = idx + 1)
                 hash = {hash[30:0], hash[31]} ^ {31'd0, dut.maze_ram_i.tile_mem[idx]};
         end
     endtask

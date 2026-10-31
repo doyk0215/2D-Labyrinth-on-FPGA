@@ -20,7 +20,7 @@ module tb_story71_physics;
     reg map_we = 1'b0;
     reg [9:0] map_waddr = 10'd0;
     reg map_wdata = 1'b1;
-    reg map_t [0:960];
+    reg map_t [0:`MAP_TILES-1];
     integer i, row, col, guard, errors = 0;
 
     always #5 clk = ~clk;
@@ -43,15 +43,15 @@ module tb_story71_physics;
 
     task open_room_n15;
         begin
-            for (row = 0; row < 31; row = row + 1)
-                for (col = 0; col < 31; col = col + 1)
-                    map_t[row * 31 + col] = (row == 0 || row == 30 || col == 0 || col == 30);
+            for (row = 0; row < 32; row = row + 1)
+                for (col = 0; col < 32; col = col + 1)
+                    map_t[row * `MAP_STRIDE + col] = (row == 0 || row >= 30 || col == 0 || col >= 30);
         end
     endtask
 
     task load_map;
         begin
-            for (i = 0; i < 961; i = i + 1) begin
+            for (i = 0; i < `MAP_TILES; i = i + 1) begin
                 @(negedge clk); map_we = 1'b1; map_waddr = i[9:0]; map_wdata = map_t[i];
             end
             @(negedge clk); map_we = 1'b0;
@@ -108,7 +108,7 @@ module tb_story71_physics;
             errors = errors + 1;
         end
 
-        // Goal bounds use the N=15 map centre and the packed goal tile (1,1).
+        // Goal bounds use the N=15 map centre and the goal tile (1,1).
         force dut.ball_x = -14 * 4096;
         force dut.ball_y = -14 * 4096;
         #1;

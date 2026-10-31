@@ -7,7 +7,8 @@
 // A perfect maze has exactly one path between any two cells, so the start and
 // goal are always connected (FR2).
 //
-// The active tile map is (2N+1) x (2N+1), packed at addr=row*(2N+1)+col.
+// The active tile map is (2N+1) x (2N+1), stored at addr={row, col} (a fixed
+// 32-tile row on every stage, so no address needs a multiply).
 // Cell (cx,cy) is tile (2*cx+1,2*cy+1); passages occupy the intervening tiles.
 // Start is (2N-1,2N-1), goal is (1,1), and N is clamped to 2..15.
 //
@@ -84,26 +85,15 @@ module maze_gen (
     wire [4:0] next_col  = {nx, 1'b1};
     wire [4:0] next_row  = {ny, 1'b1};
 
-    // row * (2*N+1) + col; each stage occupies a packed RAM prefix.
-    function [`MAP_ADDR_W-1:0] tile_addr;
-        input [4:0] col;
-        input [4:0] row;
-        input [3:0] maze_n;
-        reg [9:0] dim;
-        begin
-            dim = ({6'd0, maze_n} << 1) + 10'd1;
-            tile_addr = row * dim + col;
-        end
-    endfunction
-
     // ---- map write port (combinational from state, registered state) ----
+    // The whole 32x32 store is cleared to wall, so every stage starts clean.
     assign we    = (state == S_CLEAR) || (state == S_INIT) ||
                    (state == S_WPASS) || (state == S_WCELL);
     assign wdata = (state == S_CLEAR);   // wall while clearing, floor otherwise
     assign waddr = (state == S_CLEAR) ? clr_addr :
-                   (state == S_INIT)  ? tile_addr(5'd1, 5'd1, n) :
-                   (state == S_WPASS) ? tile_addr(pass_col, pass_row, n) :
-                                        tile_addr(next_col, next_row, n);
+                   (state == S_INIT)  ? {5'd1, 5'd1} :
+                   (state == S_WPASS) ? {pass_row, pass_col} :
+                                        {next_row, next_col};
 
     always @(posedge clk) begin
         gen_done <= 1'b0;

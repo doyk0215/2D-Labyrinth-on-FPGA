@@ -152,9 +152,8 @@ module render #(
         (walk_y_q >= 0) && (walk_y_q < active_size_q);
     wire [4:0] tile_col_now = walk_x_q[22:18];
     wire [4:0] tile_row_now = walk_y_q[22:18];
-    wire [9:0] row_base_addr = {5'd0, tile_row_now} * {5'd0, active_dim};
-    assign maze_raddr = in_map_now ?
-        row_base_addr + {5'b0, tile_col_now} : 10'd0;
+    // Every stage is stored with a fixed 32-tile row: addr = {row, col}.
+    assign maze_raddr = in_map_now ? {tile_row_now, tile_col_now} : 10'd0;
 
     reg in_map_d, is_start_d, is_goal_d, active_video_d;
     always @(posedge clk) begin

@@ -25,7 +25,7 @@ module tb_maze_gen;
         .start_col(start_col), .start_row(start_row), .goal_col(goal_col), .goal_row(goal_row)
     );
 
-    // ---- behavioural maze RAM (961 maximum-capacity tiles, 1 = wall) ----
+    // ---- behavioural maze RAM (32 x 32 tiles at {row, col}, 1 = wall) ----
     reg mem [0:`MAP_TILES-1];
     integer i;
     initial for (i = 0; i < `MAP_TILES; i = i + 1) mem[i] = 1'b0;   // stale floor on purpose
@@ -63,14 +63,14 @@ module tb_maze_gen;
                 if (!mem[k]) floor_total = floor_total + 1;
             end
             qh = 0; qt = 0; reached = 0; goal_reached = 1'b0;
-            queue[qt] = sr * dim + sc; qt = qt + 1; seen[sr * dim + sc] = 1'b1;
+            queue[qt] = sr * `MAP_STRIDE + sc; qt = qt + 1; seen[sr * `MAP_STRIDE + sc] = 1'b1;
             while (qh < qt) begin
                 cur = queue[qh]; qh = qh + 1;
                 reached = reached + 1;
-                c = cur % dim; r = cur / dim;
+                c = cur % `MAP_STRIDE; r = cur / `MAP_STRIDE;
                 if (c == gc && r == gr) goal_reached = 1'b1;
-                if (r > 0)  begin nb = cur - dim; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
-                if (r < dim-1) begin nb = cur + dim; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
+                if (r > 0)  begin nb = cur - `MAP_STRIDE; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
+                if (r < dim-1) begin nb = cur + `MAP_STRIDE; if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
                 if (c > 0)  begin nb = cur - 1;  if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
                 if (c < dim-1) begin nb = cur + 1;  if (!mem[nb] && !seen[nb]) begin seen[nb] = 1'b1; queue[qt] = nb; qt = qt + 1; end end
             end
@@ -103,9 +103,9 @@ module tb_maze_gen;
         input integer N;
         input integer drive;
         input [31:0] s;
-        integer limit, k, outside_floor, perimeter_floor, map_dim, map_tiles, map_col, map_row;
+        integer limit, k, outside_floor, perimeter_floor, map_col, map_row;
         begin
-            n_cells = drive[3:0]; seed = s; map_dim = 2 * N + 1; map_tiles = map_dim * map_dim;
+            n_cells = drive[3:0]; seed = s;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
             cycles = 0; limit = 100000;
@@ -124,22 +124,22 @@ module tb_maze_gen;
                     $display("FAIL N=%0d seed=%h: start (%0d,%0d) goal (%0d,%0d)", N, s,
                              start_col, start_row, goal_col, goal_row);
                 end
-                if (mem[start_row * map_dim + start_col] || mem[goal_row * map_dim + goal_col]) begin
+                if (mem[start_row * `MAP_STRIDE + start_col] || mem[goal_row * `MAP_STRIDE + goal_col]) begin
                     errors = errors + 1; $display("FAIL N=%0d seed=%h: start or goal is a wall", N, s);
                 end
 
                 // Nothing outside the active stage map, and an intact outer wall.
                 outside_floor = 0; perimeter_floor = 0;
                 for (k = 0; k < `MAP_TILES; k = k + 1) begin
-                    map_col = (k < map_tiles) ? (k % map_dim) : map_dim;
-                    map_row = (k < map_tiles) ? (k / map_dim) : map_dim;
-                    if ((k >= map_tiles || map_col > 2 * N || map_row > 2 * N) && !mem[k])
+                    map_col = k % `MAP_STRIDE;
+                    map_row = k / `MAP_STRIDE;
+                    if ((map_col > 2 * N || map_row > 2 * N) && !mem[k])
                         outside_floor = outside_floor + 1;
                     if ((map_col == 0 || map_row == 0 || map_col == 2 * N || map_row == 2 * N) &&
-                        k < map_tiles && !mem[k])
+                        map_col <= 2 * N && map_row <= 2 * N && !mem[k])
                         perimeter_floor = perimeter_floor + 1;
                 end
-                if (outside_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles outside the centred region", N, s, outside_floor); end
+                if (outside_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles outside the active map", N, s, outside_floor); end
                 if (perimeter_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: gap in outer wall", N, s); end
 
                 // BFS: goal reachable; connected; perfect maze (tree): 2N^2-1 floor tiles

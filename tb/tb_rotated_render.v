@@ -159,7 +159,7 @@ module tb_rotated_render;
                             expected = 12'hf00; // red start
                         else if (tile_x == 1 && tile_y == 19)
                             expected = 12'h0f0; // green goal
-                        else if (ram_i.tile_mem[tile_y * 21 + tile_x])
+                        else if (ram_i.tile_mem[tile_y * `MAP_STRIDE + tile_x])
                             expected = 12'hfff;
                         else
                             expected = 12'h346;

@@ -19,7 +19,7 @@ module tb_top_story33_control;
     reg map_changed = 1'b0;
     reg [31:0] first_seed;
     reg [7:0] first_cfg;
-    reg [440:0] first_map;
+    reg [`MAP_TILES-1:0] first_map;
     reg signed [17:0] stopped_x, stopped_y;
     reg [11:0] stopped_angle;
 
@@ -110,7 +110,7 @@ module tb_top_story33_control;
         repeat (4) @(negedge clk);
         if (gen_start_count != 1 || seed_capture_count != 1 || phys_init_count != 1)
             fail("initial generation/start handoff counts are incorrect");
-        for (i = 0; i < 441; i = i + 1)
+        for (i = 0; i < `MAP_TILES; i = i + 1)
             first_map[i] = dut.maze_ram_i.tile_mem[i];
 
         // Put only the ball centre at the generated goal. Confirm the actual
@@ -163,7 +163,7 @@ module tb_top_story33_control;
         if (dut.seed === first_seed) fail("non-debug replay reused the previous seed");
 
         wait_gen_done();
-        for (i = 0; i < 441; i = i + 1) begin
+        for (i = 0; i < `MAP_TILES; i = i + 1) begin
             if (dut.maze_ram_i.tile_mem[i] !== first_map[i]) begin
                 map_changed = 1'b1;
             end
