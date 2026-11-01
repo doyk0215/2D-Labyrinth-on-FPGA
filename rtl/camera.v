@@ -16,8 +16,10 @@
 // its spawn tile, the target and the camera jump straight to the ball.
 //
 // Stages with n_cells < FOLLOW_MIN_N fit on screen at every angle and keep
-// the fixed view: the camera is the map centre (0, 0). cam_done pulses for
-// one clock with every new camera value.
+// the fixed view: the camera is the map centre (0, 0). The choice is taken on
+// phys_init, so a change of n_cells moves the camera only with the next snap.
+// cam_done pulses for one clock with every new camera value, and the camera
+// changes on no other clock except reset.
 module camera #(
     parameter integer DEAD_ZONE_PX = 48,
     parameter integer CAM_SHIFT    = 3,
@@ -40,8 +42,7 @@ module camera #(
     localparam integer W = `POS_W + 1;
     localparam signed [W-1:0] DZ = DEAD_ZONE_PX <<< `POS_FRAC;
 
-    wire follow = (n_cells >= FOLLOW_MIN_N);
-
+    reg follow;                                  // this game's stage needs the camera
     reg signed [W-1:0] tgt_x, tgt_y, cam_xr, cam_yr;
     reg init_d, step;
 
@@ -60,9 +61,10 @@ module camera #(
     always @(posedge clk) begin
         if (rst) begin
             tgt_x <= 0; tgt_y <= 0; cam_xr <= 0; cam_yr <= 0;
-            init_d <= 1'b0; step <= 1'b0; cam_done <= 1'b0;
+            init_d <= 1'b0; step <= 1'b0; cam_done <= 1'b0; follow <= 1'b0;
         end else begin
             init_d   <= phys_init;
+            if (phys_init) follow <= (n_cells >= FOLLOW_MIN_N);
             step     <= 1'b0;
             cam_done <= 1'b0;
             if (!follow) begin

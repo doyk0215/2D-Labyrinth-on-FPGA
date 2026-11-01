@@ -28,6 +28,20 @@ module tb_camera;
 
     always @(posedge clk) if (cam_done) dones = dones + 1;
 
+    // The camera may change only on the clock cam_done rises (ball_overlay
+    // captures ball - cam then), or on reset.
+    reg signed [`POS_W-1:0] prev_cx = 0, prev_cy = 0;
+    reg rst_at_edge;
+    always @(posedge clk) begin
+        rst_at_edge = rst;                       // what the camera saw on this edge
+        #1;
+        if (!rst_at_edge && (cam_x != prev_cx || cam_y != prev_cy) && !cam_done) begin
+            errors = errors + 1;
+            $display("FAIL camera: camera changed without cam_done (cam %0d,%0d)", cam_x, cam_y);
+        end
+        prev_cx = cam_x; prev_cy = cam_y;
+    end
+
     task check;
         input cond;
         input [511:0] msg;
@@ -64,7 +78,10 @@ module tb_camera;
             ball_x = bx; ball_y = by;
             before = dones;
             phys_done = 1; @(negedge clk); phys_done = 0;
-            repeat (4) @(negedge clk);
+            check(!cam_done, "cam_done one clock after phys_done");
+            @(negedge clk);
+            check(cam_done, "cam_done not two clocks after phys_done");
+            repeat (3) @(negedge clk);
             frames = frames + 1;
             check(dones == before + 1, "one cam_done per frame");
             if (n_cells >= 11) begin
@@ -87,7 +104,10 @@ module tb_camera;
             before = dones;
             phys_init = 1; @(negedge clk); phys_init = 0;
             ball_x = bx; ball_y = by;            // ball_physics places it one clock later
-            repeat (4) @(negedge clk);
+            check(!cam_done, "cam_done one clock after phys_init");
+            @(negedge clk);
+            check(cam_done, "cam_done not two clocks after phys_init");
+            repeat (3) @(negedge clk);
             check(dones == before + 1, "one cam_done on phys_init");
             if (n_cells >= 11) begin
                 m_tx = bx; m_ty = by; m_cx = bx; m_cy = by;
@@ -106,7 +126,7 @@ module tb_camera;
             dx = ball_x - cam_x; dy = ball_y - cam_y;
             check(dx <= DZ + LAG && dx >= -(DZ + LAG) && dy <= DZ + LAG && dy >= -(DZ + LAG),
                   "ball left the dead zone plus smoothing lag");
-            check((dx / PX) * (dx / PX) + (dy / PX) * (dy / PX) <= SCREEN_R * SCREEN_R,
+            check((1.0 * dx * dx + 1.0 * dy * dy) <= (1.0 * SCREEN_R * PX) * (SCREEN_R * PX),
                   "ball could leave the screen at some angle");
         end
     endtask
@@ -157,6 +177,22 @@ module tb_camera;
             y = y + 5 * PX;
             frame(x, y);
             check_on_screen;
+        end
+
+        // ---- phys_done together with phys_init, or one clock after it:
+        //      the snap wins and no step uses the old target ----
+        for (k = 0; k < 2; k = k + 1) begin
+            @(negedge clk);
+            i = dones;
+            phys_init = 1; phys_done = (k == 0);
+            @(negedge clk);
+            phys_init = 0; phys_done = (k == 1);
+            ball_x = (k ? 150 : -150) * PX; ball_y = (k ? -60 : 60) * PX;
+            @(negedge clk); phys_done = 0;
+            repeat (4) @(negedge clk);
+            m_tx = ball_x; m_ty = ball_y; m_cx = ball_x; m_cy = ball_y;
+            check(dones == i + 1, "coincident pulses gave other than one cam_done");
+            check(cam_x == ball_x && cam_y == ball_y, "coincident phys_done disturbed the snap");
         end
 
         // ---- a replay snaps again, without sweeping ----
