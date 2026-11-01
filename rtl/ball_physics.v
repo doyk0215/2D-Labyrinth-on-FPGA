@@ -6,7 +6,7 @@
 //
 // Position and velocity live in MAZE coordinates (x right, y down as the maze
 // is drawn at angle 0). Position is signed Q9.8 maze pixels measured from the
-// centre of the 21x21 map; velocity is signed Q4.8 pixels per frame.
+// selected stage map's centre tile; velocity is signed Q4.8 pixels per frame.
 //
 // Screen-down seen from the maze frame. render.v maps a screen offset
 // (dx, dy) from the screen centre to maze pixels as
@@ -27,8 +27,8 @@
 // axis, right/bottom edge exclusive, so it covers at most two tiles across
 // (10 px < 16 px). At the start of a frame the box never overlaps a wall, and
 // a step is at most 5 px, so only the leading column (or row) can be newly
-// entered: two reads of maze_ram per axis decide it. Tiles outside the 21x21
-// map count as wall. maze_ram's physics port has one clock of read latency.
+// entered: two reads of maze_ram per axis decide it. Tiles outside the active
+// (2N+1)x(2N+1) map count as wall. maze_ram's physics port has one clock of read latency.
 module ball_physics (
     input  wire                         clk,
     input  wire                         rst,
@@ -39,6 +39,7 @@ module ball_physics (
     input  wire [`COORD_W-1:0]          spawn_row,
     input  wire [`COORD_W-1:0]          goal_col,
     input  wire [`COORD_W-1:0]          goal_row,
+    input  wire [`N_CELLS_W-1:0]        n_cells,
     input  wire signed [`TRIG_W-1:0]    sin_q,
     input  wire signed [`TRIG_W-1:0]    cos_q,
     input  wire [`RESTIT_SEL_W-1:0]     restitution_sel, // 0 = 0.5, 1 = 0.75, 2 = 0.625, 3 = 0.375
@@ -56,27 +57,34 @@ module ball_physics (
     localparam signed [12:0] GRAVITY_COEFF = `GRAVITY_Q14;
     localparam integer GRAVITY_FRAC_BITS = `GRAVITY_FRAC;
 
-    // Absolute maze pixel = position + half the map (168 px); widths leave room
+    // Absolute maze pixel = position + centre of the active map; widths leave room
     // for a box edge just outside the map.
     localparam integer AW = `POS_W + 1;
-    localparam signed [AW-1:0] OFF = `MAP_DIM * `TILE_PX * (1 << (`POS_FRAC - 1));
+    wire signed [AW-1:0] n_ext = $signed({{(AW-`N_CELLS_W){1'b0}}, n_cells});
+    localparam signed [AW-1:0] HALF_TILE_Q = 1 <<< (`TILE_SHIFT - 1);
+    wire signed [AW-1:0] OFF = (n_ext <<< `TILE_SHIFT) + HALF_TILE_Q;
     localparam signed [AW-1:0] R   = `BALL_RADIUS << `POS_FRAC;
+    wire [4:0] active_dim = {n_cells, 1'b0} + 5'd1;
 
-    // Convert an absolute map tile's left/top edge to maze-centred Q9.8.
-    // OFF is the 168 px map-centre offset; each tile is 1 << TILE_SHIFT units.
+    // Convert an absolute active-map tile edge to stage-centred Q9.8.
     function signed [`POS_W-1:0] tile_min_q;
         input [`COORD_W-1:0] tile;
+        input [`N_CELLS_W-1:0] map_n;
         reg signed [AW-1:0] tile_index;
+        reg signed [AW-1:0] map_n_ext;
+        reg signed [AW-1:0] centre_offset;
         reg signed [AW-1:0] edge_q;
         begin
             tile_index = $signed({1'b0, tile});
-            edge_q = (tile_index <<< `TILE_SHIFT) - OFF;
+            map_n_ext = $signed({{(AW-`N_CELLS_W){1'b0}}, map_n});
+            centre_offset = (map_n_ext <<< `TILE_SHIFT) + HALF_TILE_Q;
+            edge_q = (tile_index <<< `TILE_SHIFT) - centre_offset;
             tile_min_q = edge_q[`POS_W-1:0];
         end
     endfunction
 
-    wire signed [`POS_W-1:0] goal_x_min = tile_min_q(goal_col);
-    wire signed [`POS_W-1:0] goal_y_min = tile_min_q(goal_row);
+    wire signed [`POS_W-1:0] goal_x_min = tile_min_q(goal_col, n_cells);
+    wire signed [`POS_W-1:0] goal_y_min = tile_min_q(goal_row, n_cells);
     wire signed [`POS_W-1:0] goal_x_max = goal_x_min + (1 <<< `TILE_SHIFT);
     wire signed [`POS_W-1:0] goal_y_max = goal_y_min + (1 <<< `TILE_SHIFT);
     assign in_goal = (ball_x >= goal_x_min) && (ball_x < goal_x_max) &&
@@ -97,9 +105,11 @@ module ball_physics (
     wire signed [29:0] gx_accum = {gx_prod_r[28], gx_prod_r} + $signed({10'b0, gx_frac});
     wire signed [29:0] gy_accum = {gy_prod_r[28], gy_prod_r} + $signed({10'b0, gy_frac});
 
-    // tile (col,row) has its centre at 16*(col-10) px from the map centre -> (col-10) << 12 in Q9.8
-    wire signed [`POS_W-1:0] spawn_x = ($signed({1'b0, spawn_col}) - 6'sd10) <<< 12;
-    wire signed [`POS_W-1:0] spawn_y = ($signed({1'b0, spawn_row}) - 6'sd10) <<< 12;
+    // Tile centres are spaced 16 px; the centre tile index is N on every stage.
+    wire signed [AW-1:0] spawn_col_ext = $signed({{(AW-`COORD_W){1'b0}}, spawn_col});
+    wire signed [AW-1:0] spawn_row_ext = $signed({{(AW-`COORD_W){1'b0}}, spawn_row});
+    wire signed [`POS_W-1:0] spawn_x = (spawn_col_ext - n_ext) <<< `TILE_SHIFT;
+    wire signed [`POS_W-1:0] spawn_y = (spawn_row_ext - n_ext) <<< `TILE_SHIFT;
 
     wire signed [`VEL_W:0]   vx_sum = vel_x + gx;
     wire signed [`VEL_W:0]   vy_sum = vel_y + gy;
@@ -124,24 +134,17 @@ module ball_physics (
     function in_map;
         input signed [AW-`TILE_SHIFT-1:0] t;
         begin
-            in_map = (t >= 0) && (t < `MAP_DIM);
+            in_map = (t >= 0) && (t < $signed({3'b0, active_dim}));
         end
     endfunction
 
-    // addr = row*21 + col with shifts and adds (row*16 + row*4 + row)
-    function [`MAP_ADDR_W-1:0] tile_addr;
-        input [`COORD_W-1:0] col;
-        input [`COORD_W-1:0] row;
-        begin
-            tile_addr = {row, 4'b0000} + {2'b00, row, 2'b00} + {4'b0000, row} + {4'b0000, col};
-        end
-    endfunction
-
+    // addr = {row, col}: a fixed 32-tile row, so no multiply. A tile outside
+    // the active map gives some address, but oob0/oob1 already block it.
     wire [`COORD_W-1:0] lead_t = lead[`COORD_W-1:0];
     wire [`COORD_W-1:0] o0_t   = o0[`COORD_W-1:0];
     wire [`COORD_W-1:0] o1_t   = o1[`COORD_W-1:0];
-    wire [`MAP_ADDR_W-1:0] addr0 = axis ? tile_addr(o0_t, lead_t) : tile_addr(lead_t, o0_t);
-    wire [`MAP_ADDR_W-1:0] addr1 = axis ? tile_addr(o1_t, lead_t) : tile_addr(lead_t, o1_t);
+    wire [`MAP_ADDR_W-1:0] addr0 = axis ? {lead_t, o0_t} : {o0_t, lead_t};
+    wire [`MAP_ADDR_W-1:0] addr1 = axis ? {lead_t, o1_t} : {o1_t, lead_t};
     wire oob0 = !(in_map(lead) && in_map(o0));
     wire oob1 = !(in_map(lead) && in_map(o1));
 
@@ -165,10 +168,12 @@ module ball_physics (
     end
     wire signed [`VEL_W-1:0] v_bounce = vel_m[`VEL_W-1] ? $signed(mag_b) : -$signed(mag_b);
 
-    wire blocked = wall0 | oob0 | maze_rdata | oob1;
-
     // The moving axis, positions and velocities hold from S_ADDR0 to S_RESOLVE,
     // so both outcomes are registered in S_READ0; S_RESOLVE only chooses one.
+    // The map-edge test is registered there too: it compares against the
+    // stage size, and that compare after the move adders misses 100 MHz.
+    reg oob_r;
+    wire blocked = wall0 | oob_r | maze_rdata;
     reg signed [`POS_W-1:0] p_clamp_r, p_free_r;
     reg signed [`VEL_W-1:0] v_bounce_r;
 
@@ -179,7 +184,7 @@ module ball_physics (
             gx <= 0; gy <= 0; gx_frac <= 0; gy_frac <= 0;
             sin_g_r <= 0; cos_g_r <= 0; gx_prod_r <= 0; gy_prod_r <= 0;
             ball_x <= 0; ball_y <= 0; vel_x <= 0; vel_y <= 0;
-            state <= S_IDLE; axis <= 1'b0; wall0 <= 1'b0;
+            state <= S_IDLE; axis <= 1'b0; wall0 <= 1'b0; oob_r <= 1'b0;
             maze_raddr <= 0;
         end else begin
             ft_d <= {ft_d[3:0], frame_tick};
@@ -240,6 +245,7 @@ module ball_physics (
 
                 S_READ0: begin                               // addr0's tile is on maze_rdata
                     wall0 <= maze_rdata;
+                    oob_r <= oob0 | oob1;
                     p_clamp_r  <= p_clamp[`POS_W-1:0];
                     p_free_r   <= p_free[`POS_W-1:0];
                     v_bounce_r <= v_bounce;

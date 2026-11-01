@@ -108,13 +108,13 @@ module My_Top_Module #(
     wire timing_hsync;
     wire timing_vsync;
 
-    wire [8:0] maze_raddr_p;
+    wire [`MAP_ADDR_W-1:0] maze_raddr_p;
     wire maze_rdata_p;
-    wire [8:0] maze_raddr_r;
+    wire [`MAP_ADDR_W-1:0] maze_raddr_r;
     wire maze_rdata_r;
 
     wire        maze_we;
-    wire [8:0]  maze_waddr;
+    wire [`MAP_ADDR_W-1:0] maze_waddr;
     wire        maze_wdata;
     wire [4:0]  start_col;
     wire [4:0]  start_row;
@@ -392,6 +392,7 @@ module My_Top_Module #(
         .spawn_row  (start_row),
         .goal_col   (goal_col),
         .goal_row   (goal_row),
+        .n_cells    (n_cells),
         .sin_q      (sin_q),
         .cos_q      (cos_q),
         .restitution_sel (active_game_cfg[5:4]),
@@ -431,6 +432,7 @@ module My_Top_Module #(
         .ce_pix       (ce_pix),
         .frame_tick   (frame_tick),
         .game_state   (game_state),
+        .n_cells      (n_cells),
         .time_min_bcd (elapsed_minutes_bcd),
         .time_sec_bcd (elapsed_seconds_bcd),
         .angle        (angle),
