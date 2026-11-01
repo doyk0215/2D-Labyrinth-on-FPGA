@@ -113,7 +113,7 @@ Independent review (2026-11-01; Blind Hunter, Edge Case Hunter and Verification 
 | Blind: one long comment line in `render.v` | low | Patched: re-wrapped |
 | Verification gap: `ball_overlay`'s `ball - cam` is never tested with a camera whose x and y differ | medium | Patched: `tb_ball_overlay` has a camera input and five asymmetric cases; using `cam_x` for both axes, or swapping them, now gives 6 FAIL lines each |
 | Edge 1: live `n_cells` (legacy switches) flips `follow` mid-game, moving the camera without `cam_done` | low | Patched: `follow` is latched on `phys_init`, one register; the camera now changes only with `cam_done` or reset |
-| Edge 2 (claim): the Intent says N = 5 and N = 10 pictures "do not change", but their first PLAY frame now shows the ball on its spawn | low | True; an improvement recorded in the notes, but it differs from the frozen Intent wording. Needs the human's decision |
+| Edge 2 (claim): the Intent says N = 5 and N = 10 pictures "do not change", but their first PLAY frame now shows the ball on its spawn | low | True; an improvement recorded in the notes, but it differs from the frozen Intent wording. Decided by DY on 2026-11-01: keep the fix. "Does not change" means every frame after the first; the first PLAY frame now shows the ball on its spawn tile on all stages |
 
 ## Design Notes
 
