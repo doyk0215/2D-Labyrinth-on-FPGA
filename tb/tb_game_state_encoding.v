@@ -2,7 +2,7 @@
 `include "labyrinth_pkg.vh"
 
 // Story 6.1: codes with bit 2 set must survive every state port and must not
-// alias the v1 MENU/PLAY/WIN behaviours when LOSE is introduced later.
+// alias the v1 MENU/PLAY/WIN behaviours, including the new LOSE code.
 module tb_game_state_encoding;
     reg clk = 1'b0, rst = 1'b1;
     always #5 clk = ~clk;
@@ -13,13 +13,14 @@ module tb_game_state_encoding;
     game_ctrl #(.START_IN_MENU(1'b1), .WIN_HOLD_FRAMES(2)) ctrl_i (
         .clk(clk), .rst(rst), .full_reset(1'b0), .frame_tick(frame_tick), .start_game(start_game),
         .game_cfg(8'ha5), .regen_button(1'b0), .gen_busy(1'b0), .gen_done(gen_done),
-        .in_goal(in_goal), .game_state(ctrl_state), .active_game_cfg(active_cfg),
+        .time_up(1'b0), .in_goal(in_goal), .game_state(ctrl_state), .active_game_cfg(active_cfg),
         .gen_start(), .seed_capture(), .phys_init(), .phys_en(phys_en)
     );
+    reg timer_init = 1'b0;
     reg [`GAME_STATE_W-1:0] state_in = `ST_MENU;
     wire [7:0] minutes, seconds;
     game_timer #(.CLK_HZ(2)) timer_i (
-        .clk(clk), .rst(rst), .game_state(state_in), .phys_init(1'b0),
+        .clk(clk), .rst(rst), .game_state(state_in), .phys_init(timer_init), .n_cells(4'd5), .time_up(),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
     reg [511:0] menu_text = 512'h4d; // distinct from PLAY/WIN status pages
@@ -61,7 +62,7 @@ module tb_game_state_encoding;
     initial begin
         if (`GAME_STATE_W != 3 || `ST_MENU != 3'd0 || `ST_GENERATE != 3'd1 ||
             `ST_PLAY != 3'd2 || `ST_WIN != 3'd3 || `ST_LOSE != 3'd4)
-            fail("shared codes changed the v1 encoding or did not reserve LOSE");
+            fail("shared codes changed the v1 encoding or did not retain LOSE");
         repeat (8) @(negedge clk);
         rst = 1'b0;
         if (ctrl_state !== `ST_MENU) fail("reset did not select shared MENU");
@@ -83,8 +84,10 @@ module tb_game_state_encoding;
             fail("replay changed state behaviour or the latched game configuration");
 
         state_in = `ST_PLAY;
+        timer_init = 1'b1;
+        @(negedge clk); timer_init = 1'b0;
         repeat (4) @(negedge clk);
-        if (seconds !== 8'h02) fail("valid PLAY did not advance the timer");
+        if (minutes !== 8'h00 || seconds !== 8'h58) fail("valid PLAY did not decrement the timer");
         frozen_minutes = minutes; frozen_seconds = seconds;
         for (code = 4; code < 8; code = code + 1) begin
             state_in = code;
@@ -110,8 +113,8 @@ module tb_game_state_encoding;
         if (!render_i.win_frame || {r,g,b} !== 12'hfff || status_text[32*8 +: 8] !== "Y")
             fail("valid WIN no longer selects VGA and OLED win indications");
 
-        // LOSE is reserved, not a new controller transition in Story 6.1.
-        // Unimplemented encodings keep the controller's existing recovery path.
+        // Codes 5..7 remain unused after Story 8.2 adds LOSE.
+        // They keep the controller's existing recovery path.
         @(negedge clk); force ctrl_i.game_state = UNUSED_WITH_WIN_BITS;
         #1;
         if (phys_en) fail("physics was enabled for an unused controller state");

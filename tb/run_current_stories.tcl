@@ -59,6 +59,7 @@ foreach {top snapshot marker} {
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
     tb_top_story42_integration top_story42_snapshot "PASS: Story 4.2 top"
     tb_top_story43_integration top_story43_snapshot "PASS: Story 4.3 top"
+    tb_top_story82_countdown story82_snapshot "PASS: Story 8.2 top countdown"
     tb_game_timer game_timer_snapshot "PASS: game_timer"
     tb_oled_status_text oled_status_snapshot "PASS: OLED status formatter"
     tb_top_story44_integration top_story44_snapshot "PASS: Story 4.4 top status"

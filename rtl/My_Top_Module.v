@@ -20,7 +20,11 @@ module My_Top_Module #(
     parameter integer WIN_HOLD_FRAMES = 180,            // about 3 s at 60 Hz
     parameter integer TIMER_CLK_HZ = 100_000_000,
     parameter START_IN_MENU = 1'b1,
-    parameter integer LONG_PRESS_CYCLES = 200_000_000
+    parameter integer LONG_PRESS_CYCLES = 200_000_000,
+    parameter integer LOSE_HOLD_FRAMES = 120,
+    parameter integer EASY_TIME_SECONDS = 60,
+    parameter integer HARD_TIME_SECONDS = 120,
+    parameter integer HUGE_TIME_SECONDS = 180
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -90,6 +94,7 @@ module My_Top_Module #(
     wire [511:0] menu_page_text;
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
+    wire time_up;
     wire menu_active = (game_state == `ST_MENU);
     assign game_reset_request = btnC_press && !menu_active;
 
@@ -235,7 +240,8 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
-    assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN)) ? 2'sd0 :
+    assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN) ||
+                           (game_state == `ST_LOSE)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
@@ -261,7 +267,8 @@ module My_Top_Module #(
 
     game_ctrl #(
         .START_IN_MENU(START_IN_MENU),
-        .WIN_HOLD_FRAMES(WIN_HOLD_FRAMES)
+        .WIN_HOLD_FRAMES(WIN_HOLD_FRAMES),
+        .LOSE_HOLD_FRAMES(LOSE_HOLD_FRAMES)
     ) game_ctrl_i (
         .clk          (clk),
         .rst          (rst),
@@ -273,6 +280,7 @@ module My_Top_Module #(
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
         .in_goal      (in_goal),
+        .time_up      (time_up),
         .game_state   (game_state),
         .gen_start    (gen_start),
         .seed_capture (seed_capture),
@@ -281,11 +289,15 @@ module My_Top_Module #(
         .phys_en      (phys_en)
     );
 
-    game_timer #(.CLK_HZ(TIMER_CLK_HZ)) elapsed_timer_i (
+    game_timer #(.CLK_HZ(TIMER_CLK_HZ),
+        .EASY_SECONDS(EASY_TIME_SECONDS), .HARD_SECONDS(HARD_TIME_SECONDS),
+        .HUGE_SECONDS(HUGE_TIME_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
         .game_state(game_state),
         .phys_init(phys_init),
+        .n_cells(n_cells),
+        .time_up(time_up),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
         .elapsed_seconds_bcd(elapsed_seconds_bcd)
     );
@@ -339,7 +351,8 @@ module My_Top_Module #(
         .frame_tick (frame_tick),
         .rot_cmd    (angle_rot_cmd),
         .rot_speed_sel (active_game_cfg[7:6]),
-        .snap_mode  (snap_mode),
+        // LOSE discards queued snap releases as well as smooth commands.
+        .snap_mode  (snap_mode && (game_state != `ST_LOSE)),
         .rot_held   (rot_held),
         .angle      (angle)
     );
