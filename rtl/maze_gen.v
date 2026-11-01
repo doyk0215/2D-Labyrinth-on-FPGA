@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// maze_gen: random perfect-maze generator (Story 1.3, AD-12).
+// maze_gen: deterministic connected-maze generator (Stories 1.3 and 7.5).
 //
 // Iterative recursive-backtracker (depth-first search) with an explicit stack.
-// A perfect maze has exactly one path between any two cells, so the start and
-// goal are always connected (FR2).
+// EASY remains a perfect maze. HARD and N=15 open a fixed number of additional
+// interior walls as newly visited cells expose non-tree adjacencies.
 //
 // The active tile map is (2N+1) x (2N+1), stored at addr={row, col} (a fixed
 // 32-tile row on every stage, so no address needs a multiply).
@@ -43,17 +43,21 @@ module maze_gen (
                      S_PICK   = 4'd4,
                      S_WPASS  = 4'd5,
                      S_WCELL  = 4'd6,
-                     S_FINISH = 4'd7;
+                     S_FINISH = 4'd7,
+                     S_WLOOP  = 4'd8;
 
     reg [3:0]  state;
     reg [3:0]  n;                 // maze size in cells (2..15)
     reg [31:0] rng;
+    reg [3:0]  loop_target;
+    reg [3:0]  loops_added;
     reg [9:0]  clr_addr;
     reg [3:0]  cx, cy;            // current cell (top of the stack)
     reg [1:0]  dir;               // 0 = up, 1 = right, 2 = down, 3 = left
     reg [255:0] visited;          // indexed {cy, cx}
     reg [7:0]  stack [0:224];     // {cy, cx} per entry; 225 entries at N=15
     reg [7:0]  sp;                // number of entries on the stack (0..225)
+    reg [4:0]  loop_pass_col, loop_pass_row;
 
     function [31:0] xorshift;
         input [31:0] x;
@@ -62,6 +66,25 @@ module maze_gen (
             a = x ^ (x << 13);
             b = a ^ (a >> 17);
             xorshift = b ^ (b << 5);
+        end
+    endfunction
+
+    function [1:0] choose_loop_direction;
+        input [3:0] candidates;    // bit 0=up, 1=right, 2=down, 3=left
+        input [1:0] first;
+        integer offset;
+        integer candidate;
+        reg found;
+        begin
+            choose_loop_direction = 2'd0;
+            found = 1'b0;
+            for (offset = 0; offset < 4; offset = offset + 1) begin
+                candidate = (first + offset) & 3;
+                if (!found && candidates[candidate]) begin
+                    choose_loop_direction = candidate[1:0];
+                    found = 1'b1;
+                end
+            end
         end
     endfunction
 
@@ -85,14 +108,34 @@ module maze_gen (
     wire [4:0] next_col  = {nx, 1'b1};
     wire [4:0] next_row  = {ny, 1'b1};
 
+    // When a newly reached cell has an already-visited neighbour other than
+    // its DFS parent, that adjacency is a closed non-tree edge. Opening its
+    // intervening tile adds exactly one loop. Each adjacency is considered
+    // once, when its later endpoint is first reached.
+    wire [3:0] loop_candidates = {
+        (nx != 4'd0) && visited[{ny, nx - 4'd1}] && !((ny == cy) && (nx - 4'd1 == cx)),
+        (ny < nm1)    && visited[{ny + 4'd1, nx}] && !((ny + 4'd1 == cy) && (nx == cx)),
+        (nx < nm1)    && visited[{ny, nx + 4'd1}] && !((ny == cy) && (nx + 4'd1 == cx)),
+        (ny != 4'd0) && visited[{ny - 4'd1, nx}] && !((ny - 4'd1 == cy) && (nx == cx))
+    };
+    wire [1:0] loop_direction = choose_loop_direction(loop_candidates, rng[1:0]);
+    wire [4:0] next_cell_col = {nx, 1'b1};
+    wire [4:0] next_cell_row = {ny, 1'b1};
+    wire [4:0] loop_wall_col = (loop_direction == 2'd1) ? next_cell_col + 5'd1 :
+                               (loop_direction == 2'd3) ? next_cell_col - 5'd1 : next_cell_col;
+    wire [4:0] loop_wall_row = (loop_direction == 2'd2) ? next_cell_row + 5'd1 :
+                               (loop_direction == 2'd0) ? next_cell_row - 5'd1 : next_cell_row;
+
     // ---- map write port (combinational from state, registered state) ----
     // The whole 32x32 store is cleared to wall, so every stage starts clean.
     assign we    = (state == S_CLEAR) || (state == S_INIT) ||
-                   (state == S_WPASS) || (state == S_WCELL);
+                   (state == S_WPASS) || (state == S_WCELL) ||
+                   (state == S_WLOOP);
     assign wdata = (state == S_CLEAR);   // wall while clearing, floor otherwise
     assign waddr = (state == S_CLEAR) ? clr_addr :
                    (state == S_INIT)  ? {5'd1, 5'd1} :
                    (state == S_WPASS) ? {pass_row, pass_col} :
+                   (state == S_WLOOP) ? {loop_pass_row, loop_pass_col} :
                                         {next_row, next_col};
 
     always @(posedge clk) begin
@@ -130,6 +173,9 @@ module maze_gen (
                     start_row        <= {n - 4'd1, 1'b1};
                     goal_col         <= 5'd1;
                     goal_row         <= 5'd1;
+                    loop_target      <= (n == 4'd10) ? 4'd5 :
+                                        (n == 4'd15) ? 4'd7 : 4'd0;
+                    loops_added      <= 4'd0;
                     state            <= S_STEP;
                 end
 
@@ -160,7 +206,18 @@ module maze_gen (
                     sp                <= sp + 8'd1;
                     cx                <= nx;
                     cy                <= ny;
-                    state             <= S_STEP;
+                    if ((loops_added < loop_target) && (loop_candidates != 4'b0000)) begin
+                        loop_pass_col <= loop_wall_col;
+                        loop_pass_row <= loop_wall_row;
+                        state         <= S_WLOOP;
+                    end else begin
+                        state <= S_STEP;
+                    end
+                end
+
+                S_WLOOP: begin
+                    loops_added <= loops_added + 4'd1;
+                    state       <= S_STEP;
                 end
 
                 S_FINISH: begin

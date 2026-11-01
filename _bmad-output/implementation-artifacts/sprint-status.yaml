@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-23-2026 15:00
-last_updated: 10-31-2026 19:03
+last_updated: 11-01-2026
 project: 2D-Labyrinth-on-FPGA
 project_key: NOKEY
 tracking_system: file-system
@@ -73,3 +73,11 @@ development_status:
   epic-6: in-progress
   6-1-shared-game-state-encoding: review  # owner: CJX; non-author board check and shared-interface reviews pending
   epic-6-retrospective: optional
+
+  epic-7: in-progress
+  7-1-map-size-follows-the-stage: done  # owner: QZ; issue #53 closed, PR #72 merged
+  7-2-camera-that-follows-the-ball: done  # owner: DY; issue #54 closed, PR #75 merged
+  7-3-draw-the-n-15-map: done  # owner: DY; issue #55 closed, PR #76 merged
+  7-4-add-the-n-15-stage: backlog  # owner: CJX; issue #56
+  7-5-loops-on-hard-and-larger: review  # owner: QZ; issue #57; Vivado regressions pass, non-author board check pending
+  epic-7-retrospective: optional

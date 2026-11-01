@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// Self-checking testbench for maze_gen and seed_source (Story 1.3).
+// Self-checking testbench for maze_gen and seed_source (Stories 1.3 and 7.5).
 // For many seeds and sizes it checks: done pulse, start/goal tiles, outer
-// walls, nothing outside the maze region, BFS from start to goal, a perfect
-// maze (connected + exactly 2N^2-1 floor tiles), determinism per seed, and
-// that different seeds give different mazes.
+// walls, nothing outside the maze region, BFS connectivity/reachability,
+// exact opening counts (perfect EASY, K extra openings for loop stages),
+// deterministic output per seed, and diversity across seeds.
 module tb_maze_gen;
 
     reg         clk = 1'b0;
@@ -77,6 +77,17 @@ module tb_maze_gen;
         end
     endtask
 
+    function integer expected_loop_count;
+        input integer N;
+        begin
+            case (N)
+                10: expected_loop_count = 5;  // HARD
+                15: expected_loop_count = 7;  // largest stage
+                default: expected_loop_count = 0;
+            endcase
+        end
+    endfunction
+
     // ---- hash of the memory image ----
     function [63:0] mem_hash;
         input dummy;
@@ -104,6 +115,7 @@ module tb_maze_gen;
         input integer drive;
         input [31:0] s;
         integer limit, k, outside_floor, perimeter_floor, map_col, map_row;
+        integer edge_openings, expected_openings, edge_row, edge_col;
         begin
             n_cells = drive[3:0]; seed = s;
             @(negedge clk); gen_start = 1'b1;
@@ -142,11 +154,31 @@ module tb_maze_gen;
                 if (outside_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles outside the active map", N, s, outside_floor); end
                 if (perimeter_floor != 0) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: gap in outer wall", N, s); end
 
-                // BFS: goal reachable; connected; perfect maze (tree): 2N^2-1 floor tiles
+                // Count open adjacencies between logical cells. Cell tiles
+                // are odd/odd; passages lie at even/odd or odd/even tiles.
+                edge_openings = 0;
+                for (edge_row = 0; edge_row < N; edge_row = edge_row + 1)
+                    for (edge_col = 0; edge_col < N; edge_col = edge_col + 1) begin
+                        if ((edge_col < N-1) && !mem[(2*edge_row+1)*`MAP_STRIDE + (2*edge_col+2)])
+                            edge_openings = edge_openings + 1;
+                        if ((edge_row < N-1) && !mem[(2*edge_row+2)*`MAP_STRIDE + (2*edge_col+1)])
+                            edge_openings = edge_openings + 1;
+                    end
+                expected_openings = N * N - 1 + expected_loop_count(N);
+                if (edge_openings != expected_openings) begin
+                    errors = errors + 1;
+                    $display("FAIL N=%0d seed=%h: %0d open adjacencies, expected %0d (K=%0d)",
+                             N, s, edge_openings, expected_openings, expected_loop_count(N));
+                end
+
+                // BFS: every floor tile is connected and the goal is reachable.
                 bfs_check(N, start_col, start_row, goal_col, goal_row);
                 if (!goal_reached) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: goal not reachable", N, s); end
                 if (reached != floor_total) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d of %0d floor tiles reachable", N, s, reached, floor_total); end
-                if (floor_total != 2 * N * N - 1) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d floor tiles, expected %0d (not a perfect maze)", N, s, floor_total, 2 * N * N - 1); end
+                if (floor_total != N * N + expected_openings) begin
+                    errors = errors + 1;
+                    $display("FAIL N=%0d seed=%h: %0d floor tiles, expected %0d", N, s, floor_total, N*N+expected_openings);
+                end
 
                 last_hash = mem_hash(1'b0);
                 runs = runs + 1;
@@ -170,7 +202,7 @@ module tb_maze_gen;
         rst = 1'b0; ss_rst = 1'b0;
         repeat (4) @(posedge clk);
 
-        // 1) 200 seeds at N = 10 preserve the original large-stage diversity check.
+        // 1) 200 HARD loop-stage seeds retain the large-stage diversity check.
         for (s = 0; s < 200; s = s + 1) begin
             run_gen(10, 32'h1000_0000 + s * 32'h9E37_79B1);
             hashes[s] = last_hash;
@@ -181,11 +213,21 @@ module tb_maze_gen;
             for (s = 0; s < 25; s = s + 1)
                 run_gen(nn, 32'hA5A5_0000 + nn * 1000 + s);
 
-        // 3) determinism: same seed and size twice, with another maze generated in between
+        // 3) determinism at EASY, HARD, and N=15, with another size between runs.
+        run_gen(5, 32'hDEAD_0005); h1 = last_hash;
+        run_gen(7, 32'h0000_0777);
+        run_gen(5, 32'hDEAD_0005); h2 = last_hash;
+        if (h1 !== h2) begin errors = errors + 1; $display("FAIL: EASY same seed gave different mazes"); end
+
+        run_gen(10, 32'hDEAD_0010); h1 = last_hash;
+        run_gen(6, 32'h0000_0777);
+        run_gen(10, 32'hDEAD_0010); h2 = last_hash;
+        if (h1 !== h2) begin errors = errors + 1; $display("FAIL: HARD same seed gave different mazes"); end
+
         run_gen(15, 32'hDEAD_BEEF); h1 = last_hash;
         run_gen(6,  32'h0000_0777);
         run_gen(15, 32'hDEAD_BEEF); h2 = last_hash;
-        if (h1 !== h2) begin errors = errors + 1; $display("FAIL: same seed gave different mazes"); end
+        if (h1 !== h2) begin errors = errors + 1; $display("FAIL: N=15 same seed gave different mazes"); end
 
         // 4) different seeds give different mazes (200 seeds at N=10)
         same_pairs = 0;
@@ -219,7 +261,7 @@ module tb_maze_gen;
 
         $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), max DFS stack depth: %0d/225, done pulses: %0d",
                  runs, max_cycles, max_cycles / 100, max_stack_depth, done_pulses);
-        if (errors == 0) $display("PASS: maze_gen - all mazes perfect and solvable, deterministic per seed, seed_source ok");
+        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts exact, connected, solvable and deterministic; seed_source ok");
         else             $display("FAIL: %0d errors", errors);
         $finish;
     end

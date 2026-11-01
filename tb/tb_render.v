@@ -97,8 +97,8 @@ module tb_render;
         floors = 0;
         for (r = 0; r < `MAP_TILES; r = r + 1)
             if (dut.maze_ram_i.tile_mem[r] === 1'b0) floors = floors + 1;
-        if (floors != 199) begin // perfect 10x10 maze: 2*N*N-1 floor tiles
-            $display("FAIL: %0d floor tiles, expected 199", floors);
+        if (floors != 204) begin // 100 cells + (100-1) tree edges + 5 HARD loops
+            $display("FAIL: %0d floor tiles, expected 204", floors);
             $finish;
         end
 
