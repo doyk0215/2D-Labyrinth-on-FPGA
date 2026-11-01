@@ -406,6 +406,24 @@ module My_Top_Module #(
         .in_goal    (in_goal)
     );
 
+    // Camera (Story 7.2): follows the ball on stages too large for the
+    // screen, the map centre otherwise. Story 7.3 feeds it to render and
+    // ball_overlay; until then its outputs are unused.
+    wire signed [17:0] cam_x, cam_y;
+    wire        cam_done;
+    camera camera_i (
+        .clk       (clk),
+        .rst       (rst),
+        .phys_init (phys_init),
+        .phys_done (phys_done),
+        .n_cells   (n_cells),
+        .ball_x    (ball_x),
+        .ball_y    (ball_y),
+        .cam_x     (cam_x),
+        .cam_y     (cam_y),
+        .cam_done  (cam_done)
+    );
+
     ball_overlay ball_ov_i (
         .clk          (clk),
         .rst          (rst),
