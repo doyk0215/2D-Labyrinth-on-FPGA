@@ -82,6 +82,10 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   (35 core benches and both nominal-frequency OLED driver modes), exit 0.
   Focused final run separately includes the exact-deadline goal scenario.
 - `git diff --check`: PASS. Tested implementation commit: `fd24999`.
+- Clean merge with independent Story 7.4 verified. Both focused scripts pass
+  together on merged RTL (five benches), including HUGE generation/OLED/goal
+  and replay with the countdown connected. Regression labels are generic so
+  either feature PR can merge first without a script-description conflict.
 
 ## Review and board check
 
