@@ -130,7 +130,7 @@ Memory plan: maze tile map 441 bits; DFS stack about 100×7 bits; trig table abo
 ### AD-12 — Maze generation is a stage-gated iterative DFS
 - **Binds:** FR-1, FR-2, FR-3, NFR-5
 - **Prevents:** A generator that can leave unreachable cells, or that runs while the game reads the map.
-- **Rule:** `maze_gen` is a recursive-backtracker implemented as an iterative FSM with an explicit stack (dimension N set by the stage). It runs only in the GENERATE state, and it ends with start and goal cells set. The seed is a free-running counter latched on the first user input, or a fixed seed when a debug switch is set. A 32-bit LFSR provides the randomness. The perfect-maze property guarantees solvability.
+- **Rule:** `maze_gen` is a recursive-backtracker implemented as an iterative FSM with an explicit stack (dimension N set by the stage). It runs only in the GENERATE state, and it ends with start and goal cells set. The seed is a free-running counter latched on the first user input, or a fixed seed when a debug switch is set. A 32-bit LFSR provides the randomness. The generator guarantees a connected maze, with K extra openings on loop stages; this guarantees solvability.
 
 ### AD-13 — Every module ships with a self-checking testbench
 - **Binds:** NFR-4, NFR-5, Success criteria

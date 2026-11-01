@@ -26,7 +26,7 @@ if {[catch {exec {*}$compile_cmd 2>@1} output]} {
 puts $output
 
 foreach {top snapshot marker} {
-    tb_maze_gen maze_gen_snapshot "PASS: maze_gen - all mazes perfect"
+    tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
     tb_top_story14_integration top_story14_snapshot "PASS: Story 1.4 top"
 } {

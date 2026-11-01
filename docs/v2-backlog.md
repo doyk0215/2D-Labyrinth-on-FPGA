@@ -37,7 +37,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Where.** `rtl/labyrinth_pkg.vh`, `rtl/maze_gen.v`, `rtl/maze_ram.v`, `rtl/camera.v` (new), `rtl/render.v`, `rtl/ball_overlay.v`, `rtl/ball_physics.v`, `rtl/menu_ctrl.v`, `rtl/oled_status_text.v`.
 
 **Check.**
-- `tb_maze_gen`: N = 15 mazes are perfect and solvable for many seeds; the stack never overflows.
+- `tb_maze_gen`: N = 15 mazes are connected and solvable for many seeds (with 7 extra openings once item 3 adds loops); the stack never overflows.
 - `tb_render`, `tb_ball_physics`: the existing checks pass at N = 15 (no tunnelling, bounce ratios, goal test).
 - Routed build: block RAM, LUT and timing caps still met (AD-8).
 - Board: the whole maze is playable, the walls are readable, and the view does not shake when the ball bounces.
@@ -47,7 +47,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Why.** A perfect maze has exactly one route between any two cells, so the route is easy to find on a small map and offers no choice. Extra openings give alternative routes. EASY stays a perfect maze.
 
 **What.**
-- After the depth-first search finishes on the HARD stage and above, remove K interior wall tiles that separate two floor cells. K is fixed per stage in `maze_gen` parameters, not a menu setting: EASY 0, HARD (N = 10) 5, N = 15 7. These are starting values that need playtesting.
+- After the depth-first search finishes on the HARD stage and above, remove K interior wall tiles that separate two floor cells. K is fixed per stage in `maze_gen` parameters, not a menu setting: EASY 0, HARD (N = 10) 3, N = 15 5 (Story 7.5; first planned as 5 and 7). One loop goes in each band of cell rows, so the loops spread from the goal side to the start side. These values still need playtesting.
 - Never remove outer-boundary walls.
 - The random choice comes from the same 32-bit LFSR. `maze_gen` stays the only writer of `maze_ram` (AD-5), so the pass lives inside `maze_gen` as an extra phase before it signals done.
 - The architecture spine states "perfect maze" as a property (AD-12 area); that text and the tests change to "connected, with K extra openings on loop stages".

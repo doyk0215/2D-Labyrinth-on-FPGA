@@ -1,11 +1,21 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// maze_gen: random perfect-maze generator (Story 1.3, AD-12).
+// maze_gen: deterministic connected-maze generator (Stories 1.3 and 7.5).
 //
 // Iterative recursive-backtracker (depth-first search) with an explicit stack.
-// A perfect maze has exactly one path between any two cells, so the start and
-// goal are always connected (FR2).
+// After the search, a loop pass opens K more interior walls, one per band of
+// cell rows, so the loops spread from the goal side to the start side. The
+// count follows N, not the stage: N=10 (HARD, and the legacy default) gets 3
+// and N=15 gets 5. Every other N, including EASY, stays a perfect maze.
+//
+// Loop pass: band k covers cell rows 3k..3k+2, and the last band also takes
+// any rows left over (N=10: 0-2, 3-5, 6-9; N=15: five bands of 3). From a
+// seeded starting wall, it scans the band's interior walls (east, then south,
+// row by row, wrapping) and opens the first one that is still closed. A band
+// of R rows always has one: it has R(N-1)+(R-1)N interior walls, and the tree
+// opens at most RN-1 of them, leaving at least (R-1)(N-1). A K set on another
+// N must keep 3K <= N.
 //
 // The active tile map is (2N+1) x (2N+1), stored at addr={row, col} (a fixed
 // 32-tile row on every stage, so no address needs a multiply).
@@ -43,17 +53,26 @@ module maze_gen (
                      S_PICK   = 4'd4,
                      S_WPASS  = 4'd5,
                      S_WCELL  = 4'd6,
-                     S_FINISH = 4'd7;
+                     S_FINISH = 4'd7,
+                     S_BAND   = 4'd8,
+                     S_SCAN   = 4'd9,
+                     S_WLOOP  = 4'd10;
 
     reg [3:0]  state;
     reg [3:0]  n;                 // maze size in cells (2..15)
     reg [31:0] rng;
+    reg [3:0]  loop_target;
+    reg [3:0]  loops_added;       // also the current band of the loop pass
     reg [9:0]  clr_addr;
     reg [3:0]  cx, cy;            // current cell (top of the stack)
     reg [1:0]  dir;               // 0 = up, 1 = right, 2 = down, 3 = left
     reg [255:0] visited;          // indexed {cy, cx}
+    reg        open_e [0:255];    // passage to the east / south cell is open, {cy, cx}
+    reg        open_s [0:255];    // (LUT RAM: cleared during S_CLEAR, set in S_WPASS)
     reg [7:0]  stack [0:224];     // {cy, cx} per entry; 225 entries at N=15
     reg [7:0]  sp;                // number of entries on the stack (0..225)
+    reg [3:0]  scx, scy;          // loop-pass scan position (cell)
+    reg        sdir;              // 0 = east wall, 1 = south wall
 
     function [31:0] xorshift;
         input [31:0] x;
@@ -85,14 +104,38 @@ module maze_gen (
     wire [4:0] next_col  = {nx, 1'b1};
     wire [4:0] next_row  = {ny, 1'b1};
 
+    // ---- loop pass: current band and scan candidate ----
+    wire [3:0] band_lo   = {loops_added[2:0], 1'b0} + loops_added;   // 3k
+    wire [3:0] band_hi   = (loops_added == loop_target - 4'd1) ? nm1 : band_lo + 4'd2;
+    wire [3:0] band_span = band_hi - band_lo;                         // rows - 1
+    wire [3:0] rand_col  = (rng[3:0] >= n) ? rng[3:0] - n : rng[3:0];
+    wire [3:0] rand_row  = ({2'b00, rng[9:8]} > band_span) ? 4'd0 : {2'b00, rng[9:8]};
+    wire       scan_closed = sdir ? ((scy != band_hi) && !open_s[{scy, scx}])
+                                  : ((scx != nm1)     && !open_e[{scy, scx}]);
+    wire [4:0] loop_col  = {scx, 1'b1} + {4'd0, ~sdir};
+    wire [4:0] loop_row  = {scy, 1'b1} + {4'd0,  sdir};
+
+    // ---- open-passage record: one write per cycle, no reset ----
+    wire       open_clr  = (state == S_CLEAR);
+    wire       open_we_e = open_clr || ((state == S_WPASS) && dir[0]);    // right / left
+    wire       open_we_s = open_clr || ((state == S_WPASS) && !dir[0]);   // up / down
+    wire [7:0] open_wa_e = open_clr ? clr_addr[7:0] : (dir == 2'd1) ? {cy, cx} : {ny, nx};
+    wire [7:0] open_wa_s = open_clr ? clr_addr[7:0] : (dir == 2'd2) ? {cy, cx} : {ny, nx};
+    always @(posedge clk) begin
+        if (open_we_e) open_e[open_wa_e] <= !open_clr;
+        if (open_we_s) open_s[open_wa_s] <= !open_clr;
+    end
+
     // ---- map write port (combinational from state, registered state) ----
     // The whole 32x32 store is cleared to wall, so every stage starts clean.
     assign we    = (state == S_CLEAR) || (state == S_INIT) ||
-                   (state == S_WPASS) || (state == S_WCELL);
+                   (state == S_WPASS) || (state == S_WCELL) ||
+                   (state == S_WLOOP);
     assign wdata = (state == S_CLEAR);   // wall while clearing, floor otherwise
     assign waddr = (state == S_CLEAR) ? clr_addr :
                    (state == S_INIT)  ? {5'd1, 5'd1} :
                    (state == S_WPASS) ? {pass_row, pass_col} :
+                   (state == S_WLOOP) ? {loop_row, loop_col} :
                                         {next_row, next_col};
 
     always @(posedge clk) begin
@@ -130,14 +173,17 @@ module maze_gen (
                     start_row        <= {n - 4'd1, 1'b1};
                     goal_col         <= 5'd1;
                     goal_row         <= 5'd1;
+                    loop_target      <= (n == 4'd10) ? 4'd3 :
+                                        (n == 4'd15) ? 4'd5 : 4'd0;
+                    loops_added      <= 4'd0;
                     state            <= S_STEP;
                 end
 
                 S_STEP: begin
                     if (avail != 4'b0000) begin
                         state <= S_PICK;
-                    end else if (sp <= 8'd1) begin
-                        state <= S_FINISH;                 // stack exhausted
+                    end else if (sp <= 8'd1) begin         // stack exhausted
+                        state <= (loop_target != 4'd0) ? S_BAND : S_FINISH;
                     end else begin
                         sp <= sp - 8'd1;                    // backtrack
                         {cy, cx} <= stack[sp - 8'd2];
@@ -152,7 +198,7 @@ module maze_gen (
                     end
                 end
 
-                S_WPASS: state <= S_WCELL;
+                S_WPASS: state <= S_WCELL;                  // also records the passage
 
                 S_WCELL: begin
                     visited[{ny, nx}] <= 1'b1;
@@ -161,6 +207,35 @@ module maze_gen (
                     cx                <= nx;
                     cy                <= ny;
                     state             <= S_STEP;
+                end
+
+                S_BAND: begin                               // seeded scan start in band k
+                    rng   <= xorshift(rng);
+                    scx   <= rand_col;
+                    scy   <= band_lo + rand_row;
+                    sdir  <= rng[12];
+                    state <= S_SCAN;
+                end
+
+                S_SCAN: begin
+                    if (scan_closed) begin
+                        state <= S_WLOOP;
+                    end else if (!sdir) begin
+                        sdir <= 1'b1;
+                    end else begin
+                        sdir <= 1'b0;
+                        if (scx == nm1) begin
+                            scx <= 4'd0;
+                            scy <= (scy == band_hi) ? band_lo : scy + 4'd1;
+                        end else begin
+                            scx <= scx + 4'd1;
+                        end
+                    end
+                end
+
+                S_WLOOP: begin                              // write port opens the wall
+                    loops_added <= loops_added + 4'd1;
+                    state       <= (loops_added + 4'd1 == loop_target) ? S_FINISH : S_BAND;
                 end
 
                 S_FINISH: begin
