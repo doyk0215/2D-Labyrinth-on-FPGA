@@ -8,6 +8,7 @@
 // Stage table:
 //   0 EASY: N=5 cells, restitution_sel=0
 //   1 HARD: N=10 cells, restitution_sel=1
+//   2 HUGE: N=15 cells, restitution_sel=1 (same bounce preset as HARD)
 // Rotation presets are NORMAL=00, SLOW=01, FAST=10, TURBO=11.
 module menu_ctrl (
     input  wire         clk,
@@ -21,7 +22,7 @@ module menu_ctrl (
     output reg          start_game,
     output reg  [7:0]   game_cfg,
     output reg  [511:0] status_text,
-    output reg          selected_stage,
+    output reg  [1:0]   selected_stage,
     output reg          settings_page
 );
 
@@ -70,8 +71,9 @@ module menu_ctrl (
 
     always @* begin
         case (selected_stage)
-            1'b0: stage_cfg = {2'b00, 4'd5};
-            default: stage_cfg = {2'b01, 4'd10};
+            2'd1: stage_cfg = {2'b01, 4'd10};
+            2'd2: stage_cfg = {2'b01, 4'd15};
+            default: stage_cfg = {2'b00, 4'd5};
         endcase
 
         game_cfg = {rot_speed_sel, stage_cfg};
@@ -96,28 +98,32 @@ module menu_ctrl (
             endcase
         end else begin
             case (selected_stage)
-                1'b0: status_text = pack_text("SELECT A STAGE  ",
-                                              ">EASY N=05 R=00 ",
+                2'd1: status_text = pack_text("STAGE L=SET C=GO",
+                                              " EASY N=05 R=00 ",
+                                              ">HARD N=10 R=01 ",
+                                              " HUGE N=15 R=01 ");
+                2'd2: status_text = pack_text("STAGE L=SET C=GO",
+                                              " EASY N=05 R=00 ",
                                               " HARD N=10 R=01 ",
-                                              "LEFT=SET C=GO   ");
-                default: status_text = pack_text("SELECT A STAGE  ",
-                                                 " EASY N=05 R=00 ",
-                                                 ">HARD N=10 R=01 ",
-                                                 "LEFT=SET C=GO   ");
+                                              ">HUGE N=15 R=01 ");
+                default: status_text = pack_text("STAGE L=SET C=GO",
+                                                 ">EASY N=05 R=00 ",
+                                                 " HARD N=10 R=01 ",
+                                                 " HUGE N=15 R=01 ");
             endcase
         end
     end
 
     always @(posedge clk) begin
         if (rst) begin
-            selected_stage <= 1'b0;
+            selected_stage <= 2'd0;
             rot_speed_sel <= 2'b00;
             settings_page <= 1'b0;
             start_game <= 1'b0;
         end else if (return_to_menu) begin
             // A gameplay reset returns to the stage list but keeps the
             // player's rotation preference for the next game.
-            selected_stage <= 1'b0;
+            selected_stage <= 2'd0;
             settings_page <= 1'b0;
             start_game <= 1'b0;
         end else begin
@@ -133,8 +139,10 @@ module menu_ctrl (
                     end
                 end else if (btn_settings) begin
                     settings_page <= 1'b1;
-                end else if (btn_up ^ btn_down) begin
-                    selected_stage <= ~selected_stage;
+                end else if (btn_up && !btn_down) begin
+                    selected_stage <= (selected_stage == 2'd0) ? 2'd2 : selected_stage - 1'b1;
+                end else if (btn_down && !btn_up) begin
+                    selected_stage <= (selected_stage >= 2'd2) ? 2'd0 : selected_stage + 1'b1;
                 end else if (btn_confirm) begin
                     start_game <= 1'b1;
                 end

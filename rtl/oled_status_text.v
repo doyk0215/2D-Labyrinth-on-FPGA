@@ -56,6 +56,7 @@ module oled_status_text (
         case (active_game_cfg[3:0])
             4'd5:    stage_text = "STAGE 1 EASY    ";
             4'd10:   stage_text = "STAGE 2 HARD    ";
+            4'd15:   stage_text = "STAGE 3 HUGE    ";
             default: stage_text = "STAGE ?         ";
         endcase
 
