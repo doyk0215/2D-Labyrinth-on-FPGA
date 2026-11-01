@@ -94,6 +94,11 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
+**Camera (C, Story 7.2)**
+- Inputs: `phys_init`, `phys_done`, `n_cells[3:0]`, `ball_x`, `ball_y`
+- Outputs: `cam_x[17:0]`, `cam_y[17:0]` (signed Q9.8, maze pixels from the map centre, the ball's format) and `cam_done` (pulse with every new value, two clocks after `phys_done`, so inside vertical blanking)
+- `camera` is the only writer of the camera position. It follows the ball with a dead zone (about ±48 px per axis around its target) and `cam += (target - cam) >>> 3`, snaps to the ball one clock after `phys_init`, and is the map centre (0, 0) when `n_cells` < 11, so N = 5 and N = 10 keep the fixed view. Story 7.3 connects it to `render` and `ball_overlay`.
+
 **Render (C)**
 - Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2, `n_cells` (Story 7.1: the map centre depends on the stage)
 - Outputs: `vga_r/g/b[3:0]`, `vga_hs`, `vga_vs`

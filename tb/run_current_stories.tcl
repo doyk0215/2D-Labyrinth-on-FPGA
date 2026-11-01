@@ -47,6 +47,7 @@ foreach {top snapshot marker} {
     tb_maze_gen maze_gen_snapshot "PASS: maze_gen"
     tb_story71_map story71_map_snapshot "PASS: Story 7.1 renderer"
     tb_story71_physics story71_physics_snapshot "PASS: Story 7.1 N=15 physics"
+    tb_camera camera_snapshot "PASS: camera"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
     tb_centre_button centre_button_snapshot "PASS: centre button"
     tb_top_story62_reset top_story62_reset_snapshot "PASS: Story 6.2 long reset"
