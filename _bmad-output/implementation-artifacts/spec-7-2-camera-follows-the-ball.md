@@ -47,3 +47,4 @@ Decisions (choices the player does not see, recorded here):
 | The camera also updates in MENU and GENERATE | false | Nothing is drawn there, and `phys_init` snaps it before PLAY |
 | `phys_done` in the same clock as `phys_init` could step from a stale target | false | The step is gated with `!phys_init`, and the snap one clock later wins over any step |
 | 18-bit output could overflow | false | The ball stays inside the map (under 248 px from the centre), so the camera stays under 296 px, well inside Q9.8's 512 px |
+| Independent review (2026-11-01, with Story 7.3): a live `n_cells` change (legacy switches) flipped `follow` and moved the camera without `cam_done` | low | Patched: `follow` is latched on `phys_init`. `tb_camera` now also checks the exact two-clock `cam_done` latency, that the camera changes only with `cam_done` or reset, `phys_done` arriving with or just after `phys_init`, and the on-screen bound in Q9.8. Full triage in the 7.3 spec |
