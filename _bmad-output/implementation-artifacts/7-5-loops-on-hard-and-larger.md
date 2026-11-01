@@ -1,3 +1,4 @@
+---
 story_id: 7.5
 story_key: 7-5-loops-on-hard-and-larger
 title: Loops on HARD and larger
@@ -130,6 +131,12 @@ Verified with AMD Vivado 2025.2:
 - `tb/run_current_stories.tcl`: PASS, exit code 0, including both OLED modes.
   The N = 10 renderer expectation was updated from 199 to 204 floor tiles to
   account for the five additional HARD passages.
+- `tb/run_story14.tcl`: PASS. Its `tb_maze_gen` marker is now `PASS: maze_gen`,
+  since this story changes the generator's PASS line.
+- `scripts/check_timing.tcl` (routed, 100 MHz): timing met. WNS +0.323 ns
+  (main +0.530 ns), WHS +0.055 ns. 3,840 LUTs (main 3,482), 3,702 registers
+  (main 3,682), 2.5 block RAM tiles, 6 DSPs. The worst path is in the OLED text
+  mailbox, not the generator.
 - `git diff --check`: PASS.
 
 No physical board test has been run. Issue #57 calls for that check to be

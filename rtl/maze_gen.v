@@ -4,8 +4,13 @@
 // maze_gen: deterministic connected-maze generator (Stories 1.3 and 7.5).
 //
 // Iterative recursive-backtracker (depth-first search) with an explicit stack.
-// EASY remains a perfect maze. HARD and N=15 open a fixed number of additional
-// interior walls as newly visited cells expose non-tree adjacencies.
+// The loop count follows N, not the stage: N=10 (HARD, and the legacy default)
+// opens 5 additional interior walls and N=15 opens 7, as newly visited cells
+// expose non-tree adjacencies. Every other N, including EASY, stays a perfect
+// maze. The count is exact because there are always enough candidates: a maze
+// has (N-1)^2 non-tree edges and a visit exposes at most 3 of them, so at
+// least (N-1)^2/3 visits offer one (27 at N=10, 65 at N=15). A K set on a
+// small N must stay within that bound.
 //
 // The active tile map is (2N+1) x (2N+1), stored at addr={row, col} (a fixed
 // 32-tile row on every stage, so no address needs a multiply).

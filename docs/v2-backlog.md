@@ -37,7 +37,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Where.** `rtl/labyrinth_pkg.vh`, `rtl/maze_gen.v`, `rtl/maze_ram.v`, `rtl/camera.v` (new), `rtl/render.v`, `rtl/ball_overlay.v`, `rtl/ball_physics.v`, `rtl/menu_ctrl.v`, `rtl/oled_status_text.v`.
 
 **Check.**
-- `tb_maze_gen`: N = 15 mazes are perfect and solvable for many seeds; the stack never overflows.
+- `tb_maze_gen`: N = 15 mazes are connected and solvable for many seeds (with 7 extra openings once item 3 adds loops); the stack never overflows.
 - `tb_render`, `tb_ball_physics`: the existing checks pass at N = 15 (no tunnelling, bounce ratios, goal test).
 - Routed build: block RAM, LUT and timing caps still met (AD-8).
 - Board: the whole maze is playable, the walls are readable, and the view does not shake when the ball bounces.
