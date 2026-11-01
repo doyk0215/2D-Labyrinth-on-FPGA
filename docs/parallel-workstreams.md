@@ -30,7 +30,7 @@ Rules:
 
 Until C's project skeleton lands, A and B work in simulation only, against stubs of the other modules.
 
-## 3. Interface contract (v1.0, frozen)
+## 3. Interface contract (v1.0, with Story 6.1 state extension)
 
 Widths and scales follow AD-4. All signals are in the single 100 MHz clock domain (AD-2) and synchronous to `clk`. Active-high, one-cycle pulses unless stated.
 
@@ -45,12 +45,12 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - `sincos_rom`: input `angle[11:0]`; outputs `sin_q[15:0]`, `cos_q[15:0]` (signed Q1.14), latency 1 clock — A → A, C
 
 **Maze memory (`maze_ram`, owned by C)**
-- 441 one-bit tiles, address `addr[8:0] = row*21 + col`, 1 = wall
-- Write port (A, `maze_gen` only): `we`, `waddr[8:0]`, `wdata`
-- Read port 1 (A, physics): `raddr_p[8:0]` → `rdata_p`, 1-clock read latency
-- Read port 2 (C, render): `raddr_r[8:0]` → `rdata_r`, 1-clock read latency
+- 1,024 one-bit tiles (32 × 32), address `addr[9:0] = {row[4:0], col[4:0]}`, 1 = wall (Story 7.1). Every stage uses this fixed 32-tile row, so no module multiplies to find a tile; the largest stage (N = 15) uses rows and columns 0..30.
+- Write port (A, `maze_gen` only): `we`, `waddr[9:0]`, `wdata`
+- Read port 1 (A, physics): `raddr_p[9:0]` → `rdata_p`, 1-clock read latency
+- Read port 2 (C, render): `raddr_r[9:0]` → `rdata_r`, 1-clock read latency
 - Maze outputs of `maze_gen` (held until the next generation): `start_col[4:0]`, `start_row[4:0]`, `goal_col[4:0]`, `goal_row[4:0]`
-- Maze placement (added 2026-10-24, with `maze_gen`): an N-cell maze (N = 2..10) is stored **centred** in the 21×21 map, filling tiles `10-N .. 10+N` in each axis; all other tiles are wall. The middle of every maze is therefore tile 10, so the renderer and physics always rotate about the map centre (336 px / 2 = 168 px) and never need `n_cells` for centring. `start_*`/`goal_*` are absolute tile coordinates in the 21×21 map: start = `(9+N, 9+N)` (bottom-right cell, drawn red, the ball spawns here), goal = `(11-N, 11-N)` (top-left cell, drawn green).
+- Maze placement (Story 7.1, replacing the v1 centred 21×21 layout): an N-cell maze (N = 2..15) fills tiles 0..2N in each axis from the top-left; every other stored tile is wall. The map centre is tile N (pixel 16N + 8), so `render` and `ball_physics` take `n_cells` to centre the view and the ball position. `start_*`/`goal_*` are tile coordinates from the top-left: start = `(2N-1, 2N-1)` (bottom-right cell, drawn red, the ball spawns here), goal = `(1, 1)` (top-left cell, drawn green).
 
 **Maze generation (A)**
 - Inputs: `gen_start` (pulse), `n_cells[3:0]` (from `game_cfg`), `seed[31:0]`
@@ -62,7 +62,11 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Story 3.1 as built: `ball_physics` takes `sin_q`/`cos_q` (not `angle`), has no maze port or `restitution_sel` yet (Story 3.2), and also outputs `vel_x`/`vel_y` (Q4.8). Gravity is `g·(sin, cos)` in the maze frame; the current requested tuning uses `g = 0.15 px/frame²` with fractional carry and a 5 px/frame per-axis cap. Until walls exist the ball stops at the map edge. `ball_overlay` (new) turns the maze position into a screen position and a per-pixel `ball_on`, which `render` draws (new input `ball_on`, one clock behind `pixel_x/y` like render's own flags).
 
 **Game control (B)**
-- `game_state[1:0]`: 0 MENU, 1 GENERATE, 2 PLAY, 3 WIN
+- `game_state[2:0]` (Story 6.1): shared `GAME_STATE_W=3` and `ST_*`
+  definitions in `rtl/labyrinth_pkg.vh`: MENU=0, GENERATE=1, PLAY=2,
+  WIN=3, LOSE=4. LOSE is reserved for Story 8.2; no transition enters it yet.
+  Declare state ports with `GAME_STATE_W` and use `ST_*` for comparisons and
+  case labels. This interface extension requires all three owners' approval.
 - Outputs: `gen_start`, `phys_init`, `phys_en`, `game_state`
 - Inputs: `gen_done`, `in_goal`, reset, `game_cfg` (from `menu_ctrl`)
 
@@ -86,20 +90,20 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   The supplied `Oled_Display` and PS/2 VHDL sources remain unchanged.
 
 **Menu and OLED (B and A)**
-- `game_cfg` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start)
+- `game_cfg[7:0]` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start). Story 6.1 keeps this width and packing unchanged.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
 **Render (C)**
-- Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2 (no `n_cells`: the maze is always centred in the map)
+- Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2, `n_cells` (Story 7.1: the map centre depends on the stage)
 - Outputs: `vga_r/g/b[3:0]`, `vga_hs`, `vga_vs`
 - C latches `angle`, `ball_x`, `ball_y` at frame start (AD-6)
-- Story 3.3 visual part: `render.game_state[1:0]` now consumes this existing
+- Story 3.3 visual part: `render.game_state` consumes the shared state
   contract and snapshots WIN with angle/trig in vertical blanking. WIN adds a
   fixed `YOU WIN` panel and green outline using `win_overlay` and `font_rom`;
   its flags have the same one-clock pixel latency as the renderer. The top
   enables map reads/display in PLAY and WIN, and masks MENU/GENERATE. QZ still
-  connects goal detection and supplies the approximately two-second WIN pause.
+  connects goal detection and supplies the approximately three-second WIN pause.
 
 ## 4. Dependencies and integration points
 

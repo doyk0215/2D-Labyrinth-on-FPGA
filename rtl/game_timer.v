@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Whole-second elapsed timer for the current maze. The counter advances only
 // in PLAY, freezes in WIN, and clears when physics initializes a new maze.
@@ -8,12 +9,11 @@ module game_timer #(
 ) (
     input  wire       clk,
     input  wire       rst,
-    input  wire [1:0] game_state,
+    input  wire [`GAME_STATE_W-1:0] game_state,
     input  wire       phys_init,
     output reg  [7:0] elapsed_minutes_bcd = 8'h00,
     output reg  [7:0] elapsed_seconds_bcd = 8'h00
 );
-    localparam [1:0] PLAY = 2'b10;
     localparam integer COUNT_WIDTH = (CLK_HZ > 1) ? $clog2(CLK_HZ) : 1;
 
     reg [COUNT_WIDTH-1:0] subsecond_count = {COUNT_WIDTH{1'b0}};
@@ -25,7 +25,7 @@ module game_timer #(
             elapsed_minutes_bcd <= 8'h00;
             elapsed_seconds_bcd <= 8'h00;
             timer_full          <= 1'b0;
-        end else if ((game_state == PLAY) && !timer_full) begin
+        end else if ((game_state == `ST_PLAY) && !timer_full) begin
             if ((CLK_HZ <= 1) || (subsecond_count == CLK_HZ - 1)) begin
                 subsecond_count <= {COUNT_WIDTH{1'b0}};
 

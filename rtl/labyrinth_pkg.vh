@@ -27,12 +27,14 @@
 // ---- Maze geometry ----
 `define TILE_PX        16       // pixels per tile
 `define TILE_SHIFT     12       // log2(TILE_PX) + POS_FRAC: Q9.8 maze pixels >> 12 = tile index
-`define MAP_DIM        21       // tile map is 21 x 21 (10 cells + walls)
-`define MAP_TILES      441      // 21 * 21
-`define MAP_ADDR_W     9        // addr = row * 21 + col
-`define MAP_MID        10       // centre tile index; an N-cell maze fills tiles (10-N)..(10+N)
-`define COORD_W        5        // tile column / row index width
-`define N_CELLS_W      4        // maze size in cells (up to 10)
+`define MAX_N_CELLS    15       // largest supported stage
+`define MAP_DIM        31       // maximum active map side: 2*N + 1
+`define MAP_STRIDE     32       // tiles per stored row on every stage: addr = {row, col}
+`define MAP_TILES      1024     // storage: 32 rows x 32 columns (rows/columns 31 unused)
+`define MAP_ADDR_W     10       // addr[9:5] = row, addr[4:0] = col
+`define MAP_MID        15       // maximum map's centre tile index
+`define COORD_W        5        // tile column / row index width (0..30)
+`define N_CELLS_W      4        // maze size in cells (2..15)
 `define BALL_RADIUS    5        // pixels
 
 // ---- Screen: VGA 640x480 @ 60 Hz, 25 MHz pixel enable ----
@@ -43,11 +45,14 @@
 `define SCREEN_CX      320      // maze rotation centre on screen
 `define SCREEN_CY      240
 
-// ---- Game state codes (game_state[1:0]) ----
-`define ST_MENU        2'd0
-`define ST_GENERATE    2'd1
-`define ST_PLAY        2'd2
-`define ST_WIN         2'd3
+// ---- Shared game state (Story 6.1) ----
+// Keep v1's codes; ST_LOSE is reserved for Story 8.2 and is not entered yet.
+`define GAME_STATE_W   3
+`define ST_MENU        3'd0
+`define ST_GENERATE    3'd1
+`define ST_PLAY        3'd2
+`define ST_WIN         3'd3
+`define ST_LOSE        3'd4
 
 // ---- Rotation command (rot_cmd[1:0], signed) ----
 `define ROT_CCW        2'b11    // -1

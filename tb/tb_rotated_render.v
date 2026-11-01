@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Independent real-number inverse mapping for the affine renderer. This uses
 // the fixed maze RAM, rather than copying the RTL's incremental arithmetic.
@@ -15,7 +16,7 @@ module tb_rotated_render;
     reg hsync_in = 1'b1;
     reg vsync_in = 1'b1;
     wire signed [15:0] sin_q, cos_q;
-    wire [8:0] maze_raddr;
+    wire [9:0] maze_raddr;
     wire maze_rdata;
     wire [3:0] vga_r, vga_g, vga_b;
     wire vga_hs, vga_vs;
@@ -24,13 +25,13 @@ module tb_rotated_render;
 
     sincos_rom trig_i (.clk(clk), .angle(angle), .sin_q(sin_q), .cos_q(cos_q));
     maze_ram ram_i (
-        .clk(clk), .we(1'b0), .waddr(9'd0), .wdata(1'b0),
-        .raddr_p(9'd0), .rdata_p(), .ren_r(1'b1), .raddr_r(maze_raddr),
+        .clk(clk), .we(1'b0), .waddr(10'd0), .wdata(1'b0),
+        .raddr_p(10'd0), .rdata_p(), .ren_r(1'b1), .raddr_r(maze_raddr),
         .rdata_r(maze_rdata)
     );
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(2'b10),
+        .game_state(`ST_PLAY), .n_cells(4'd10), .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .hsync_in(hsync_in), .vsync_in(vsync_in),
@@ -158,7 +159,7 @@ module tb_rotated_render;
                             expected = 12'hf00; // red start
                         else if (tile_x == 1 && tile_y == 19)
                             expected = 12'h0f0; // green goal
-                        else if (ram_i.tile_mem[tile_y * 21 + tile_x])
+                        else if (ram_i.tile_mem[tile_y * `MAP_STRIDE + tile_x])
                             expected = 12'hfff;
                         else
                             expected = 12'h346;

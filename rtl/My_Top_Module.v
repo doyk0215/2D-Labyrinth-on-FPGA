@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // Integration top: game_ctrl sequences generation/play, and the renderer is
 // held off while maze_gen writes the single map; rotation supports the SW5
@@ -16,7 +17,7 @@ module My_Top_Module #(
     parameter integer SNAP_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer MENU_DEBOUNCE_CYCLES = 1_000_000, // 10 ms at 100 MHz
     parameter integer POR_CYCLES = 100_000,             // 1 ms at 100 MHz
-    parameter integer WIN_HOLD_FRAMES = 120,            // about 2 s at 60 Hz
+    parameter integer WIN_HOLD_FRAMES = 180,            // about 3 s at 60 Hz
     parameter integer TIMER_CLK_HZ = 100_000_000,
     parameter START_IN_MENU = 1'b1,
     parameter integer LONG_PRESS_CYCLES = 200_000_000
@@ -61,7 +62,7 @@ module My_Top_Module #(
     wire full_reset;
     wire system_reset = por_reset | full_reset;
     wire game_reset_request;
-    wire [1:0] game_state;
+    wire [`GAME_STATE_W-1:0] game_state;
     assign rst = system_reset | game_reset_request;
 
     wire btnU_press, btnD_menu_press, btnC_press, btnL_menu_press;
@@ -89,7 +90,7 @@ module My_Top_Module #(
     wire [511:0] menu_page_text;
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
-    wire menu_active = (game_state == 2'b00);
+    wire menu_active = (game_state == `ST_MENU);
     assign game_reset_request = btnC_press && !menu_active;
 
     menu_ctrl menu_ctrl_i (
@@ -115,13 +116,13 @@ module My_Top_Module #(
     wire timing_hsync;
     wire timing_vsync;
 
-    wire [8:0] maze_raddr_p;
+    wire [`MAP_ADDR_W-1:0] maze_raddr_p;
     wire maze_rdata_p;
-    wire [8:0] maze_raddr_r;
+    wire [`MAP_ADDR_W-1:0] maze_raddr_r;
     wire maze_rdata_r;
 
     wire        maze_we;
-    wire [8:0]  maze_waddr;
+    wire [`MAP_ADDR_W-1:0] maze_waddr;
     wire        maze_wdata;
     wire [4:0]  start_col;
     wire [4:0]  start_row;
@@ -234,7 +235,7 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
-    assign angle_rot_cmd = (menu_active || (game_state == 2'b11)) ? 2'sd0 :
+    assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
@@ -256,7 +257,7 @@ module My_Top_Module #(
 
     // Keep the completed maze visible behind the Story 3.3 win indication.
     // MENU and GENERATE still mask the display and disable map reads.
-    assign render_enable = (game_state == 2'b10) || (game_state == 2'b11);
+    assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN);
 
     game_ctrl #(
         .START_IN_MENU(START_IN_MENU),
@@ -408,6 +409,7 @@ module My_Top_Module #(
         .spawn_row  (start_row),
         .goal_col   (goal_col),
         .goal_row   (goal_row),
+        .n_cells    (n_cells),
         .sin_q      (sin_q),
         .cos_q      (cos_q),
         .restitution_sel (active_game_cfg[5:4]),
@@ -447,6 +449,9 @@ module My_Top_Module #(
         .ce_pix       (ce_pix),
         .frame_tick   (frame_tick),
         .game_state   (game_state),
+        .n_cells      (n_cells),
+        .time_min_bcd (elapsed_minutes_bcd),
+        .time_sec_bcd (elapsed_seconds_bcd),
         .angle        (angle),
         .sin_q        (sin_q),
         .cos_q        (cos_q),

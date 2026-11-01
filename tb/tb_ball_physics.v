@@ -22,11 +22,11 @@ module tb_ball_physics;
     wire signed [11:0] vel_x, vel_y;
     wire phys_done;
     wire in_goal;
-    wire [8:0] raddr_p;
+    wire [`MAP_ADDR_W-1:0] raddr_p;
     wire rdata_p;
 
     reg       map_we = 1'b0;
-    reg [8:0] map_waddr = 9'd0;
+    reg [`MAP_ADDR_W-1:0] map_waddr = 10'd0;
     reg       map_wdata = 1'b0;
 
     always #5 clk = ~clk;
@@ -34,13 +34,14 @@ module tb_ball_physics;
     maze_ram ram_i (
         .clk(clk), .we(map_we), .waddr(map_waddr), .wdata(map_wdata),
         .raddr_p(raddr_p), .rdata_p(rdata_p),
-        .ren_r(1'b0), .raddr_r(9'd0), .rdata_r()
+        .ren_r(1'b0), .raddr_r(10'd0), .rdata_r()
     );
 
     ball_physics dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init), .phys_en(phys_en),
         .spawn_col(spawn_col), .spawn_row(spawn_row),
         .goal_col(goal_col), .goal_row(goal_row), .sin_q(sin_q), .cos_q(cos_q),
+        .n_cells(4'd10),
         .restitution_sel(restit), .maze_raddr(raddr_p), .maze_rdata(rdata_p),
         .ball_x(ball_x), .ball_y(ball_y), .vel_x(vel_x), .vel_y(vel_y),
         .phys_done(phys_done), .in_goal(in_goal)
@@ -56,21 +57,21 @@ module tb_ball_physics;
     always @(posedge clk) if (phys_done) done_count <= done_count + 1;
 
     // ---- the map: bench copy plus maze_ram ----
-    reg map_t [0:440];
+    reg map_t [0:`MAP_TILES-1];
     integer mi;
 
-    task map_open_room;                           // border walls, floor inside
+    task map_open_room;                           // 21x21 room: border walls, floor inside
         integer r, c;
         begin
-            for (r = 0; r < 21; r = r + 1)
-                for (c = 0; c < 21; c = c + 1)
-                    map_t[r * 21 + c] = (r == 0 || r == 20 || c == 0 || c == 20);
+            for (r = 0; r < 32; r = r + 1)
+                for (c = 0; c < 32; c = c + 1)
+                    map_t[r * `MAP_STRIDE + c] = (r == 0 || r >= 20 || c == 0 || c >= 20);
         end
     endtask
 
     task map_load;                                // copy map_t into maze_ram
         begin
-            for (mi = 0; mi < 441; mi = mi + 1) begin
+            for (mi = 0; mi < `MAP_TILES; mi = mi + 1) begin
                 @(negedge clk); map_we = 1'b1; map_waddr = mi; map_wdata = map_t[mi];
             end
             @(negedge clk); map_we = 1'b0;
@@ -92,7 +93,7 @@ module tb_ball_physics;
                 else
                     for (r = r0; r <= r1; r = r + 1)
                         for (c = c0; c <= c1; c = c + 1)
-                            if (map_t[r * 21 + c]) box_hits_wall = 1'b1;
+                            if (map_t[r * `MAP_STRIDE + c]) box_hits_wall = 1'b1;
             end
         end
     endfunction
@@ -377,7 +378,7 @@ module tb_ball_physics;
 
         // 13) diagonal corner tile: only tile (11,11) is a wall next to the start (10,10).
         //     x must pass freely while y is stopped by the diagonal tile.
-        map_open_room; map_t[11 * 21 + 11] = 1'b1; map_load;
+        map_open_room; map_t[11 * `MAP_STRIDE + 11] = 1'b1; map_load;
         restit = 2'd0;
         do_init(5'd10, 5'd10); set_angle(512);      // 45 degrees, down-right
         hit_frame = 0;
@@ -418,13 +419,13 @@ module tb_ball_physics;
         bounces = 0;
         for (m = 0; m < 24; m = m + 1) begin
             map_open_room;
-            for (mi = 0; mi < 441; mi = mi + 1)
+            for (mi = 0; mi < `MAP_TILES; mi = mi + 1)
                 if (!map_t[mi] && ($random(seed) & 32'h7) < 3) map_t[mi] = 1'b1;   // about 37% walls
             begin : pick_start
                 integer sc, sr;
                 sc = 1 + ((($random(seed) & 32'h7FFF) % 19));
                 sr = 1 + ((($random(seed) & 32'h7FFF) % 19));
-                map_t[sr * 21 + sc] = 1'b0;
+                map_t[sr * `MAP_STRIDE + sc] = 1'b0;
                 map_load;
                 restit = m % 4;
                 do_init(sc, sr);

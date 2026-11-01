@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 // End-to-end check of the ball on the real top (Stories 3.1, 3.2): the ball
 // colour is searched for in the VGA pixel stream of whole frames. Checks that
@@ -99,7 +100,7 @@ module tb_top_ball;
             box_in_wall = 1'b0;
             for (r = (ay - 1280) / 4096; r <= (ay + 1279) / 4096; r = r + 1)
                 for (c = (ax - 1280) / 4096; c <= (ax + 1279) / 4096; c = c + 1)
-                    if (dut.maze_ram_i.tile_mem[r * 21 + c]) box_in_wall = 1'b1;
+                    if (dut.maze_ram_i.tile_mem[r * `MAP_STRIDE + c]) box_in_wall = 1'b1;
         end
     endfunction
 

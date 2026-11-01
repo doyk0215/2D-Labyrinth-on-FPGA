@@ -1,14 +1,12 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_game_timer;
     localparam integer CLK_HZ = 4;
-    localparam [1:0] GENERATE = 2'b01;
-    localparam [1:0] PLAY = 2'b10;
-    localparam [1:0] WIN = 2'b11;
 
     reg clk = 1'b0;
     reg rst = 1'b1;
-    reg [1:0] game_state = GENERATE;
+    reg [`GAME_STATE_W-1:0] game_state = `ST_GENERATE;
     reg phys_init = 1'b0;
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
@@ -44,17 +42,17 @@ module tb_game_timer;
         repeat (12) @(posedge clk);
         #1 check_time(8'h00, 8'h00, "does not count during generation");
 
-        game_state = PLAY;
+        game_state = `ST_PLAY;
         repeat (CLK_HZ - 1) @(posedge clk);
         #1 check_time(8'h00, 8'h00, "waits for one full second");
         @(posedge clk);
         #1 check_time(8'h00, 8'h01, "counts one second in PLAY");
 
-        game_state = WIN;
+        game_state = `ST_WIN;
         repeat (CLK_HZ * 3) @(posedge clk);
         #1 check_time(8'h00, 8'h01, "freezes in WIN");
 
-        game_state = PLAY;
+        game_state = `ST_PLAY;
         repeat (CLK_HZ - 1) @(posedge clk);
         #1 check_time(8'h00, 8'h01, "does not carry a partial paused second");
         @(posedge clk);
@@ -72,7 +70,7 @@ module tb_game_timer;
         rst = 1'b0;
         check_time(8'h00, 8'h00, "clears on reset");
 
-        game_state = PLAY;
+        game_state = `ST_PLAY;
         for (i = 0; i < 5999 * CLK_HZ; i = i + 1)
             @(posedge clk);
         #1 check_time(8'h99, 8'h59, "saturates at 99:59");

@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 
 module tb_render;
 
@@ -83,7 +84,7 @@ module tb_render;
         // Generation starts when reset is released and takes about 11 us.
         wait (dut.gen_done_seen === 1'b1);
         // Story 1.4 holds the renderer off until the frame-boundary handoff.
-        wait (dut.game_state === 2'b10); // PLAY
+        wait (dut.game_state === `ST_PLAY); // PLAY
         repeat (2) @(posedge clk);
 
         if (dut.start_col !== 5'd19 || dut.start_row !== 5'd19 ||
@@ -94,7 +95,7 @@ module tb_render;
         end
 
         floors = 0;
-        for (r = 0; r < 441; r = r + 1)
+        for (r = 0; r < `MAP_TILES; r = r + 1)
             if (dut.maze_ram_i.tile_mem[r] === 1'b0) floors = floors + 1;
         if (floors != 199) begin // perfect 10x10 maze: 2*N*N-1 floor tiles
             $display("FAIL: %0d floor tiles, expected 199", floors);
@@ -111,7 +112,7 @@ module tb_render;
                     exp_rgb = 12'hf00;                       // red start tile
                 else if (c == dut.goal_col && r == dut.goal_row)
                     exp_rgb = 12'h0f0;                       // green goal tile
-                else if (dut.maze_ram_i.tile_mem[r * 21 + c])
+                else if (dut.maze_ram_i.tile_mem[r * `MAP_STRIDE + c])
                     exp_rgb = 12'hfff;                       // wall
                 else
                     exp_rgb = 12'h346;                       // floor
