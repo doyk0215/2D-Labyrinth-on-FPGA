@@ -25,8 +25,9 @@ openings for HARD and the N = 15 stage. A loop is created by removing an
 interior wall between two logical cells that are already floors; the outer
 wall boundary remains intact.
 
-The target loop counts are fixed by stage: HARD removes 5 interior walls and
-N = 15 removes 7. With `N*N` cells, loop stages must contain exactly
+The target loop counts are fixed by stage: HARD removes 3 interior walls and
+N = 15 removes 5 (decided by DY on 2026-11-01 after review, down from 5 and
+7; see Loop placement below). With `N*N` cells, loop stages must contain exactly
 `N*N - 1 + K` open cell-to-cell connections. Generation must remain
 deterministic for a given seed, connected, and solvable. `maze_gen` remains the
 only writer of `maze_ram`.
@@ -34,16 +35,18 @@ only writer of `maze_ram`.
 Story 7.1 is the only prerequisite. The current shared map uses a fixed
 32-tile row (`addr = {row, col}`), with the active `(2N+1) x (2N+1)` map in
 the top-left and center tile N. The existing difficulty and stage selection
-must determine whether K is zero, five, or seven without changing EASY
+must determine whether K is zero, three, or five without changing EASY
 behavior.
 
 ## Acceptance Criteria
 
 1. **Add a fixed number of loops to HARD and N = 15**
-   - HARD generation removes exactly 5 distinct interior walls between floor
+   - HARD generation removes exactly 3 distinct interior walls between floor
      cells after the perfect-maze backbone is generated.
-   - N = 15 generation removes exactly 7 distinct interior walls between
+   - N = 15 generation removes exactly 5 distinct interior walls between
      floor cells.
+   - The loops are spread over the maze: one in each band of cell rows, from
+     the goal side to the start side.
    - EASY generation removes no walls and remains a perfect maze.
    - The outer map boundary remains walls for every stage.
    - `maze_gen` remains the only writer of `maze_ram`.
@@ -87,7 +90,7 @@ behavior.
 ## Implementation Tasks
 
 - [x] Trace stage difficulty and N through the current generator and confirm
-      the intended K selection: EASY = 0, HARD = 5, N = 15 = 7.
+      the intended K selection: EASY = 0, HARD = 3, N = 15 = 5.
 - [x] Add seeded, bounded selection of the required number of distinct
       interior walls after the perfect-maze generation pass.
 - [x] Preserve outer walls and keep `maze_gen` as the sole RAM writer.
@@ -102,8 +105,8 @@ behavior.
 
 ## Definition of Done
 
-- EASY remains a perfect maze; HARD has exactly five extra openings; N = 15
-  has exactly seven extra openings.
+- EASY remains a perfect maze; HARD has exactly three extra openings; N = 15
+  has exactly five extra openings, one per row band.
 - All generated mazes are connected and solvable, preserve the outer boundary,
   and are deterministic for a given seed.
 - The generator remains the only writer of maze RAM.
@@ -114,29 +117,57 @@ behavior.
 
 ## Implementation Evidence
 
-The generator now adds loops while its DFS visits new cells. A newly visited
-cell exposes closed adjacencies to previously visited cells other than its DFS
-parent; the seeded xorshift state selects an eligible direction. Each edge is
-considered when its later endpoint is first visited, so an edge is never
-opened twice. EASY opens zero additional walls, HARD (N = 10) opens five, and
-N = 15 opens seven. All writes still use the existing `maze_gen` write port.
+The generator first builds the perfect maze, unchanged from Story 1.3: the
+spanning tree is the same as before for every seed, and EASY is bit-for-bit
+unchanged. While it carves passages it records which east and south walls it
+opened (two 256 x 1 LUT RAMs, cleared during the map clear). A loop pass then
+runs after the search: band k covers cell rows 3k..3k+2, the last band takes
+any leftover rows, and for each band a seeded start position is chosen and the
+band's interior walls are scanned (east, then south, wrapping) until a closed
+one is found and opened. A band of R rows always has at least (R-1)(N-1) closed
+interior walls, so the count is exact and the pass takes at most 2RN cycles per
+band. HARD (N = 10) gets 3 loops (bands 0-2, 3-5, 6-9) and N = 15 gets 5 (five
+bands of 3 rows); every other N, including EASY, gets none. All writes still
+use the existing `maze_gen` write port.
+
+**Loop placement (review of PR #77, decided by DY on 2026-11-01).** The PR as
+first opened opened a loop at each of the first K chances during the search.
+The search starts at the goal, so every loop landed in the first quarter of the
+build, next to the goal. A route-coverage probe (block each tile of the
+shortest start-goal route in turn and check whether the goal is still
+reachable; 50 seeds per size, RTL simulation) gave:
+
+| Version | Route tiles with a way round | Start half | Goal half | Mazes with a way round in the start half |
+|---|---|---|---|---|
+| First version, N = 10, K = 5 | 8% | 2% | 15% | 13 of 50 |
+| Band pass, N = 10, K = 3 | 26% | 29% | 23% | 39 of 50 |
+| First version, N = 15, K = 7 | 5% | 0% | 11% | 3 of 50 |
+| Band pass, N = 15, K = 5 | 27% | 32% | 21% | 47 of 50 |
+
+With fewer loops, the band pass gives a way round about three times as much of
+the route, and on both halves of it. A loop can still land on a dead-end branch
+and miss the route: 3 of 50 HARD mazes and 2 of 50 N = 15 mazes had no way
+round any route tile.
 
 Verified with AMD Vivado 2025.2:
 
 - `tb/run_story75.tcl`: PASS. 563 generator cases checked, including 200 HARD
-  seeds, 25 seeds at every N from 2 through 15, exact edge counts, connected
-  floor tiles, reachable goals, intact outer boundaries, and same-seed
+  seeds, 25 seeds at every N from 2 through 15, exact edge counts, one loop per
+  band (the last K floor writes are interior walls inside bands 0..K-1),
+  connected floor tiles, reachable goals, intact outer boundaries, and same-seed
   determinism at EASY, HARD, and N = 15. Maximum observed DFS depth was
-  170/225 entries; longest generation was 2,535 cycles.
-- `tb/run_current_stories.tcl`: PASS, exit code 0, including both OLED modes.
-  The N = 10 renderer expectation was updated from 199 to 204 floor tiles to
-  account for the five additional HARD passages.
+  170/225 entries; longest generation was 2,553 cycles.
+- Mutation checks against `tb_maze_gen`: putting every loop in band 0 gives 659
+  FAIL lines; opening walls without checking they are closed gives 662.
+- `tb/run_current_stories.tcl`: PASS, exit code 0, 38 PASS lines, including
+  both OLED modes. The N = 10 renderer expectation was updated from 199 to 202
+  floor tiles for the three HARD loops.
 - `tb/run_story14.tcl`: PASS. Its `tb_maze_gen` marker is now `PASS: maze_gen`,
   since this story changes the generator's PASS line.
-- `scripts/check_timing.tcl` (routed, 100 MHz): timing met. WNS +0.323 ns
-  (main +0.530 ns), WHS +0.055 ns. 3,840 LUTs (main 3,482), 3,702 registers
-  (main 3,682), 2.5 block RAM tiles, 6 DSPs. The worst path is in the OLED text
-  mailbox, not the generator.
+- `scripts/check_timing.tcl` (routed, 100 MHz): timing met. WNS +0.235 ns
+  (main +0.530 ns), WHS +0.037 ns. 3,580 LUTs (main 3,482; 16 as LUT RAM),
+  3,704 registers (main 3,682), 2.5 block RAM tiles, 6 DSPs. The worst path is
+  in the OLED text mailbox, not the generator.
 - `git diff --check`: PASS.
 
 No physical board test has been run. Issue #57 calls for that check to be

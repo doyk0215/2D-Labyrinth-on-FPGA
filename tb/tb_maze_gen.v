@@ -31,6 +31,14 @@ module tb_maze_gen;
     initial for (i = 0; i < `MAP_TILES; i = i + 1) mem[i] = 1'b0;   // stale floor on purpose
     always @(posedge clk) if (we) mem[waddr] <= wdata;
 
+    // ---- the last 8 floor writes of a run (the loop pass writes last) ----
+    integer floor_writes;
+    integer wlog [0:7];
+    always @(posedge clk) if (we && !wdata) begin
+        wlog[floor_writes % 8] = waddr;
+        floor_writes = floor_writes + 1;
+    end
+
     // ---- bookkeeping ----
     integer errors;
     integer runs;
@@ -81,8 +89,8 @@ module tb_maze_gen;
         input integer N;
         begin
             case (N)
-                10: expected_loop_count = 5;  // HARD
-                15: expected_loop_count = 7;  // largest stage
+                10: expected_loop_count = 3;  // HARD
+                15: expected_loop_count = 5;  // largest stage
                 default: expected_loop_count = 0;
             endcase
         end
@@ -116,8 +124,9 @@ module tb_maze_gen;
         input [31:0] s;
         integer limit, k, outside_floor, perimeter_floor, map_col, map_row;
         integer edge_openings, expected_openings, edge_row, edge_col;
+        integer K, band, band_first, band_last, loop_addr, loop_row, loop_col;
         begin
-            n_cells = drive[3:0]; seed = s;
+            n_cells = drive[3:0]; seed = s; floor_writes = 0;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
             cycles = 0; limit = 100000;
@@ -169,6 +178,23 @@ module tb_maze_gen;
                     errors = errors + 1;
                     $display("FAIL N=%0d seed=%h: %0d open adjacencies, expected %0d (K=%0d)",
                              N, s, edge_openings, expected_openings, expected_loop_count(N));
+                end
+
+                // Loop placement: the last K floor writes are interior walls,
+                // loop k in band k (cell rows 3k..3k+2, the last band to N-1).
+                K = expected_loop_count(N);
+                for (band = 0; band < K; band = band + 1) begin
+                    loop_addr  = wlog[(floor_writes - K + band) % 8];
+                    loop_row   = loop_addr / `MAP_STRIDE;
+                    loop_col   = loop_addr % `MAP_STRIDE;
+                    band_first = 2 * (3 * band) + 1;
+                    band_last  = (band == K - 1) ? 2 * N - 1 : 2 * (3 * band + 2) + 1;
+                    if (((loop_row + loop_col) % 2) != 1 || loop_row < band_first || loop_row > band_last ||
+                        loop_col < 1 || loop_col > 2 * N - 1) begin
+                        errors = errors + 1;
+                        $display("FAIL N=%0d seed=%h: loop %0d at tile (%0d,%0d), outside band rows %0d-%0d",
+                                 N, s, band, loop_col, loop_row, band_first, band_last);
+                    end
                 end
 
                 // BFS: every floor tile is connected and the goal is reachable.
