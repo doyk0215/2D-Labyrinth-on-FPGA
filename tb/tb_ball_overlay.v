@@ -18,7 +18,7 @@ module tb_ball_overlay;
     always #5 clk = ~clk;
 
     ball_overlay dut (
-        .clk(clk), .rst(rst), .start(start), .ball_x(ball_x), .ball_y(ball_y),
+        .clk(clk), .rst(rst), .start(start), .ball_x(ball_x), .ball_y(ball_y), .cam_x(18'sd0), .cam_y(18'sd0),
         .sin_q(sin_q), .cos_q(cos_q), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .ball_sx(ball_sx), .ball_sy(ball_sy), .ball_on(ball_on)
     );

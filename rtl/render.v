@@ -3,7 +3,8 @@
 
 // Inverse-map the screen into the maze. Each scanline starts with two signed
 // products; each following pixel needs only one add per coordinate. Coordinates
-// are signed Q13.14 maze pixels. The maze RAM and the output flags share one
+// are signed Q13.14 maze pixels. The screen centre shows the map centre plus
+// the camera, which is (0, 0) on stages that fit the screen. The maze RAM and the output flags share one
 // 100 MHz clock of latency. In WIN the goal tile blinks and the panel shows
 // the timer; both are latched with the frame snapshot, so they never change
 // in the middle of a picture.
@@ -18,6 +19,8 @@ module render #(
     input  wire [7:0]        time_min_bcd,
     input  wire [7:0]        time_sec_bcd,
     input  wire [3:0]        n_cells,
+    input  wire signed [`POS_W-1:0] cam_x,  // camera, Q9.8 from the map centre (Story 7.2)
+    input  wire signed [`POS_W-1:0] cam_y,
     input  wire [11:0]       angle,
     input  wire signed [15:0] sin_q,
     input  wire signed [15:0] cos_q,
@@ -86,13 +89,22 @@ module render #(
     end
 
     // At x=0, dx=-320. Positive angle rotates clockwise on a screen whose
-    // Y axis points down. Inverse-map screen (dx,dy) to maze pixels:
-    // maze_x = active-centre + dx*cos + dy*sin
-    // maze_y = active-centre - dx*sin + dy*cos
-    wire signed [26:0] line_x_q = active_centre_q -
-        (cos_ext <<< 8) - (cos_ext <<< 6) + row_sin;
-    wire signed [26:0] line_y_q = active_centre_q +
-        (sin_ext <<< 8) + (sin_ext <<< 6) + row_cos;
+    // Y axis points down. Inverse-map screen (dx,dy) to maze pixels about
+    // the view centre (the map centre plus the camera, Story 7.3):
+    // maze_x = view-centre + dx*cos + dy*sin
+    // maze_y = view-centre - dx*sin + dy*cos
+    // The per-frame part is registered. Its inputs (camera and trig snapshot)
+    // change only in vertical blanking, so every visible line of a frame uses
+    // one camera position, and the scanline load is a single add.
+    wire signed [26:0] cam_x_q = $signed({{9{cam_x[`POS_W-1]}}, cam_x}) <<< 6;   // Q9.8 -> Q13.14
+    wire signed [26:0] cam_y_q = $signed({{9{cam_y[`POS_W-1]}}, cam_y}) <<< 6;
+    reg  signed [26:0] base_x_q, base_y_q;
+    always @(posedge clk) begin
+        base_x_q <= active_centre_q + cam_x_q - (cos_ext <<< 8) - (cos_ext <<< 6);
+        base_y_q <= active_centre_q + cam_y_q + (sin_ext <<< 8) + (sin_ext <<< 6);
+    end
+    wire signed [26:0] line_x_q = base_x_q + row_sin;
+    wire signed [26:0] line_y_q = base_y_q + row_cos;
 
     always @(posedge clk) begin
         if (rst) begin

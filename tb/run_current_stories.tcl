@@ -48,6 +48,8 @@ foreach {top snapshot marker} {
     tb_story71_map story71_map_snapshot "PASS: Story 7.1 renderer"
     tb_story71_physics story71_physics_snapshot "PASS: Story 7.1 N=15 physics"
     tb_camera camera_snapshot "PASS: camera"
+    tb_story73_render story73_render_snapshot "PASS: Story 7.3 N=15 render"
+    tb_top_story73_camera top_story73_camera_snapshot "PASS: Story 7.3 top camera"
     tb_game_ctrl game_ctrl_snapshot "PASS: game_ctrl"
     tb_game_state_encoding game_state_encoding_snapshot "PASS: shared game state"
     tb_menu_ctrl menu_ctrl_snapshot "PASS: menu_ctrl"

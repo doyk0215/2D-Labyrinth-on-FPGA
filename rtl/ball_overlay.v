@@ -8,8 +8,10 @@
 // screen coordinates with the same angle render.v uses; render.v maps
 // screen -> maze with a clockwise-positive angle, so maze -> screen is
 //     sx = mx*cos - my*sin,   sy = mx*sin + my*cos
-// (offsets from the screen centre). The result is computed once per frame,
-// when `start` (ball_physics phys_done) pulses, in vertical blanking.
+// (offsets from the screen centre), where m is the ball relative to the camera
+// (Story 7.3: the screen centre shows the camera). The result is computed
+// once per frame, when `start` (the camera's cam_done) pulses, in vertical
+// blanking, so it uses this frame's ball and camera.
 //
 // ball_on is registered once, so it lines up with render.v's *_d flags (one
 // clock behind pixel_x / pixel_y) and can be used directly as render's ball_on.
@@ -18,9 +20,11 @@
 module ball_overlay (
     input  wire                         clk,
     input  wire                         rst,
-    input  wire                         start,        // ball_physics phys_done
+    input  wire                         start,        // camera cam_done
     input  wire signed [`POS_W-1:0]     ball_x,
     input  wire signed [`POS_W-1:0]     ball_y,
+    input  wire signed [`POS_W-1:0]     cam_x,        // camera, same format as the ball
+    input  wire signed [`POS_W-1:0]     cam_y,
     input  wire signed [`TRIG_W-1:0]    sin_q,
     input  wire signed [`TRIG_W-1:0]    cos_q,
     input  wire [9:0]                   pixel_x,
@@ -34,25 +38,32 @@ module ball_overlay (
     localparam integer R  = `BALL_RADIUS;
     localparam integer R2 = `BALL_RADIUS * `BALL_RADIUS;
 
-    // ---- position: 3 registered stages ----
-    reg s1, s2;
-    reg signed [`POS_W+`TRIG_W-1:0] p_xc, p_ys, p_xs, p_yc;       // Q10.22
-    reg signed [`POS_W+`TRIG_W:0]   sx_q, sy_q;
+    // ---- position: 4 registered stages ----
+    // ball - cam gets one extra bit, so it cannot wrap however far apart they are.
+    reg s0, s1, s2;
+    reg signed [`POS_W:0]           rel_x, rel_y;                 // Q10.8
+    reg signed [`POS_W+`TRIG_W:0]   p_xc, p_ys, p_xs, p_yc;       // Q11.22
+    reg signed [`POS_W+`TRIG_W+1:0] sx_q, sy_q;
     localparam integer FRAC = `POS_FRAC + `TRIG_FRAC;             // 22
-    localparam signed [`POS_W+`TRIG_W:0] HALF = 1 <<< (FRAC - 1);
+    localparam signed [`POS_W+`TRIG_W+1:0] HALF = 1 <<< (FRAC - 1);
 
     always @(posedge clk) begin
         if (rst) begin
-            s1 <= 1'b0; s2 <= 1'b0;
+            s0 <= 1'b0; s1 <= 1'b0; s2 <= 1'b0;
             ball_sx <= -11'sd100; ball_sy <= -11'sd100;     // off screen until the first position is computed
         end else begin
-            s1 <= start;
+            s0 <= start;
+            s1 <= s0;
             s2 <= s1;
             if (start) begin
-                p_xc <= ball_x * cos_q;
-                p_ys <= ball_y * sin_q;
-                p_xs <= ball_x * sin_q;
-                p_yc <= ball_y * cos_q;
+                rel_x <= ball_x - cam_x;
+                rel_y <= ball_y - cam_y;
+            end
+            if (s0) begin
+                p_xc <= rel_x * cos_q;
+                p_ys <= rel_y * sin_q;
+                p_xs <= rel_x * sin_q;
+                p_yc <= rel_y * cos_q;
             end
             if (s1) begin
                 sx_q <= p_xc - p_ys;
