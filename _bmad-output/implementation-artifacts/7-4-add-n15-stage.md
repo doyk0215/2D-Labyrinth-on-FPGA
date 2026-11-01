@@ -104,7 +104,8 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
 QZ reviews the former menu implementation and DY reviews OLED/status and the
 camera/render integration. QZ or DY must perform the non-author board check
 under `docs/parallel-workstreams.md` section 7.3 and record tested commit,
-PASS/FAIL and a photo or note. Hardware PASS is pending.
+PASS/FAIL and a photo or note. QZ reports the Basys 3 hardware check PASS on
+the bitstream built from commit `033c4b6`.
 
 1. Program `build/PR79-033c4b6/My_Top_Module.bit` (built from `033c4b6`).
 2. Check all three menu rows, UP/DOWN wrap and settings/back/start controls.
