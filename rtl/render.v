@@ -35,6 +35,10 @@ module render #(
     input  wire [4:0]        start_row,
     input  wire [4:0]        goal_col,
     input  wire [4:0]        goal_row,
+    input  wire [19:0]       box_cols,      // item box k at bits 5k+4:5k (Story 9.1);
+    input  wire [19:0]       box_rows,      // boxes 0 and 1 buff, 2 and 3 debuff
+    input  wire [3:0]        box_valid,     // from maze_gen
+    input  wire [3:0]        box_visible,   // picked-up boxes are hidden (Story 9.2)
     input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
     output reg  [3:0]        vga_r,
     output reg  [3:0]        vga_g,
@@ -55,6 +59,26 @@ module render #(
     localparam [3:0] GOAL_R = 4'h0, GOAL_G = 4'hf, GOAL_B = 4'h0;
     localparam [3:0] BACK_R = 4'h0, BACK_G = 4'h0, BACK_B = 4'h2;
     localparam [3:0] BALL_R = 4'hf, BALL_G = 4'hc, BALL_B = 4'h0;
+    localparam [11:0] BUFF_FILL = 12'h04f, BUFF_EDGE = 12'h0f0;
+    localparam [11:0] DEBUFF_FILL = 12'hc00, DEBUFF_EDGE = 12'hf88;
+    localparam [11:0] GLYPH_RGB = 12'hfff;
+
+    // Item box on a 16 x 16 tile: floor margin at 0 and 15, outline at 1 and
+    // 14, fill inside, and a white "?" in columns 5-10 of rows 3-11.
+    function [15:0] glyph_row;
+        input [3:0] y;
+        begin
+            case (y)
+                4'd3:  glyph_row = 16'h03c0;   // .####.
+                4'd4:  glyph_row = 16'h0660;   // ##..##
+                4'd5:  glyph_row = 16'h0600;   // ....##
+                4'd6:  glyph_row = 16'h0300;   // ...##.
+                4'd7, 4'd8, 4'd10, 4'd11:
+                       glyph_row = 16'h0180;   // ..##..
+                default: glyph_row = 16'h0000;
+            endcase
+        end
+    endfunction
 
     reg [1:0] frame_tick_d;
     reg [11:0] angle_snap;
@@ -167,12 +191,29 @@ module render #(
     // Every stage is stored with a fixed 32-tile row: addr = {row, col}.
     assign maze_raddr = in_map_now ? {tile_row_now, tile_col_now} : 10'd0;
 
+    wire [3:0] box_shown = box_valid & box_visible;
+    wire [3:0] is_box_now;
+    genvar bi;
+    generate
+        for (bi = 0; bi < 4; bi = bi + 1) begin : box_hit
+            assign is_box_now[bi] = in_map_now && box_shown[bi] &&
+                (tile_col_now == box_cols[5*bi +: 5]) &&
+                (tile_row_now == box_rows[5*bi +: 5]);
+        end
+    endgenerate
+
     reg in_map_d, is_start_d, is_goal_d, active_video_d;
+    reg is_buff_d, is_debuff_d;
+    reg [3:0] tile_px_d, tile_py_d;     // pixel inside the tile, maze space
     always @(posedge clk) begin
         if (rst) begin
             in_map_d <= 1'b0;
             is_start_d <= 1'b0;
             is_goal_d <= 1'b0;
+            is_buff_d <= 1'b0;
+            is_debuff_d <= 1'b0;
+            tile_px_d <= 4'd0;
+            tile_py_d <= 4'd0;
             active_video_d <= 1'b0;
             vga_hs <= 1'b1;
             vga_vs <= 1'b1;
@@ -184,11 +225,25 @@ module render #(
                 (tile_col_now == start_col) && (tile_row_now == start_row);
             is_goal_d <= in_map_now &&
                 (tile_col_now == goal_col) && (tile_row_now == goal_row);
+            is_buff_d <= |is_box_now[1:0];
+            is_debuff_d <= |is_box_now[3:2];
+            tile_px_d <= walk_x_q[17:14];
+            tile_py_d <= walk_y_q[17:14];
             active_video_d <= active_video;
             vga_hs <= hsync_in;
             vga_vs <= vsync_in;
         end
     end
+
+    wire box_margin = (tile_px_d == 4'd0) || (tile_px_d == 4'd15) ||
+                      (tile_py_d == 4'd0) || (tile_py_d == 4'd15);
+    wire box_edge   = (tile_px_d == 4'd1) || (tile_px_d == 4'd14) ||
+                      (tile_py_d == 4'd1) || (tile_py_d == 4'd14);
+    wire [15:0] glyph_bits = glyph_row(tile_py_d);
+    wire box_glyph  = glyph_bits[tile_px_d];
+    wire [11:0] box_rgb = box_glyph ? GLYPH_RGB :
+                          box_edge  ? (is_buff_d ? BUFF_EDGE : DEBUFF_EDGE) :
+                                      (is_buff_d ? BUFF_FILL : DEBUFF_FILL);
 
     always @* begin
         vga_r = 4'h0;
@@ -214,6 +269,8 @@ module render #(
                     end else begin
                         vga_r = GOAL_R; vga_g = GOAL_G; vga_b = GOAL_B;
                     end
+                end else if ((is_buff_d || is_debuff_d) && !box_margin) begin
+                    {vga_r, vga_g, vga_b} = box_rgb;
                 end else if (maze_rdata) begin
                     vga_r = WALL_R; vga_g = WALL_G; vga_b = WALL_B;
                 end else begin

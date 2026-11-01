@@ -133,6 +133,9 @@ module My_Top_Module #(
     wire [4:0]  start_row;
     wire [4:0]  goal_col;
     wire [4:0]  goal_row;
+    wire [19:0] box_cols;               // item boxes (Story 9.1)
+    wire [19:0] box_rows;
+    wire [3:0]  box_valid;
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
@@ -386,7 +389,10 @@ module My_Top_Module #(
         .start_col (start_col),
         .start_row (start_row),
         .goal_col  (goal_col),
-        .goal_row  (goal_row)
+        .goal_row  (goal_row),
+        .box_cols  (box_cols),
+        .box_rows  (box_rows),
+        .box_valid (box_valid)
     );
 
     // maze_gen is the sole writer; ball_physics reads walls through the
@@ -505,6 +511,10 @@ module My_Top_Module #(
         .start_row    (start_row),
         .goal_col     (goal_col),
         .goal_row     (goal_row),
+        .box_cols     (box_cols),
+        .box_rows     (box_rows),
+        .box_valid    (box_valid),
+        .box_visible  (4'b1111),        // Story 9.2 hides picked-up boxes
         .ball_on      (ball_on),
         .vga_r        (render_r),
         .vga_g        (render_g),
