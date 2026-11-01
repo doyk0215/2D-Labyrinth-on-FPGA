@@ -83,7 +83,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Render (C)**
 - Inputs: `angle`, `sin_q`, `cos_q`, `ball_x`, `ball_y`, `game_state`, `start/goal` (absolute tile coordinates), maze read port 2, `n_cells` (Story 7.1: the map centre depends on the stage), `cam_x`, `cam_y` (Story 7.3: the screen centre shows the map centre plus the camera; read live, as they change only in vertical blanking)
 - Outputs: `vga_r/g/b[3:0]`, `vga_hs`, `vga_vs`
-- C latches `angle`, `ball_x`, `ball_y` at frame start (AD-6)
+- C latches `angle`, `ball_x`, `ball_y` at frame start (AD-6). Since Story 7.3 the ball is latched by `ball_overlay` on `cam_done`, and `render` reads `cam_x`/`cam_y` live; both rely on the camera changing only in vertical blanking, between the angle snapshot and the first visible line
 - Story 3.3 visual part: `render.game_state` consumes the shared state
   contract and snapshots WIN with angle/trig in vertical blanking. WIN adds a
   fixed `YOU WIN` panel and green outline using `win_overlay` and `font_rom`;

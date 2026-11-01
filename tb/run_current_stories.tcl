@@ -1,4 +1,4 @@
-# Compile current RTL and run the supported v1 regression plus Story 6.1.
+# Compile current RTL and run the supported v1 regression plus Stories 6.1, 7.1, 7.2, 7.3 and 9.6.
 # Run with Vivado Simulator 2025.2.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
@@ -94,4 +94,4 @@ foreach {top snapshot marker} {
 # so they run from their own script.
 source [file join $tb_dir run_oled_display.tcl]
 
-puts "PASS regression for current RTL through Story 4.4 plus Story 6.1, including both OLED display modes"
+puts "PASS regression for current RTL through Story 4.4 plus Stories 6.1, 7.1, 7.2, 7.3 and 9.6, including both OLED display modes"

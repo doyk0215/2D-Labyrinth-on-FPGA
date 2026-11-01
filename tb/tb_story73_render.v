@@ -69,14 +69,14 @@ module tb_story73_render;
     // does not matter to render, which reads the camera live).
     task set_view;
         input [11:0] new_angle;
-        input integer cam_px_x, cam_px_y;
+        input integer cam_q_x, cam_q_y;          // camera in Q9.8, fractional bits included
         real theta;
         begin
             @(negedge clk);
             ce_pix = 1'b0;
             angle = new_angle;
-            cam_x = cam_px_x * 256; cam_y = cam_px_y * 256;
-            cxp = cam_px_x; cyp = cam_px_y;
+            cam_x = cam_q_x; cam_y = cam_q_y;
+            cxp = cam_q_x / 256.0; cyp = cam_q_y / 256.0;
             repeat (3) @(posedge clk);
             @(negedge clk); frame_tick = 1'b1;
             @(negedge clk); frame_tick = 1'b0;
@@ -172,7 +172,7 @@ module tb_story73_render;
     endtask
 
     // camera positions: map centre, then near each edge and corner
-    integer cams [0:11];
+    integer cams [0:15];
     integer v, a, y;
     initial begin
         cams[0] = 0;    cams[1] = 0;
@@ -181,11 +181,15 @@ module tb_story73_render;
         cams[6] = 220;  cams[7] = -220;
         cams[8] = -220; cams[9] = 0;
         cams[10] = 0;   cams[11] = 225;
+        // fractional positions, as the smoothed camera nearly always is
+        cams[12] = -137.37 * 256; cams[13] = 91.5 * 256;
+        cams[14] = 180.6 * 256;   cams[15] = -203.2 * 256;
         repeat (4) @(posedge clk);
         @(negedge clk); rst = 1'b0;
-        for (v = 0; v < 6; v = v + 1)
+        for (v = 0; v < 8; v = v + 1)
             for (a = 0; a < 4; a = a + 1) begin
-                set_view(a * 512, cams[2 * v], cams[2 * v + 1]);
+                set_view(a * 512, (v < 6) ? cams[2 * v] * 256 : cams[2 * v],
+                                  (v < 6) ? cams[2 * v + 1] * 256 : cams[2 * v + 1]);
                 if (a == 0)
                     for (y = 0; y < 480; y = y + 12) check_line(y, 1);
                 else

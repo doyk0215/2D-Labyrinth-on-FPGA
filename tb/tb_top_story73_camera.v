@@ -128,10 +128,15 @@ module tb_top_story73_camera;
         n_clk = 0; sum_x = 0; sum_y = 0;
         bxp = dut.ball_x / 256.0; byp = dut.ball_y / 256.0;
         @(posedge dut.frame_tick);
-        cx = 1.0 * sum_x / n_clk; cy = 1.0 * sum_y / n_clk;
-        $display("first PLAY frame: ball=(%f,%f) drawn=(%f,%f)", bxp, byp, cx, cy);
-        if (n_clk != 81 * 4 || cx - 320.0 > 0.5 || 320.0 - cx > 0.5 || cy - 240.0 > 0.5 || 240.0 - cy > 0.5)
-            fail("first PLAY frame does not show the ball at the screen centre");
+        if (n_clk != 81 * 4) begin
+            $display("  first PLAY frame: ball covers %0d pixel-clocks", n_clk);
+            fail("first PLAY frame does not draw the whole ball");
+        end else begin
+            cx = 1.0 * sum_x / n_clk; cy = 1.0 * sum_y / n_clk;
+            $display("first PLAY frame: ball=(%f,%f) drawn=(%f,%f)", bxp, byp, cx, cy);
+            if (cx - 320.0 > 0.5 || 320.0 - cx > 0.5 || cy - 240.0 > 0.5 || 240.0 - cy > 0.5)
+                fail("first PLAY frame does not show the ball at the screen centre");
+        end
 
         // falling in the start cell, then rotating
         measure(1, 0);
@@ -140,17 +145,25 @@ module tb_top_story73_camera;
         measure(2, 0);
         btnL = 1'b0;
 
-        // A forced ball path, 5 px/frame up-left, leaves the 48 px dead zone
-        // after about 10 frames, so the camera must follow.
+        // A forced ball path, 5 px/frame to the left only, leaves the 48 px
+        // dead zone after about 10 frames. The camera must follow on x, not
+        // move on y, and keep the ball within the dead zone plus lag; cam_x
+        // and cam_y then differ by tens of pixels, so a swapped axis in the
+        // overlay or render would show in measure(3).
         moved_x = dut.cam_x; moved_y = dut.cam_y;
         fx = dut.ball_x; fy = dut.ball_y;
-        for (i = 0; i < 16; i = i + 1) begin
+        for (i = 0; i < 24; i = i + 1) begin
             @(posedge dut.frame_tick);
-            fx = fx - 18'sd1280; fy = fy - 18'sd1280;
+            fx = fx - 18'sd1280;
             force dut.ball_x = fx; force dut.ball_y = fy;
         end
         measure(3, 0);
-        if (dut.cam_x === moved_x || dut.cam_y === moved_y) fail("camera did not follow the forced ball");
+        $display("camera moved from (%f,%f) to (%f,%f)", moved_x / 256.0, moved_y / 256.0,
+                 dut.cam_x / 256.0, dut.cam_y / 256.0);
+        if (dut.cam_x >= moved_x - 20 * 256) fail("camera did not follow the forced ball to the left");
+        if (dut.cam_y !== moved_y) fail("camera moved on y although the ball did not");
+        if (dut.ball_x - dut.cam_x < -88 * 256 || dut.ball_x - dut.cam_x > 88 * 256)
+            fail("ball left the dead zone plus smoothing lag");
         release dut.ball_x; release dut.ball_y;
 
         if (tears != 0) begin $display("  %0d clocks changed in active video", tears); fail("picture inputs changed during active video"); end

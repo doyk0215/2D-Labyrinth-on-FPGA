@@ -91,7 +91,29 @@ context:
 | The base register is recomputed every clock and has no reset | false | Its inputs (camera, trig snapshot, `n_cells`) change only in vertical blanking or at reset; the top bench saw no change in active video |
 | `render` reads the camera live instead of snapshotting it | false | The camera changes only two clocks after `phys_done`, in vertical blanking after the sin/cos snapshot; a reset mid-frame clears render too |
 | The regression is about 8 minutes longer | low | `tb_top_story73_camera` runs whole frames; trimmed from 14.5 minutes; kept because it is the only check of maze and ball alignment through the camera |
-| The regression banner still names only Story 6.1 | low | Pre-existing text; changes with the next story merged into the list |
+| The regression banner still names only Story 6.1 | low | Superseded by the independent review below: fixed
+
+Independent review (2026-11-01; Blind Hunter, Edge Case Hunter and Verification Gap subagents on the combined 7.2 + 7.3 diff):
+
+| Finding | Verdict | Evidence |
+|---|---|---|
+| Blind: the Code Map lists `tb/tb_render.v` as instantiating `render` | low | True (it instantiates the top). Rejected: the fix would edit this spec |
+| Blind: the Code Map says `cam_done` is one clock after `phys_init` | low | True, it is two, like `phys_done`. Both are in vertical blanking, so nothing depends on it. Rejected: spec-only fix |
+| Blind: specs say `done` while the board check is open | false | `done` ends this workflow; the board check is tracked on the PR. Rejected: spec-only fix |
+| Blind: `docs/parallel-workstreams.md` still says render latches the ball at frame start (AD-6) | low | Patched: the line now records the live camera read and the overlay's `cam_done` latch |
+| Blind: the render base has no load enable, so a camera change outside blanking would tear | low | With the follow latch below, the camera changes only on `cam_done` or reset, and `tb_camera` now asserts that; an enable would guard an unreachable state. Rejected |
+| Blind: `tb_camera` does not check the `cam_done` latency or that the camera changes only with `cam_done` | medium | Patched: exact two-clock checks after `phys_done` and `phys_init`, and a monitor; the monitor found the live-`n_cells` change (Edge finding 1) |
+| Blind: `phys_done` with or just after `phys_init` is untested | low | Patched: both cases added and pass. Removing the `!phys_init` gate changes nothing observable (the snap one clock later wins), so the gate is defensive only |
+| Blind: `tb_story73_render` uses whole-pixel cameras only | medium | Patched: (-137.37, 91.5) and (180.6, -203.2) added; 244,413 pixels checked |
+| Blind: `tb_camera` copies the camera parameters as literals | low | The bench fails loudly if a parameter changes. Rejected: plumbing for an unlikely edit |
+| Blind: `check_on_screen` truncates to whole pixels | low | Patched: compared in Q9.8 with reals |
+| Blind: the top bench's follow check only tests "changed" | medium | Patched: the forced path is x-only for 24 frames; the bench checks cam_x moved left by over 20 px, cam_y did not move, and the offset stays within 88 px |
+| Blind: the top bench divides by `n_clk` before checking it | low | Patched: checks first |
+| Blind: the regression banner is stale | low | Patched: names 6.1, 7.1, 7.2, 7.3 and 9.6 |
+| Blind: one long comment line in `render.v` | low | Patched: re-wrapped |
+| Verification gap: `ball_overlay`'s `ball - cam` is never tested with a camera whose x and y differ | medium | Patched: `tb_ball_overlay` has a camera input and five asymmetric cases; using `cam_x` for both axes, or swapping them, now gives 6 FAIL lines each |
+| Edge 1: live `n_cells` (legacy switches) flips `follow` mid-game, moving the camera without `cam_done` | low | Patched: `follow` is latched on `phys_init`, one register; the camera now changes only with `cam_done` or reset |
+| Edge 2 (claim): the Intent says N = 5 and N = 10 pictures "do not change", but their first PLAY frame now shows the ball on its spawn | low | True; an improvement recorded in the notes, but it differs from the frozen Intent wording. Needs the human's decision |
 
 ## Design Notes
 

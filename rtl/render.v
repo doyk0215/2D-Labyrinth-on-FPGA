@@ -4,8 +4,8 @@
 // Inverse-map the screen into the maze. Each scanline starts with two signed
 // products; each following pixel needs only one add per coordinate. Coordinates
 // are signed Q13.14 maze pixels. The screen centre shows the map centre plus
-// the camera, which is (0, 0) on stages that fit the screen. The maze RAM and the output flags share one
-// 100 MHz clock of latency. In WIN the goal tile blinks and the panel shows
+// the camera, which is (0, 0) on stages that fit the screen. The maze RAM and
+// the output flags share one 100 MHz clock of latency. In WIN the goal tile blinks and the panel shows
 // the timer; both are latched with the frame snapshot, so they never change
 // in the middle of a picture.
 module render #(
