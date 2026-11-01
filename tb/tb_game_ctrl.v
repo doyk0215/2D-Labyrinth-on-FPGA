@@ -36,6 +36,7 @@ module tb_game_ctrl;
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
         .in_goal      (in_goal),
+        .time_up      (1'b0),
         .game_state   (game_state),
         .gen_start    (gen_start),
         .seed_capture (seed_capture),

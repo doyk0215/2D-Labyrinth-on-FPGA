@@ -64,10 +64,12 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Game control (B)**
 - `game_state[2:0]` (Story 6.1): shared `GAME_STATE_W=3` and `ST_*`
   definitions in `rtl/labyrinth_pkg.vh`: MENU=0, GENERATE=1, PLAY=2,
-  WIN=3, LOSE=4. LOSE is reserved for Story 8.2; no transition enters it yet.
+  WIN=3, LOSE=4. Story 8.2 enters LOSE on countdown expiry, holds it for `LOSE_HOLD_FRAMES` (default 120), then returns to MENU. Timeout has priority over a simultaneous goal or regeneration request.
   Declare state ports with `GAME_STATE_W` and use `ST_*` for comparisons and
   case labels. This interface extension requires all three owners' approval.
 - Outputs: `gen_start`, `phys_init`, `phys_en`, `game_state`
+- Story 8.2 adds `game_ctrl.time_up` from `game_timer`. The timer loads EASY/HARD/HUGE limits (60/120/180 s parameters) on `phys_init` using `n_cells`, counts down only in PLAY, saturates at zero and freezes in WIN/LOSE. Legacy `elapsed_*_bcd` ports now carry remaining time. `time_up` includes the clock edge that decrements 00:01 to zero, so an exactly coincident goal cannot win at the deadline. No division is synthesized: parameter limits are converted to BCD at elaboration.
+- In LOSE physics is disabled and both smooth and queued snap rotation are frozen. A short or full CENTER reset still returns to MENU. Story 8.3 supplies the TIME UP display; this story retains the current display mask/formatter.
 - Inputs: `gen_done`, `in_goal`, reset, `game_cfg` (from `menu_ctrl`)
 
 **CENTER and reset (Story 6.2)**
@@ -91,6 +93,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 
 **Menu and OLED (B and A)**
 - `game_cfg[7:0]` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start). Story 6.1 keeps this width and packing unchanged.
+- Story 7.4 widens `menu_ctrl.selected_stage` to two bits (0 EASY, 1 HARD, 2 HUGE). UP/DOWN cycle through the three entries in opposite directions with wrap; both together do nothing. HUGE packs N=15 and restitution=1 (the HARD bounce preset), while the 8-bit `game_cfg` format is unchanged. All three entries occupy rows 1..3; row 0 keeps the LEFT/settings and CENTER/start hints. PLAY/WIN identify N=15 as `STAGE 3 HUGE`.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 

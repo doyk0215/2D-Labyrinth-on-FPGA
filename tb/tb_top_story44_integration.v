@@ -163,16 +163,17 @@ module tb_top_story44_integration;
             errors = errors + 1;
         end
         wait_generation_done;
-        if (gen_start_count != 1 || dut.elapsed_minutes_bcd !== 8'h00 ||
+        @(posedge clk); #1;
+        if (gen_start_count != 1 || dut.elapsed_minutes_bcd !== 8'h01 ||
             dut.elapsed_seconds_bcd !== 8'h00) begin
-            $display("FAIL Story 4.4 integration: first PLAY did not start stage one at 00:00");
+            $display("FAIL Story 4.4 integration: first PLAY did not start stage one at 01:00");
             errors = errors + 1;
         end
         expect_char(6, "1", "stage one from active configuration");
-        expect_char(21, "0", "timer displayed from zero");
+        expect_char(22, "1", "timer shows the stage limit");
 
         // Synchronize the initial PLAY status into the OLED, then hold its
-        // frame snapshot while the first elapsed second changes the text.
+        // frame snapshot while the first countdown second changes the text.
         force dut.oled_frame_begin = 1'b0;
         wait_text_pending;
         force dut.oled_frame_begin = 1'b1;
@@ -180,8 +181,8 @@ module tb_top_story44_integration;
         #1 force dut.oled_frame_begin = 1'b0;
         old_active_text = dut.text_active;
 
-        // phys_init clears the timer on the first PLAY edge; start a fresh
-        // one-second interval after that clear pulse has passed.
+        // phys_init loads the timer on the first PLAY edge; start a fresh
+        // one-second interval after that load pulse has passed.
         @(negedge clk);
         while (dut.phys_init) @(negedge clk);
         timeout = 0;
@@ -191,11 +192,11 @@ module tb_top_story44_integration;
             timeout = timeout + 1;
         end
         #1;
-        if (dut.elapsed_seconds_bcd !== 8'h01) begin
-            $display("FAIL Story 4.4 integration: one-second count did not reach 00:01");
+        if (dut.elapsed_seconds_bcd !== 8'h59) begin
+            $display("FAIL Story 4.4 integration: one-second countdown did not reach 00:59");
             errors = errors + 1;
         end
-        expect_char(25, "1", "live elapsed seconds");
+        expect_char(25, "9", "live remaining seconds");
         force dut.oled_frame_begin = 1'b0;
         wait_text_pending;
         if (dut.text_active !== old_active_text) begin
@@ -220,7 +221,7 @@ module tb_top_story44_integration;
         end
         repeat (TIMER_CLK_HZ * 3) @(posedge clk);
         #1;
-        if (dut.elapsed_seconds_bcd !== 8'h01 || dut.elapsed_minutes_bcd !== 8'h00) begin
+        if (dut.elapsed_seconds_bcd !== 8'h59 || dut.elapsed_minutes_bcd !== 8'h00) begin
             $display("FAIL Story 4.4 integration: elapsed timer advanced during WIN");
             errors = errors + 1;
         end
@@ -230,9 +231,9 @@ module tb_top_story44_integration;
         wait_state(`ST_GENERATE);
         wait_generation_done;
         @(posedge clk); #1;
-        if (gen_start_count != 2 || dut.elapsed_minutes_bcd !== 8'h00 ||
+        if (gen_start_count != 2 || dut.elapsed_minutes_bcd !== 8'h01 ||
             dut.elapsed_seconds_bcd !== 8'h00) begin
-            $display("FAIL Story 4.4 integration: automatic replay did not clear the old maze time");
+            $display("FAIL Story 4.4 integration: automatic replay did not reload the stage limit");
             errors = errors + 1;
         end
 
