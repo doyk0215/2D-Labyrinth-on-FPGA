@@ -12,7 +12,7 @@ module tb_menu_ctrl;
     wire start_game;
     wire [7:0] game_cfg;
     wire [511:0] status_text;
-    wire selected_stage;
+    wire [1:0] selected_stage;
     wire settings_page;
     integer errors = 0;
 
@@ -56,21 +56,37 @@ module tb_menu_ctrl;
         tick(2);
         rst = 1'b0;
         tick(1);
-        if (selected_stage !== 1'b0 || settings_page !== 1'b0 ||
+        if (selected_stage !== 2'd0 || settings_page !== 1'b0 ||
             game_cfg !== 8'h05 || status_text[7:0] !== "S" ||
-            status_text[8*48 +: 8] !== "L")
+            status_text[8*48 +: 8] !== " ")
             fail("default EASY stage menu/config incorrect");
 
         press_down;
-        if (selected_stage !== 1'b1 || game_cfg !== 8'h1A ||
+        if (selected_stage !== 2'd1 || game_cfg !== 8'h1A ||
             status_text[8*32 +: 8] !== ">")
             fail("DOWN did not select HARD N=10 / restitution 1");
+
+        press_down;
+        if (selected_stage !== 2'd2 || game_cfg !== 8'h1F ||
+            status_text[8*48 +: 8] !== ">" || status_text[8*49 +: 8] !== "H")
+            fail("DOWN did not select HUGE N=15 / restitution 1");
+        btn_up=1; btn_down=1; tick(1); btn_up=0; btn_down=0; tick(1);
+        if(selected_stage !== 2'd2) fail("simultaneous UP/DOWN changed selection");
+        press_up;
+        if(selected_stage !== 2'd1) fail("UP did not return HUGE to HARD");
+        press_up;
+        if(selected_stage !== 2'd0) fail("UP did not return HARD to EASY");
+        press_up;
+        if(selected_stage !== 2'd2) fail("UP did not wrap EASY to HUGE");
+        press_down;
+        if(selected_stage !== 2'd0) fail("DOWN did not wrap HUGE to EASY");
+        press_down; // retain original HARD/settings/rate scenarios below
 
         btn_settings = 1'b1;
         tick(1);
         btn_settings = 1'b0;
         tick(1);
-        if (!settings_page || selected_stage !== 1'b1 ||
+        if (!settings_page || selected_stage !== 2'd1 ||
             game_cfg !== 8'h1A || status_text[8*16 +: 8] !== "S")
             fail("settings page did not open while retaining the stage");
 
@@ -103,7 +119,7 @@ module tb_menu_ctrl;
         tick(1);
         btn_confirm = 1'b0;
         tick(1);
-        if (settings_page || start_game || selected_stage !== 1'b1 ||
+        if (settings_page || start_game || selected_stage !== 2'd1 ||
             game_cfg !== 8'h9A)
             fail("BTNC did not return to the stage page without starting");
 
@@ -121,7 +137,7 @@ module tb_menu_ctrl;
         tick(1);
         return_to_menu = 1'b0;
         menu_active = 1'b1;
-        if (selected_stage !== 1'b0 || settings_page ||
+        if (selected_stage !== 2'd0 || settings_page ||
             game_cfg !== 8'h85)
             fail("return-to-menu did not reset stage and preserve speed");
 
@@ -135,7 +151,7 @@ module tb_menu_ctrl;
         btn_down = 1'b1;
         tick(2);
         btn_down = 1'b0;
-        if (selected_stage !== 1'b0 || settings_page)
+        if (selected_stage !== 2'd0 || settings_page)
             fail("menu state changed outside MENU");
 
         if (errors == 0)

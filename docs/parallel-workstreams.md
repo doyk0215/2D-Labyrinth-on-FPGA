@@ -93,6 +93,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 
 **Menu and OLED (B and A)**
 - `game_cfg[7:0]` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start). Story 6.1 keeps this width and packing unchanged.
+- Story 7.4 widens `menu_ctrl.selected_stage` to two bits (0 EASY, 1 HARD, 2 HUGE). UP/DOWN cycle through the three entries in opposite directions with wrap; both together do nothing. HUGE packs N=15 and restitution=1 (the HARD bounce preset), while the 8-bit `game_cfg` format is unchanged. All three entries occupy rows 1..3; row 0 keeps the LEFT/settings and CENTER/start hints. PLAY/WIN identify N=15 as `STAGE 3 HUGE`.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 

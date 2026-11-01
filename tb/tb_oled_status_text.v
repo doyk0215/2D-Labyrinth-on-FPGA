@@ -68,6 +68,17 @@ module tb_oled_status_text;
         check_char(32, "Y", "WIN status");
         check_char(21, "0", "final time retained on WIN");
 
+        active_game_cfg = 8'h9F;
+        #1;
+        check_char(6, "3", "HUGE stage number in WIN");
+        check_char(8, "H", "HUGE stage label in WIN");
+        check_char(10, "G", "HUGE label is distinct from HARD");
+        check_char(25, "2", "HUGE preserves timer formatting");
+        game_state = `ST_PLAY;
+        #1;
+        check_char(6, "3", "HUGE stage number in PLAY");
+        check_char(32, "P", "HUGE PLAY status");
+
         game_state = `ST_GENERATE;
         #1;
         check_char(32, "G", "generation status");
