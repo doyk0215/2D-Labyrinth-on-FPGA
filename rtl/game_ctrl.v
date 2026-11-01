@@ -11,6 +11,7 @@ module game_ctrl #(
 ) (
     input  wire       clk,
     input  wire       rst,
+    input  wire       full_reset, // override legacy auto-start; always recover to MENU
     input  wire       frame_tick,
     input  wire       start_game,
     input  wire [7:0] game_cfg,
@@ -43,8 +44,9 @@ module game_ctrl #(
     assign phys_en = (game_state == `ST_PLAY);
 
     always @(posedge clk) begin
-        if (rst) begin
-            game_state      <= START_IN_MENU ? `ST_MENU : `ST_GENERATE;
+        if (rst || full_reset) begin
+            if (full_reset) game_state <= `ST_MENU;
+            else game_state <= START_IN_MENU ? `ST_MENU : `ST_GENERATE;
             gen_start       <= 1'b0;
             seed_capture    <= 1'b0;
             phys_init       <= 1'b0;

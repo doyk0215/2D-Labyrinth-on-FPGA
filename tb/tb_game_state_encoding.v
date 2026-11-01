@@ -11,7 +11,7 @@ module tb_game_state_encoding;
     wire [7:0] active_cfg;
     wire phys_en;
     game_ctrl #(.START_IN_MENU(1'b1), .WIN_HOLD_FRAMES(2)) ctrl_i (
-        .clk(clk), .rst(rst), .frame_tick(frame_tick), .start_game(start_game),
+        .clk(clk), .rst(rst), .full_reset(1'b0), .frame_tick(frame_tick), .start_game(start_game),
         .game_cfg(8'ha5), .regen_button(1'b0), .gen_busy(1'b0), .gen_done(gen_done),
         .in_goal(in_goal), .game_state(ctrl_state), .active_game_cfg(active_cfg),
         .gen_start(), .seed_capture(), .phys_init(), .phys_en(phys_en)
