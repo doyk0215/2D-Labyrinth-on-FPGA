@@ -332,7 +332,10 @@ module My_Top_Module #(
 
     angle_accumulator angle_i (
         .clk        (clk),
-        .rst        (rst),
+        // Menu-driven games start each freshly generated maze at canonical
+        // orientation, including automatic replay after WIN. Preserve the
+        // legacy auto-start path, where rotation may be held during GENERATE.
+        .rst        (rst | (START_IN_MENU && phys_init)),
         .frame_tick (frame_tick),
         .rot_cmd    (angle_rot_cmd),
         .rot_speed_sel (active_game_cfg[7:6]),

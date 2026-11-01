@@ -3,12 +3,12 @@
 // Exercise the real menu, generator, RAM, physics goal detector and replay.
 // Only frame timing and moving the ball directly to the goal are abbreviated.
 module tb_top_story74_stage;
-    reg clk=0, btnC=0, btnU=0, btnD=0;
+    reg clk=0, btnC=0, btnU=0, btnD=0, btnL=0;
     always #5 clk=~clk;
     tri1 ps2_clk, ps2_data;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(2),
         .WIN_HOLD_FRAMES(2)) dut (
-        .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(1'b0), .btnR(1'b0),
+        .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(btnL), .btnR(1'b0),
         .sw(16'h0001), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     task fail;
@@ -45,6 +45,8 @@ module tb_top_story74_stage;
             if(dut.ball_x !== 18'sd57344 || dut.ball_y !== 18'sd57344 ||
                dut.ball_i.restitution_sel !== 1 || dut.cam_x !== dut.ball_x || dut.cam_y !== dut.ball_y)
                 fail("ball did not spawn at bottom-right with snapped follow camera");
+            if(dut.angle !== 12'd0)
+                fail("fresh maze did not start at the canonical orientation");
         end
     endtask
     // Independent tile-level BFS through the generated map, starting at the
@@ -102,12 +104,17 @@ module tb_top_story74_stage;
             fail("HUGE status did not cross the real OLED mailbox");
         force dut.oled_frame_begin=1; cycles(80); release dut.oled_frame_begin;
         if(dut.text_active !== dut.status_text) fail("HUGE OLED frame did not capture complete text");
+        // Rotate the first game, then verify WIN holds that orientation until
+        // the automatic replay starts a freshly generated maze.
+        btnL=1; cycles(6); frame(); btnL=0; cycles(6);
+        if(dut.angle === 12'd0) fail("rotation setup failed before replay orientation check");
         // Use the actual physics goal detector, not a forced in_goal signal.
         force dut.ball_i.ball_x=-18'sd57344; force dut.ball_i.ball_y=-18'sd57344;
         cycles(2); if(!dut.in_goal) fail("N=15 goal detector missed goal centre");
         frame();
         if(dut.game_state !== `ST_WIN || dut.status_text[8*6+:8] !== "3" ||
            dut.status_text[8*32+:8] !== "Y") fail("HUGE WIN flow/status failed");
+        if(dut.angle === 12'd0) fail("WIN did not retain the completed maze orientation");
         release dut.ball_i.ball_x; release dut.ball_i.ball_y;
         frame(); if(dut.game_state !== `ST_WIN) fail("WIN hold ended early");
         frame(); if(dut.game_state !== `ST_GENERATE) fail("WIN did not replay");

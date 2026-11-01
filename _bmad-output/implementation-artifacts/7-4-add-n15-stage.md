@@ -56,7 +56,11 @@ source [file join $repo tb run_current_stories.tcl]
 - The real OLED mailbox transfers the complete HUGE status to its frame
   buffer. Moving only the ball to the goal exercises the actual physics goal
   detector, frame-safe WIN, hold and automatic N=15 replay. CENTER returns
-  to EASY menu. This does not claim a physical play-through.
+  to EASY menu. The integration bench rotates the first game, verifies WIN
+  retains that orientation, then checks the menu-driven replay resets the maze
+  to angle zero with the red start at bottom-right and green goal at top-left.
+  The legacy auto-start path retains its existing rotation behavior. This does
+  not claim a physical play-through.
 
 ## Validation
 
@@ -78,6 +82,14 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   together on merged RTL (five benches), including HUGE with countdown wiring.
   Generic regression descriptions allow either PR to merge first.
 - `git diff --check`: PASS. Tested implementation commit: `c0b34ce`.
+- Follow-up Vivado 2025.2 Story 7.4 focused regression: all three benches PASS,
+  including rotation during PLAY, preserved orientation during WIN and angle
+  zero after automatic replay.
+- Follow-up `tb/run_current_stories.tcl`: all 37 simulation runs PASS,
+  including both nominal OLED modes and the legacy auto-start rotation path.
+  Vivado reported existing unconnected-port warnings in unrelated benches.
+- The replay-orientation RTL has not yet been synthesized into the follow-up
+  bitstream; that build is pending the requested commit and PR 78 merge.
 
 ## Review and board check
 
