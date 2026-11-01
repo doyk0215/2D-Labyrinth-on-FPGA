@@ -72,7 +72,12 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   **2.5 BRAM tiles**, **6 DSPs**, **0 MMCM / 0 PLL**, within AD-8.
 - Build reports: `C:/EE2026Projects/build-story74-86f5158/timing_summary.rpt`
   and `utilization.rpt`. Generated files stay outside version control.
-- Full regression: results recorded after completion.
+- Full `tb/run_current_stories.tcl` regression: **37/37 simulation runs PASS**
+  (35 core benches plus both nominal-frequency OLED modes), exit 0.
+- Clean merge with independent Story 8.2 verified; both focused scripts pass
+  together on merged RTL (five benches), including HUGE with countdown wiring.
+  Generic regression descriptions allow either PR to merge first.
+- `git diff --check`: PASS. Tested implementation commit: `c0b34ce`.
 
 ## Review and board check
 
