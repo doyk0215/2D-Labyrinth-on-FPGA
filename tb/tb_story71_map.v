@@ -20,7 +20,7 @@ module tb_story71_map;
 
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(`ST_PLAY), .time_min_bcd(8'h00), .time_sec_bcd(8'h00), .n_cells(n_cells), .angle(12'd0),
+        .game_state(`ST_PLAY), .time_min_bcd(8'h00), .time_sec_bcd(8'h00), .n_cells(n_cells), .cam_x(18'sd0), .cam_y(18'sd0), .angle(12'd0),
         .sin_q(16'sd0), .cos_q(16'sd16384),
         .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(maze_raddr),

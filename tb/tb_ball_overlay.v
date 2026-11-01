@@ -9,6 +9,8 @@ module tb_ball_overlay;
     reg rst = 1'b1;
     reg start = 1'b0;
     reg signed [17:0] ball_x = 0, ball_y = 0;
+    reg signed [17:0] cam_x = 0, cam_y = 0;       // camera (Story 7.3): the ball is drawn relative to it
+    real cam_px_x = 0.0, cam_px_y = 0.0;
     reg signed [15:0] sin_q = 0, cos_q = 16384;
     reg [9:0] pixel_x = 0, pixel_y = 0;
     reg active_video = 1'b1;
@@ -18,7 +20,7 @@ module tb_ball_overlay;
     always #5 clk = ~clk;
 
     ball_overlay dut (
-        .clk(clk), .rst(rst), .start(start), .ball_x(ball_x), .ball_y(ball_y),
+        .clk(clk), .rst(rst), .start(start), .ball_x(ball_x), .ball_y(ball_y), .cam_x(cam_x), .cam_y(cam_y),
         .sin_q(sin_q), .cos_q(cos_q), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .ball_sx(ball_sx), .ball_sy(ball_sy), .ball_on(ball_on)
     );
@@ -50,14 +52,22 @@ module tb_ball_overlay;
             @(negedge clk); start = 1'b1;
             @(negedge clk); start = 1'b0;
             repeat (6) @(posedge clk);
-            // screen offset = maze rotated by the angle (render.v's inverse mapping)
-            ex = 320.0 + mx * $cos(th) - my * $sin(th);
-            ey = 240.0 + mx * $sin(th) + my * $cos(th);
+            // screen offset = (maze - camera) rotated by the angle (render.v's inverse mapping)
+            ex = 320.0 + (mx - cam_px_x) * $cos(th) - (my - cam_px_y) * $sin(th);
+            ey = 240.0 + (mx - cam_px_x) * $sin(th) + (my - cam_px_y) * $cos(th);
             // exact, except where the model value sits within 0.02 px of a rounding boundary
             if (!near_ok(ex, ball_sx) || !near_ok(ey, ball_sy)) begin
                 errors = errors + 1;
                 $display("FAIL: maze (%f,%f) angle %0d -> screen (%0d,%0d), model (%f,%f)", mx, my, a, ball_sx, ball_sy, ex, ey);
             end
+        end
+    endtask
+
+    task set_cam;    // camera in px from the map centre, rounded to Q9.8 as the hardware holds it
+        input real cx, cy;
+        begin
+            cam_x = $rtoi($floor(cx * 256.0 + 0.5)); cam_y = $rtoi($floor(cy * 256.0 + 0.5));
+            cam_px_x = cam_x / 256.0; cam_px_y = cam_y / 256.0;
         end
     endtask
 
@@ -99,6 +109,17 @@ module tb_ball_overlay;
         place( 120.0, -75.0, 2048);
         place(  3.25, -163.0, 3071);
         place(163.0, 163.0,  2561);
+
+        // Story 7.3: a camera with clearly different x and y, so a swapped or
+        // shared camera axis moves the ball by tens of pixels
+        set_cam(30.0, 70.0);
+        place(100.0, -50.0,    0);
+        place(100.0, -50.0, 1024);
+        place(100.0, -50.0,  333);
+        set_cam(-137.37, 91.5);
+        place(-120.25, 60.0, 2900);
+        place(-200.0, 150.0, 512);
+        set_cam(0.0, 0.0);
 
         // the disc: expected number of pixels with dx^2 + dy^2 <= R^2
         model_count = 0;

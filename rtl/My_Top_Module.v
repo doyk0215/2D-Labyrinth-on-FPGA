@@ -424,8 +424,9 @@ module My_Top_Module #(
     );
 
     // Camera (Story 7.2): follows the ball on stages too large for the
-    // screen, the map centre otherwise. Story 7.3 feeds it to render and
-    // ball_overlay; until then its outputs are unused.
+    // screen, the map centre otherwise. render centres the view on it and
+    // ball_overlay draws the ball relative to it (Story 7.3); both see the
+    // same value, which changes only in vertical blanking.
     wire signed [17:0] cam_x, cam_y;
     wire        cam_done;
     camera camera_i (
@@ -444,9 +445,11 @@ module My_Top_Module #(
     ball_overlay ball_ov_i (
         .clk          (clk),
         .rst          (rst),
-        .start        (phys_done),
+        .start        (cam_done),   // after the camera moves for this frame
         .ball_x       (ball_x),
         .ball_y       (ball_y),
+        .cam_x        (cam_x),
+        .cam_y        (cam_y),
         .sin_q        (sin_frame),  // registered snapshot keeps the trig ROM off the DSP input path
         .cos_q        (cos_frame),
         .pixel_x      (pixel_x),
@@ -468,6 +471,8 @@ module My_Top_Module #(
         .frame_tick   (frame_tick),
         .game_state   (game_state),
         .n_cells      (n_cells),
+        .cam_x        (cam_x),
+        .cam_y        (cam_y),
         .time_min_bcd (elapsed_minutes_bcd),
         .time_sec_bcd (elapsed_seconds_bcd),
         .angle        (angle),
