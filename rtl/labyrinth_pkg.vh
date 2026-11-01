@@ -46,7 +46,7 @@
 `define SCREEN_CY      240
 
 // ---- Shared game state (Story 6.1) ----
-// Keep v1's codes; ST_LOSE is reserved for Story 8.2 and is not entered yet.
+// Keep v1's codes; Story 8.2 uses ST_LOSE for countdown expiry.
 `define GAME_STATE_W   3
 `define ST_MENU        3'd0
 `define ST_GENERATE    3'd1

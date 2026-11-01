@@ -7,7 +7,8 @@
 // when a MENU start request is accepted at a frame boundary.
 module game_ctrl #(
     parameter START_IN_MENU = 1'b0,
-    parameter integer WIN_HOLD_FRAMES = 120
+    parameter integer WIN_HOLD_FRAMES = 120,
+    parameter integer LOSE_HOLD_FRAMES = 120
 ) (
     input  wire       clk,
     input  wire       rst,
@@ -19,6 +20,7 @@ module game_ctrl #(
     input  wire       gen_busy,
     input  wire       gen_done,
     input  wire       in_goal,
+    input  wire       time_up,
     output reg  [`GAME_STATE_W-1:0] game_state,
     output reg        gen_start,
     output reg        seed_capture,
@@ -40,6 +42,8 @@ module game_ctrl #(
     reg       start_pending;
     reg [7:0] start_cfg_pending;
     reg [15:0] win_frames_elapsed;
+    localparam integer LOSE_COUNT_W = (LOSE_HOLD_FRAMES > 1) ? $clog2(LOSE_HOLD_FRAMES) : 1;
+    reg [LOSE_COUNT_W-1:0] lose_frames_elapsed;
 
     assign phys_en = (game_state == `ST_PLAY);
 
@@ -57,6 +61,7 @@ module game_ctrl #(
             start_cfg_pending <= {2'b00, 2'b00, 4'd5};
             active_game_cfg <= {2'b00, 2'b00, 4'd5};
             win_frames_elapsed <= 16'd0;
+            lose_frames_elapsed <= {LOSE_COUNT_W{1'b0}};
         end else begin
             gen_start    <= 1'b0;
             seed_capture <= 1'b0;
@@ -115,7 +120,11 @@ module game_ctrl #(
 
                 `ST_PLAY: begin
                     if (frame_tick) begin
-                        if (in_goal) begin
+                        if (time_up) begin
+                            game_state <= `ST_LOSE;
+                            lose_frames_elapsed <= {LOSE_COUNT_W{1'b0}};
+                            regen_pending <= 1'b0;
+                        end else if (in_goal) begin
                             game_state    <= `ST_WIN;
                             regen_pending <= 1'b0;
                             win_frames_elapsed <= 16'd0;
@@ -138,6 +147,22 @@ module game_ctrl #(
                             win_frames_elapsed <= 16'd0;
                         end else begin
                             win_frames_elapsed <= win_frames_elapsed + 16'd1;
+                        end
+                    end
+                end
+
+                `ST_LOSE: begin
+                    // Timeout returns to MENU without automatic regeneration.
+                    if (frame_tick) begin
+                        if ((LOSE_HOLD_FRAMES <= 1) ||
+                            (lose_frames_elapsed >= LOSE_HOLD_FRAMES - 1)) begin
+                            game_state <= `ST_MENU;
+                            lose_frames_elapsed <= {LOSE_COUNT_W{1'b0}};
+                            regen_pending <= 1'b0;
+                            start_pending <= 1'b0;
+                            gen_done_pending <= 1'b0;
+                        end else begin
+                            lose_frames_elapsed <= lose_frames_elapsed + 1'b1;
                         end
                     end
                 end
