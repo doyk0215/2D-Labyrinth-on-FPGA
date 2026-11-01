@@ -88,8 +88,16 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
 - Follow-up `tb/run_current_stories.tcl`: all 37 simulation runs PASS,
   including both nominal OLED modes and the legacy auto-start rotation path.
   Vivado reported existing unconnected-port warnings in unrelated benches.
-- The replay-orientation RTL has not yet been synthesized into the follow-up
-  bitstream; that build is pending the requested commit and PR 78 merge.
+- After PR 78 merged, focused Story 7.4 and Story 8.2 regressions both PASS
+  together on commit `033c4b6` (`e973e15` merge of PR 78 plus replay fix).
+- Vivado 2025.2 synthesis, implementation and bitstream generation PASS on
+  `033c4b6`. Routed WNS **+1.065 ns**, WHS **+0.017 ns**, TNS/THS **0.000 ns**;
+  all user timing constraints met. DRC: **0 errors**, 7 noncritical BRAM
+  pipelining warnings (DPIP-1/DPOP-2). Resources: **3,586 LUTs**, **3,725
+  registers**, **2.5 BRAM tiles**, **6 DSPs**.
+- Bitstream SHA-256:
+  `0535A22A8CE4A2E6D4204D7616C1787AB82F6F08B86CE6EB520E300E63FDFE03`.
+  Local copy: `build/PR79-033c4b6/My_Top_Module.bit`.
 
 ## Review and board check
 
@@ -98,7 +106,7 @@ camera/render integration. QZ or DY must perform the non-author board check
 under `docs/parallel-workstreams.md` section 7.3 and record tested commit,
 PASS/FAIL and a photo or note. Hardware PASS is pending.
 
-1. Program `C:/EE2026Projects/build-story74-86f5158/labyrinth.runs/impl_1/My_Top_Module.bit`.
+1. Program `build/PR79-033c4b6/My_Top_Module.bit` (built from `033c4b6`).
 2. Check all three menu rows, UP/DOWN wrap and settings/back/start controls.
 3. Select HUGE: verify bottom-right spawn, camera follow without shaking,
    readable walls and a reachable top-left goal. OLED identifies STAGE 3 HUGE
