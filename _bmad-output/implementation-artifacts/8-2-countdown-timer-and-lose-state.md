@@ -78,7 +78,10 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   **2.5 BRAM tiles**, **6 DSPs**, **0 MMCM / 0 PLL**, within AD-8.
 - Reports: `C:/EE2026Projects/build-story82-86f5158/timing_summary.rpt`
   and `utilization.rpt`. Build uses an isolated copy of this branch's RTL.
-- Full regression: results recorded after completion.
+- Full `tb/run_current_stories.tcl` regression: **37/37 simulation runs PASS**
+  (35 core benches and both nominal-frequency OLED driver modes), exit 0.
+  Focused final run separately includes the exact-deadline goal scenario.
+- `git diff --check`: PASS. Tested implementation commit: `fd24999`.
 
 ## Review and board check
 
