@@ -65,7 +65,16 @@ Vivado 2025.2, 2026-11-02:
   Only ball position is placed; RNG candidates/effects/events are not forced.
 - Existing timer, item controller, 9.2 top and 8.2 countdown fixtures PASS.
   Their new ports/expectations reflect instant bonus and protected consumption.
-- Full 47-run regression and routed Basys 3 build: running; results pending.
+- Full 47-run regression PASS, exit 0 with no FAIL markers. Both OLED driver
+  modes and the full-frame ball/camera benches passed. The isolated source
+  snapshot's RTL matches source commit `5ee692e` (normalizing line endings).
+- Full Basys 3 synthesis, implementation and bitstream generation PASS.
+  Routed setup +0.178 ns, hold +0.106 ns; DRC 0 errors. Utilization: 4,351 LUTs
+  (20.92%), 4,346 registers (10.45%), 3 BRAM tiles, 6 DSPs.
+- Local bitstream:
+  `C:/EE2026Projects/build-story95-a26d9d8/labyrinth.runs/impl_1/My_Top_Module.bit`
+  SHA256: `96FFE2D4AA6C7815BCC58AE924812C110C1DD0CB1E36C2F072842162645AD4D2`.
+- PR: https://github.com/doyk0215/2D-Labyrinth-on-FPGA/pull/84.
 - Hardware check: pending; no author board PASS claimed.
 
 ## Review and non-author board checklist
