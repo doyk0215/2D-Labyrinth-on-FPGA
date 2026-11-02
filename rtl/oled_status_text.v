@@ -9,6 +9,8 @@ module oled_status_text (
     input  wire [7:0]   active_game_cfg,
     input  wire [7:0]   elapsed_minutes_bcd,
     input  wire [7:0]   elapsed_seconds_bcd,
+    input wire [`ITEM_EFFECT_W-1:0] active_effect,
+    input wire [6:0] effect_seconds,
     output reg  [511:0] status_text
 );
 
@@ -51,8 +53,24 @@ module oled_status_text (
         end
     endfunction
 
+    reg [63:0] item_name;
+    reg [127:0] play_line;
     reg [127:0] stage_text;
     always @* begin
+        case(active_effect)
+            `ITEM_LOW_GRAV: item_name="LOW GRAV";
+            `ITEM_INVINCIBLE: item_name="INVINCIB";
+            `ITEM_TIME_BONUS: item_name="TIME +  ";
+            `ITEM_REVERSE_GRAV: item_name="REV GRAV";
+            `ITEM_HIGH_GRAV: item_name="HI GRAV ";
+            `ITEM_ZERO_GRAV: item_name="ZERO G  ";
+            `ITEM_INVERT: item_name="INVERT  ";
+            `ITEM_FOG: item_name="FOG     ";
+            default: item_name="        ";
+        endcase
+        play_line="PLAYING         ";
+        if(active_effect < `ITEM_NONE && active_effect <= `ITEM_FOG && effect_seconds != 0)
+            play_line={"ITEM:",item_name," ",digit_ascii(effect_seconds/10),digit_ascii(effect_seconds%10)};
         case (active_game_cfg[3:0])
             4'd5:    stage_text = "STAGE 1 EASY    ";
             4'd10:   stage_text = "STAGE 2 HARD    ";
@@ -69,7 +87,7 @@ module oled_status_text (
             `ST_PLAY: status_text = pack_text(
                 stage_text, format_time(elapsed_minutes_bcd,
                                         elapsed_seconds_bcd),
-                "PLAYING         ", "BTNC RESET      "
+                play_line, "BTNC RESET      "
             );
             `ST_WIN: status_text = pack_text(
                 stage_text, format_time(elapsed_minutes_bcd,

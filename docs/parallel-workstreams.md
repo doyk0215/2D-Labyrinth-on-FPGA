@@ -72,6 +72,12 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - In LOSE physics is disabled and both smooth and queued snap rotation are frozen. A short or full CENTER reset still returns to MENU. Story 8.3 shows a dedicated OLED TIME UP / TIME 00:00 page with the active stage and automatic-menu hint; the existing OLED mailbox still switches text only at its own frame boundary.
 - Inputs: `gen_done`, `in_goal`, reset, `game_cfg` (from `menu_ctrl`)
 
+**Board switches (Story 9.2 control remap)**
+- `SW0` selects snap rotation (1 = 90-degree press/release steps, 0 = smooth).
+- `SW5` selects fixed-seed maze generation (1 = repeatable map, 0 = fresh seed).
+- `SW[4:1]` keeps its legacy debug size meaning; menu-selected stages are unchanged.
+- The independent OLED bring-up top keeps its own SW0 text/test-pattern selector.
+
 **CENTER and reset (Story 6.2)**
 - `centre_button` synchronizes/debounces BTNC. `short_press` is a one-clock
   pulse on release of a short press. `full_reset` is a level after
@@ -96,6 +102,31 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Story 7.4 widens `menu_ctrl.selected_stage` to two bits (0 EASY, 1 HARD, 2 HUGE). UP/DOWN cycle through the three entries in opposite directions with wrap; both together do nothing. HUGE packs N=15 and restitution=1 (the HARD bounce preset), while the 8-bit `game_cfg` format is unchanged. All three entries occupy rows 1..3; row 0 keeps the LEFT/settings and CENTER/start hints. PLAY/WIN identify N=15 as `STAGE 3 HUGE`.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
+
+**Item pickup/effects (B, Story 9.2)**
+- `maze_gen` holds four packed tile positions (`box_cols[19:0]`, `box_rows[19:0]`,
+  five bits per slot) and `box_valid[3:0]`. Slots 0/1 are buffs; 2/3 debuffs.
+- `item_ctrl` owns `box_visible[3:0]`, `active_effect[3:0]`, remaining whole
+  seconds `[6:0]`, and per-box respawn counters. It samples the full signed
+  Q9.8 ball centre on `phys_done`; no radius/edge contact pickup is used.
+- Visibility changes on `phys_init`/`phys_done` in blanking (plus reset/menu
+  clearing). Each pickup hides one box for 15 s by default; an occupied box
+  waits for departure before reappearing. New maze/reset clears all state;
+  WIN/LOSE clears effects/timers and preserves the frozen box picture.
+- Effect IDs 0..7 match `item_icon_rom`: LOW_GRAV, INVINCIBLE, TIME_BONUS,
+  REVERSE_GRAV, HIGH_GRAV, ZERO_GRAV, INVERT, FOG. `ITEM_NONE=15`.
+  Buff/debuff selection uses separate rejection-sampled xorshift32 candidates.
+- Full pools are selected and displayed in 9.2, but only LOW_GRAV changes
+  gameplay here. Other codes are timed placeholders for Stories 9.3..9.5;
+  in particular 9.5 must implement instant time bonus/non-replacement and
+  invincibility blocking. 9.7 will add roulette blocking/delayed activation.
+- `ball_physics.effect_code[3:0]` is sampled with trig per frame. LOW_GRAV
+  halves the full signed acceleration product before fraction accumulation;
+  carried residual stays in common Q units, with the existing speed cap.
+- `oled_status_text` receives active effect/seconds and uses an exactly
+  16-character PLAY row (e.g. `ITEM:LOW GRAV 08`). Its mailbox stays frame-safe.
+- `pickup_pulse`, slot index and selected code expose one event for future
+  consumers. Current effect duration is 8 s; roulette is outside this story.
 
 **Camera (C, Story 7.2)**
 - Inputs: `phys_init`, `phys_done`, `n_cells[3:0]`, `ball_x`, `ball_y`

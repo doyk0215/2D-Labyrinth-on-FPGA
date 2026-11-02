@@ -9,7 +9,7 @@ module tb_top_story74_stage;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(2),
         .WIN_HOLD_FRAMES(2)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(btnL), .btnR(1'b0),
-        .sw(16'h0001), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
+        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     task fail;
         input [767:0] msg;

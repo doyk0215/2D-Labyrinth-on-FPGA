@@ -8,11 +8,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // Integration top: game_ctrl sequences generation/play, and the renderer is
-// held off while maze_gen writes the single map; rotation supports the SW5
+// held off while maze_gen writes the single map; rotation supports the SW0
 // snap fallback as well as the smooth mouse/button path.
-//   sw[0]   = debug seed (fixed seed, same maze every time)
+//   sw[5]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = retained debug value; Story 4.2 stage configuration selects N
-//   sw[5]   = 90-degree snap fallback (off = smooth rotation)
+//   sw[0]   = 90-degree snap fallback (off = smooth rotation)
 //   btnU/D  = stage navigation in MENU, rotation-rate selection in settings
 //   btnL    = open the settings page from the stage menu
 //   btnC    = short release: confirm in MENU / return to MENU elsewhere;
@@ -30,7 +30,10 @@ module My_Top_Module #(
     parameter integer LOSE_HOLD_FRAMES = 120,
     parameter integer EASY_TIME_SECONDS = 60,
     parameter integer HARD_TIME_SECONDS = 120,
-    parameter integer HUGE_TIME_SECONDS = 180
+    parameter integer HUGE_TIME_SECONDS = 180,
+    parameter integer ITEM_EFFECT_SECONDS = 8,
+    parameter integer ITEM_RESPAWN_SECONDS = 15,
+    parameter ITEM_STUB_LOW_ONLY = 1'b0
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -142,6 +145,12 @@ module My_Top_Module #(
     wire [19:0] box_cols;               // item boxes (Story 9.1)
     wire [19:0] box_rows;
     wire [3:0]  box_valid;
+    wire [3:0] box_visible;
+    wire [`ITEM_EFFECT_W-1:0] item_effect;
+    wire [6:0] item_seconds;
+    wire item_pickup;
+    wire [1:0] item_pickup_index;
+    wire [`ITEM_EFFECT_W-1:0] item_pickup_effect;
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
@@ -282,7 +291,7 @@ module My_Top_Module #(
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
     always @(posedge clk) begin
         if (system_reset) snap_sw_sync <= 2'b00;
-        else snap_sw_sync <= {snap_sw_sync[0], sw[5]};
+        else snap_sw_sync <= {snap_sw_sync[0], sw[0]};
     end
 
     // Synchronize BTND and convert its rising edge into a one-cycle request.
@@ -347,6 +356,7 @@ module My_Top_Module #(
         .active_game_cfg(active_game_cfg),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
         .elapsed_seconds_bcd(elapsed_seconds_bcd),
+        .active_effect(item_effect), .effect_seconds(item_seconds),
         .status_text(status_text)
     );
 
@@ -406,7 +416,7 @@ module My_Top_Module #(
     seed_source seed_i (
         .clk         (clk),
         .rst         (rst),
-        .debug_fixed (sw[0]),
+        .debug_fixed (sw[5]),
         .latch_en    (seed_capture),
         .seed        (seed)
     );
@@ -470,6 +480,7 @@ module My_Top_Module #(
         .n_cells    (n_cells),
         .sin_q      (sin_q),
         .cos_q      (cos_q),
+        .effect_code (item_effect),
         .restitution_sel (active_game_cfg[5:4]),
         .maze_raddr (maze_raddr_p),
         .maze_rdata (maze_rdata_p),
@@ -479,6 +490,18 @@ module My_Top_Module #(
         .vel_y      (ball_vy),
         .phys_done  (phys_done),
         .in_goal    (in_goal)
+    );
+
+    // Item coordinates share physics' stage-centred Q9.8 frame. The pickup
+    // commits after physics and is visible to gravity on the following frame.
+    item_ctrl #(.CLK_HZ(TIMER_CLK_HZ), .EFFECT_SECONDS(ITEM_EFFECT_SECONDS),
+        .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY)) item_i (
+        .clk(clk), .rst(rst), .game_state(game_state), .phys_init(phys_init),
+        .phys_done(phys_done), .n_cells(n_cells), .ball_x(ball_x), .ball_y(ball_y),
+        .box_cols(box_cols), .box_rows(box_rows), .box_valid(box_valid), .seed(seed),
+        .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
+        .pickup_pulse(item_pickup), .pickup_index(item_pickup_index),
+        .pickup_effect(item_pickup_effect)
     );
 
     // Camera (Story 7.2): follows the ball on stages too large for the
@@ -550,7 +573,7 @@ module My_Top_Module #(
         .box_cols     (box_cols),
         .box_rows     (box_rows),
         .box_valid    (box_valid),
-        .box_visible  (4'b1111),        // Story 9.2 hides picked-up boxes
+        .box_visible  (box_visible),    // Story 9.2 pickup/respawn visibility
         .ball_on      (ball_on),
         .vga_r        (render_r),
         .vga_g        (render_g),

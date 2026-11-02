@@ -11,7 +11,7 @@ module tb_top_win_indication;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
                     .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnD(1'b0), .btnL(1'b0), .btnR(1'b0),
-        .sw(16'h0001), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
+        .sw(16'h0020), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data), .oled_cs(), .oled_mosi(), .oled_sclk(),
         .oled_dc(), .oled_res(), .oled_vbatc(), .oled_vddc()
     );

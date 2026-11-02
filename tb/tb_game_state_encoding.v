@@ -30,6 +30,7 @@ module tb_game_state_encoding;
     reg [511:0] menu_text = 512'h4d; // distinct from PLAY/WIN status pages
     wire [511:0] status_text;
     oled_status_text status_i (
+        .active_effect(`ITEM_NONE), .effect_seconds(7'd0),
         .menu_text(menu_text), .game_state(state_in), .active_game_cfg(8'ha5),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds), .status_text(status_text)
     );
@@ -47,7 +48,7 @@ module tb_game_state_encoding;
     tri1 ps2_clk, ps2_data;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) top_i (
         .clk(clk), .btnC(1'b0), .btnU(1'b0), .btnD(1'b0), .btnL(1'b0), .btnR(1'b0),
-        .sw(16'h0001), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
+        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     localparam [`GAME_STATE_W-1:0] UNUSED_WITH_WIN_BITS = 3'b111;
     task fail;

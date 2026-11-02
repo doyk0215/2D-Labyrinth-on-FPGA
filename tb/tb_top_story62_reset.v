@@ -9,7 +9,7 @@ module tb_top_story62_reset;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
         .LONG_PRESS_CYCLES(64), .TIMER_CLK_HZ(32), .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(btnL), .btnR(1'b0),
-        .sw(16'h0001), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
+        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
         .oled_res(oled_res), .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)
     );
     // Only this integration bench scales the supplied driver's delay/frame
@@ -149,7 +149,14 @@ module tb_top_story62_reset;
 
         click(3); click(1); click(0); // FAST, then leave settings
         if (dut.game_cfg[7:6] !== 2'b10) fail("rotation preference precondition missing");
-        start_play(); cycles(100);
+        start_play();
+        // Countdown now arms only after a visible maze and player input.
+        // Shorten scanout here while exercising the real button synchronizer.
+        force dut.maze_pixel_visible = 1'b1;
+        btnL = 1; cycles(8); btnL = 0; cycles(8);
+        release dut.maze_pixel_visible;
+        if (!dut.elapsed_timer_i.play_started) fail("PLAY timer did not arm after visible input");
+        cycles(100);
         if (dut.elapsed_seconds_bcd === 0) fail("PLAY timer reset precondition missing");
         // Short return preserves the configured speed, unlike a full reset.
         click(0);

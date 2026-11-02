@@ -42,6 +42,7 @@ module ball_physics (
     input  wire [`N_CELLS_W-1:0]        n_cells,
     input  wire signed [`TRIG_W-1:0]    sin_q,
     input  wire signed [`TRIG_W-1:0]    cos_q,
+    input  wire [`ITEM_EFFECT_W-1:0] effect_code, // 9.2: only LOW_GRAV changes physics
     input  wire [`RESTIT_SEL_W-1:0]     restitution_sel, // 0 = 0.5, 1 = 0.75, 2 = 0.625, 3 = 0.375
     output reg  [`MAP_ADDR_W-1:0]       maze_raddr,   // maze_ram physics read port
     input  wire                         maze_rdata,   // 1 = wall, one clock after maze_raddr
@@ -102,8 +103,13 @@ module ball_physics (
     // The coefficient is a constant, so the product is a few shifted adds in
     // LUTs; keeping it out of DSP48s leaves the AD-8 budget (<= 8) its spares.
     (* use_dsp = "no" *) reg signed [28:0] gx_prod_r, gy_prod_r;
-    wire signed [29:0] gx_accum = {gx_prod_r[28], gx_prod_r} + $signed({10'b0, gx_frac});
-    wire signed [29:0] gy_accum = {gy_prod_r[28], gy_prod_r} + $signed({10'b0, gy_frac});
+    reg low_gravity_r;
+    // Scale the entire signed product before splitting integer/fractional
+    // acceleration. Existing carried residual remains in common Q units.
+    wire signed [29:0] gx_scaled = low_gravity_r ? ($signed({gx_prod_r[28],gx_prod_r}) >>> 1) : $signed({gx_prod_r[28],gx_prod_r});
+    wire signed [29:0] gy_scaled = low_gravity_r ? ($signed({gy_prod_r[28],gy_prod_r}) >>> 1) : $signed({gy_prod_r[28],gy_prod_r});
+    wire signed [29:0] gx_accum = gx_scaled + $signed({10'b0, gx_frac});
+    wire signed [29:0] gy_accum = gy_scaled + $signed({10'b0, gy_frac});
 
     // Tile centres are spaced 16 px; the centre tile index is N on every stage.
     wire signed [AW-1:0] spawn_col_ext = $signed({{(AW-`COORD_W){1'b0}}, spawn_col});
@@ -182,6 +188,7 @@ module ball_physics (
         if (rst) begin
             ft_d <= 5'b0; go2 <= 1'b0; go3 <= 1'b0;
             gx <= 0; gy <= 0; gx_frac <= 0; gy_frac <= 0;
+            low_gravity_r <= 0;
             sin_g_r <= 0; cos_g_r <= 0; gx_prod_r <= 0; gy_prod_r <= 0;
             ball_x <= 0; ball_y <= 0; vel_x <= 0; vel_y <= 0;
             state <= S_IDLE; axis <= 1'b0; wall0 <= 1'b0; oob_r <= 1'b0;
@@ -196,6 +203,7 @@ module ball_physics (
             // the ROM/sign, constant-multiply adder and wide carry paths out of
             // one 100 MHz path.
             if (ft_d[1]) begin
+                low_gravity_r <= (effect_code == `ITEM_LOW_GRAV);
                 sin_g_r <= sin_q;
                 cos_g_r <= cos_q;
             end

@@ -38,6 +38,7 @@ module tb_ball_physics;
     );
 
     ball_physics dut (
+        .effect_code(`ITEM_NONE),
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init), .phys_en(phys_en),
         .spawn_col(spawn_col), .spawn_row(spawn_row),
         .goal_col(goal_col), .goal_row(goal_row), .sin_q(sin_q), .cos_q(cos_q),
