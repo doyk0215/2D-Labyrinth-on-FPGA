@@ -152,6 +152,7 @@ module My_Top_Module #(
     wire        in_goal;
     wire        render_enable;
     reg         render_enable_d = 1'b0;
+    wire        maze_pixel_visible;
     reg         active_video_d = 1'b0;
 
     wire mouse_left;
@@ -273,7 +274,7 @@ module My_Top_Module #(
     // Keep the completed maze visible behind the Story 3.3 win indication.
     // MENU and GENERATE still mask the display and disable map reads.
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN);
-    wire timer_display_active = render_enable_d && active_video_d;
+    wire timer_display_active = render_enable_d && maze_pixel_visible;
 
     game_ctrl #(
         .START_IN_MENU(START_IN_MENU),
@@ -304,7 +305,7 @@ module My_Top_Module #(
         .HUGE_SECONDS(HUGE_TIME_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
-        .display_active(timer_display_active),
+        .maze_pixel_visible(timer_display_active),
         .game_state(game_state),
         .phys_init(phys_init),
         .n_cells(n_cells),
@@ -529,6 +530,7 @@ module My_Top_Module #(
         .vga_b        (render_b),
         .vga_hs       (vga_hs),
         .vga_vs       (vga_vs),
+        .maze_pixel_visible(maze_pixel_visible),
         .sin_snap     (sin_frame),
         .cos_snap     (cos_frame)
     );

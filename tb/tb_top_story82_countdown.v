@@ -45,10 +45,19 @@ module tb_top_story82_countdown;
             cycles(3);
             if(dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
                 fail("timer started while the generated maze was still blanked");
+            force dut.maze_pixel_visible=1'b0;
             force dut.active_video=1'b1;
+            if(dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("timer started before a maze pixel was output");
+            cycles(2);
+            if(dut.elapsed_timer_i.play_started)
+                fail("active video without maze content started the timer");
+            force dut.maze_pixel_visible=1'b1;
             cycles(2);
             if(!dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
                 fail("timer did not arm when active maze pixels reached scanout");
+            release dut.maze_pixel_visible;
+            release dut.active_video;
             release dut.active_video;
             cycles(16);
             if(dut.elapsed_seconds_bcd !== 8'h03)

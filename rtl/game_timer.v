@@ -11,7 +11,7 @@ module game_timer #(
 ) (
     input wire clk,
     input wire rst,
-    input wire display_active,
+    input wire maze_pixel_visible,
     input wire [`GAME_STATE_W-1:0] game_state,
     input wire phys_init,
     input wire [3:0] n_cells,
@@ -69,7 +69,7 @@ module game_timer #(
             // display. Generation completion and the renderer's frame
             // snapshot both happen during vertical blanking, before the maze
             // is visible on the screen.
-            if (display_active)
+            if (maze_pixel_visible)
                 play_started <= 1'b1;
 
             if (!play_started || empty) begin

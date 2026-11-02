@@ -89,12 +89,12 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   together on merged RTL (five benches), including HUGE generation/OLED/goal
   and replay with the countdown connected. Regression labels are generic so
   either feature PR can merge first without a script-description conflict.
-- Timer-start follow-up (2026-11-02): the initial fix armed at the renderer's
-  frame-capture edge, which still precedes the first active video pixels. The
-  corrected fix arms only when the top-level PLAY display is enabled and the
-  delayed active-video signal is high. The real-top test holds scanout blank
-  after generation, verifies the timer stays loaded, then enables active video
-  and checks that the timer arms on that first visible interval.
+- Timer-start follow-up (2026-11-02): the initial fixes armed before the maze
+  pixels reached the VGA output. The corrected fix arms only when top-level
+  PLAY output is enabled and the renderer's delayed map-pixel flag is high.
+  The real-top test holds active video without maze pixels and verifies the
+  timer stays loaded, then enables the maze-pixel flag and checks that timing
+  starts on that scanout pixel.
 
 ## Review and board check
 

@@ -2,14 +2,14 @@
 `include "labyrinth_pkg.vh"
 module tb_game_timer;
     localparam CLK_HZ = 4;
-    reg clk = 0, rst = 1, phys_init = 0, display_active = 0;
+    reg clk = 0, rst = 1, phys_init = 0, maze_pixel_visible = 0;
     reg [`GAME_STATE_W-1:0] game_state = `ST_GENERATE;
     reg [3:0] n_cells = 5;
     wire [7:0] minutes, seconds;
     wire time_up;
     always #5 clk = ~clk;
     game_timer #(.CLK_HZ(CLK_HZ)) dut (
-        .clk(clk), .rst(rst), .display_active(display_active), .phys_init(phys_init), .game_state(game_state),
+        .clk(clk), .rst(rst), .maze_pixel_visible(maze_pixel_visible), .phys_init(phys_init), .game_state(game_state),
         .n_cells(n_cells), .elapsed_minutes_bcd(minutes),
         .elapsed_seconds_bcd(seconds), .time_up(time_up)
     );
@@ -19,7 +19,7 @@ module tb_game_timer;
     wire [7:0] cap_minutes, cap_seconds;
     game_timer #(.CLK_HZ(1), .EASY_SECONDS(6000), .HARD_SECONDS(-1),
                  .HUGE_SECONDS(600)) cap_i (
-        .clk(clk), .rst(rst), .display_active(display_active), .phys_init(cap_init), .game_state(`ST_PLAY),
+        .clk(clk), .rst(rst), .maze_pixel_visible(maze_pixel_visible), .phys_init(cap_init), .game_state(`ST_PLAY),
         .n_cells(cap_stage), .elapsed_minutes_bcd(cap_minutes),
         .elapsed_seconds_bcd(cap_seconds), .time_up()
     );
@@ -41,8 +41,8 @@ module tb_game_timer;
     endtask
     task visible_frame;
         begin
-            @(negedge clk); display_active = 1'b1;
-            @(negedge clk); display_active = 1'b0;
+            @(negedge clk); maze_pixel_visible = 1'b1;
+            @(negedge clk); maze_pixel_visible = 1'b0;
         end
     endtask
     task check;
@@ -63,14 +63,14 @@ module tb_game_timer;
         load(5,60);
         cycles(12); check(60); // generation never consumes time
         game_state=`ST_PLAY;
-        cycles(CLK_HZ*3); check(60); // PLAY waits for its first displayed frame
+        cycles(CLK_HZ*3); check(60); // PLAY waits for the first visible maze pixel
         visible_frame();
         cycles(CLK_HZ-1); check(60);
         cycles(1); check(59);
         cycles(2); game_state=`ST_WIN;
         cycles(CLK_HZ*3); check(59);
         game_state=`ST_PLAY;
-        cycles(CLK_HZ*3); check(59); // re-entry waits for a new visible PLAY frame
+        cycles(CLK_HZ*3); check(59); // re-entry waits for a new visible maze pixel
         visible_frame();
         cycles(CLK_HZ-1); check(59); // discard partial second while paused
         cycles(1); check(58);
@@ -103,8 +103,8 @@ module tb_game_timer;
         for(i=5998;i>=0;i=i-1) begin
             cycles(1);
             if({cap_minutes,cap_seconds} !== bcd(i)) begin
-                $display("FAIL game_timer cap: expected %04h, got %02h%02h, started=%b, display_active=%b",
-                         bcd(i), cap_minutes, cap_seconds, cap_i.play_started, cap_i.display_active);
+                $display("FAIL game_timer cap: expected %04h, got %02h%02h, started=%b, maze_pixel_visible=%b",
+                         bcd(i), cap_minutes, cap_seconds, cap_i.play_started, cap_i.maze_pixel_visible);
                 $fatal(1);
             end
         end

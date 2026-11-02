@@ -45,6 +45,7 @@ module render #(
     output reg  [3:0]        vga_b,
     output reg               vga_hs,
     output reg               vga_vs,
+    output wire              maze_pixel_visible,
     output reg  signed [15:0] sin_snap,     // this frame's sin/cos, for ball_overlay
     output reg  signed [15:0] cos_snap
 );
@@ -234,6 +235,9 @@ module render #(
             vga_vs <= vsync_in;
         end
     end
+
+    // Align with the delayed map/background selection that drives VGA RGB.
+    assign maze_pixel_visible = active_video_d && in_map_d;
 
     wire box_margin = (tile_px_d == 4'd0) || (tile_px_d == 4'd15) ||
                       (tile_py_d == 4'd0) || (tile_py_d == 4'd15);
