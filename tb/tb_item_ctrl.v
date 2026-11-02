@@ -16,14 +16,14 @@ module tb_item_ctrl;
     wire [1:0] index;
     wire [3:0] stub_effect;
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(2),.RESPAWN_SECONDS(3)) dut (
-        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),
+        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.roulette_busy(1'b0),.roulette_commit(1'b0),
         .n_cells(n),.ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(valid),.seed(seed),
         .box_visible(visible),.active_effect(effect),.effect_seconds(seconds),
         .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),
         .debuff_blocked(blocked),.time_bonus_pulse(bonus)
     );
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(2),.RESPAWN_SECONDS(3),.STUB_LOW_ONLY(1)) stub_i (
-        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),
+        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.roulette_busy(1'b0),.roulette_commit(1'b0),
         .n_cells(n),.ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(valid),.seed(seed),
         .active_effect(stub_effect)
     );

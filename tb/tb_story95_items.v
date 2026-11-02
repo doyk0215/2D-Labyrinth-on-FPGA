@@ -20,6 +20,7 @@ module tb_story95_items;
         .game_state(state),.phys_init(init));
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(4),.RESPAWN_SECONDS(1)) item_i (
         .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.n_cells(4'd5),
+        .roulette_busy(1'b0),.roulette_commit(1'b0),
         .ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(4'b1111),.seed(32'h12345678),
         .box_visible(visible),.active_effect(effect),.effect_seconds(effect_seconds),
         .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),.time_bonus_pulse(bonus));

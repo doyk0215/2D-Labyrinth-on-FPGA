@@ -118,7 +118,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   Buff/debuff selection uses separate rejection-sampled xorshift32 candidates.
 - Full pools are selected in 9.2. Story 9.5 adds INVINCIBLE and instant
   TIME_BONUS; other gravity/control/render consumers arrive in 9.3/9.4.
-  9.7 adds roulette blocking/delayed activation.
+  9.7 adds roulette blocking/delayed activation (details below).
 - `ball_physics.effect_code[3:0]` is sampled with trig per frame. LOW_GRAV
   halves the full signed acceleration product before fraction accumulation;
   carried residual stays in common Q units, with the existing speed cap.
@@ -137,11 +137,32 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   capped at 99:59 after applying a coincident ordinary countdown tick. A positive
   grant suppresses same-edge `time_up`; zero/negative parameters do not.
   Partial-second phase and first-visible-input arming are preserved.
-- For 9.7, consume `debuff_blocked` for the protection icon without starting a
-  roulette; ordinary pickups still publish the chosen code, including the
-  instant TIME_BONUS ID. Move the grant/activation to roulette completion,
-  preserving the timer's same-edge bonus/deadline contract. The current effect
-  duration is 8 s; no OLED roulette is implemented in 9.5.
+- Story 9.7 enables `item_ctrl.DEFER_EFFECT` in the shipping top. The engine
+  holds `pending_valid/pending_effect`, consumes the box immediately, and blocks
+  new pickups while pending or `roulette_busy`. `roulette_commit` applies the
+  held selection once, preserving the same-edge bonus/deadline contract.
+  Direct module users default to immediate behavior; legacy top fixtures use
+  `ITEM_ROULETTE_ENABLE=0` explicitly. No physical switch bypasses roulette.
+- `item_roulette` owns animation timing in the system domain: `SPIN_MS=1500`,
+  `HOLD_MS=1000`, `BLOCK_MS=1000` (top `ITEM_ROULETTE_*` / `ITEM_BLOCK_ICON_MS`).
+  It cycles only that slot's pool with four progressively longer intervals,
+  then displays the held chosen ID. CJX's explicit 2026-11-02 playtest decision
+  is to activate when the stopped result is first displayed, before its 1 s
+  hold ends. This overrides the original hold-end acceptance wording for now;
+  revisit the timing in 9.8. Gameplay and existing effect timers keep running.
+- A protected debuff produces only the INVINCIBLE icon for 1 s, with no pending
+  effect or commit. Pickups stay blocked through both roulette/result hold and
+  this notification, until the OLED has returned to status. Reset, phys_init
+  and non-PLAY cancel pending work; an effect already activated at spin stop
+  follows the usual terminal-state clearing, with no later duplicate grant.
+- `oled_roulette_pixel` uses the existing icon ROM at 3x scale: x=24..71,
+  y=8..55 in a black 96x64 frame, with one registered-pixel latency.
+  The existing held-data text mailbox now carries the source/icon nibble in
+  the same request and latches both at `oled_frame_begin`. Applied visual/frame
+  feedback returns through a synchronized toggle and held-data capture, qualified
+  by an actual driver pixel request (power-up counter boundaries do not count). Thus
+  activation waits for the actual selected-result frame; source/icon never
+  change inside an OLED frame. Status text continues updating behind the icon.
 
 **Camera (C, Story 7.2)**
 - Inputs: `phys_init`, `phys_done`, `n_cells[3:0]`, `ball_x`, `ball_y`
