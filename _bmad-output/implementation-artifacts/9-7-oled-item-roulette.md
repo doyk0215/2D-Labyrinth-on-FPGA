@@ -86,7 +86,20 @@ Vivado 2025.2, 2026-11-02:
   supplied by the fixture; RNG/effects are not forced. The unchanged SPI driver
   retains its separate nominal-clock initialization/frame regressions.
 - Prior item/timer/top/OLED fixtures PASS in the focused suite.
-- Full 50-run regression and routed Basys 3 build: running; results pending.
+- Full 50-run regression PASS against final OLED-ready RTL: 48 core benches
+  plus both nominal-frequency OLED driver modes, no FAIL markers, exit 0.
+  Log: `vivado/story97/regression_final.log`. The earlier snapshot run was
+  stopped before completion when the startup fix was added; its partial results
+  are not used for this final full-suite PASS.
+- Full Basys 3 synthesis, implementation and bitstream generation PASS on the
+  final RTL (`dc00016`), matching the isolated build snapshot after line-ending
+  normalization. Routed setup +0.236 ns, hold +0.040 ns; DRC 0 errors, no
+  unclocked/unconstrained internal timing endpoints. Utilization: 4,665 LUTs
+  (22.43%), 4,454 registers (10.71%), 3 BRAM tiles, 6 DSPs, no MMCM or PLL.
+- Local bitstream:
+  `C:/EE2026Projects/build-story97-final-af05f74/labyrinth.runs/impl_1/My_Top_Module.bit`
+  SHA256: `C9A0229797432B0195C41EF2657448FEB93D4097A7B6F133ADA2904C77324555`.
+- PR: https://github.com/doyk0215/2D-Labyrinth-on-FPGA/pull/85 (depends on #84).
 - Hardware check: pending; no author board PASS claimed.
 
 ## Non-author review and board checklist
