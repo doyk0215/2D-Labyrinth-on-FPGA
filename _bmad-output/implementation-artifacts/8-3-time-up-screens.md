@@ -70,8 +70,23 @@ source [file join $repo tb run_current_stories.tcl]
 
 ## Validation
 
-Focused four-bench suite PASS on 2026-11-02. Full regression and routed build
-results are recorded here once complete. Hardware verification is pending.
+Vivado 2025.2 on 2026-11-02, full `My_Top_Module`, Basys 3
+`xc7a35tcpg236-1`, implementation commit `5ca5d52`:
+
+- Focused four-bench suite: PASS, including the complete 420,000-pixel raster.
+- Fresh synthesis, implementation and bitstream generation: PASS, no errors
+  or critical warnings. Bitstream DRC: 0 errors. The ordinary implementation
+  warning is reset-activity power estimation, not a timing violation.
+- Routed WNS **+0.635 ns**, WHS **+0.102 ns**, TNS/THS **0.000 ns**;
+  all user-specified timing constraints met.
+- Resources: **3,671 LUTs** (17.65%), **3,810 registers** (9.16%),
+  **3 BRAM tiles**, **6 DSPs**, **0 MMCM / 0 PLL**, within AD-8.
+- Build/report directory: `C:/EE2026Projects/build-story83-f7c8b90`.
+  The isolated RTL snapshot matches this branch byte for byte.
+- Bitstream SHA-256:
+  `A548FB40BE36813FA6E322B171040E38CC314A9510CA76746AD86DCBA7908079`.
+- Full regression: final result recorded after completion.
+- Hardware verification remains pending.
 
 ## Non-author board checklist
 
