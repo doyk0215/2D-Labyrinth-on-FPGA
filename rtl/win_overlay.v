@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Fixed screen-space WIN panel and green outline for Stories 3.3 and 8.1.
-// The panel shows "YOU WIN" and, below it, "TIME mm:ss" from the BCD inputs.
+// The panel shows "YOU WIN" and, below it, "TIME LEFT mm:ss" from the BCD inputs.
 // Outputs share render's one-clock pixel latency. The renderer decides when
 // to show them from its frame snapshot of game_state; the maze stays behind.
 module win_overlay (
@@ -41,9 +41,9 @@ module win_overlay (
         end
     end
 
-    // Time line: 5x7 characters at 4x scale in ten 32 px cells
-    // T I M E _ m m : s s, spanning x=160..479, y=284..311.
-    wire [9:0] time_x = pixel_x - 10'd160;
+    // Time line: 5x7 characters at 4x scale in fifteen 32 px cells
+    // T I M E _ L E F T _ m m : s s, spanning x=80..559, y=284..311.
+    wire [9:0] time_x = pixel_x - 10'd80;
     wire [9:0] time_y = pixel_y - 10'd284;
     wire [3:0] time_cell = time_x[8:5];
     wire [2:0] time_glyph_col = time_x[4:2];
@@ -54,11 +54,15 @@ module win_overlay (
             4'd1: time_ch = "I";
             4'd2: time_ch = "M";
             4'd3: time_ch = "E";
-            4'd5: time_ch = {3'b011, time_min_bcd[7:4]};
-            4'd6: time_ch = {3'b011, time_min_bcd[3:0]};
-            4'd7: time_ch = ":";
-            4'd8: time_ch = {3'b011, time_sec_bcd[7:4]};
-            4'd9: time_ch = {3'b011, time_sec_bcd[3:0]};
+            4'd5: time_ch = "L";
+            4'd6: time_ch = "E";
+            4'd7: time_ch = "F";
+            4'd8: time_ch = "T";
+            4'd10: time_ch = {3'b011, time_min_bcd[7:4]};
+            4'd11: time_ch = {3'b011, time_min_bcd[3:0]};
+            4'd12: time_ch = ":";
+            4'd13: time_ch = {3'b011, time_sec_bcd[7:4]};
+            4'd14: time_ch = {3'b011, time_sec_bcd[3:0]};
             default: time_ch = 7'h20;
         endcase
         if (time_glyph_col >= 3'd5) time_ch = 7'h20;
@@ -77,9 +81,9 @@ module win_overlay (
     reg [2:0] text_row_d;
     assign text_on = text_area_d && font_data[text_row_d];
 
-    wire panel_now = pixel_x >= 10'd132 && pixel_x < 10'd508 &&
+    wire panel_now = pixel_x >= 10'd76 && pixel_x < 10'd564 &&
                      pixel_y >= 10'd192 && pixel_y < 10'd324;
-    wire panel_rim = panel_now && (pixel_x < 10'd136 || pixel_x >= 10'd504 ||
+    wire panel_rim = panel_now && (pixel_x < 10'd80 || pixel_x >= 10'd560 ||
                                    pixel_y < 10'd196 || pixel_y >= 10'd320);
     wire screen_rim = pixel_x >= 10'd12 && pixel_x < 10'd628 &&
                       pixel_y >= 10'd12 && pixel_y < 10'd468 &&
@@ -87,7 +91,7 @@ module win_overlay (
                        pixel_y < 10'd16 || pixel_y >= 10'd464);
     wire title_area_now = pixel_x >= 10'd156 && pixel_x < 10'd484 &&
                           pixel_y >= 10'd212 && pixel_y < 10'd268;
-    wire time_area_now = pixel_x >= 10'd160 && pixel_x < 10'd480 &&
+    wire time_area_now = pixel_x >= 10'd80 && pixel_x < 10'd560 &&
                          pixel_y >= 10'd284 && pixel_y < 10'd312;
     always @(posedge clk) begin
         if (rst) begin

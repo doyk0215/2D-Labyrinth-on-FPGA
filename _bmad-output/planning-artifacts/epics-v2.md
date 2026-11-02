@@ -217,11 +217,11 @@ So that the maze is not a single path to follow.
 
 **Given** a HARD or N = 15 maze
 **When** generation finishes
-**Then** K interior walls (a fixed per-stage parameter: HARD 5, N = 15 7) between two floor cells are removed, outer walls are untouched, and `maze_gen` is still the only writer of `maze_ram`
+**Then** up to K interior walls (a per-stage cap: HARD 3, N = 15 5) between two floor cells are removed, at most one per existing row band; outer walls are untouched, and `maze_gen` is still the only writer of `maze_ram`
 
 **Given** the generator bench
 **When** many seeds run
-**Then** EASY mazes are still perfect, loop stages are connected with exactly (cells - 1 + K) openings, start and goal are reachable, and output is deterministic per seed
+**Then** EASY mazes are still perfect, loop stages are connected with between (cells - 1) and (cells - 1 + K) openings, start and goal are reachable, and output is deterministic per seed
 
 **Given** the architecture spine
 **When** it is updated
