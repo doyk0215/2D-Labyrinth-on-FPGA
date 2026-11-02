@@ -111,8 +111,29 @@ source [file join $repo tb run_current_stories.tcl]
 
 ## Validation
 
-Focused five-bench suite PASS on 2026-11-02. Full regression and routed build
-results are added after completion. Hardware verification is pending.
+Validated with Vivado 2025.2 on 2026-11-02:
+
+- Focused five-bench suite PASS; the shipping full-pool top integration also
+  passed independently after its initial low-only configuration passed.
+- All 44 regression runs PASS across two segments: the initial 17 benches,
+  followed by the remaining 25 benches and both OLED driver modes. The initial
+  run exposed a stale Story 6.2 fixture that assumed automatic timer arming.
+  Updated the 6.2/4.4 fixtures to supply the visible maze/player action required
+  by merged main, retaining their original timer/reset assertions. Resumed at
+  the corrected 6.2 bench; the final runner exited 0 with no FAIL markers.
+  Local logs: `vivado/story92/regression.log` (initial segment) and
+  `vivado/story92/regression_remaining.log` (successful continuation).
+- Full Basys 3 synthesis, implementation and bitstream generation PASS.
+  Routed setup slack +0.369 ns, hold slack +0.071 ns; DRC 0 errors, no
+  unclocked or unconstrained internal timing endpoints. Utilization: 4,291
+  LUTs, 4,343 registers, 3 BRAM tiles, 6 DSPs.
+- Build source RTL matches source commit `5de12df` and the branch RTL byte for
+  byte; subsequent changes are test fixtures/documentation only. Local bitstream:
+  `C:/EE2026Projects/build-story92-8f3b1c3/labyrinth.runs/impl_1/My_Top_Module.bit`
+  SHA256: `3DE5430C03DCA609DB730C51092F30740A7FF0701F1F86A1118501B398D010C7`.
+
+PR: https://github.com/doyk0215/2D-Labyrinth-on-FPGA/pull/83.
+Hardware verification is pending.
 
 ## Non-author board checklist
 

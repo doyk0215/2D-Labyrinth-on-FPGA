@@ -181,10 +181,19 @@ module tb_top_story44_integration;
         #1 force dut.oled_frame_begin = 1'b0;
         old_active_text = dut.text_active;
 
-        // phys_init loads the timer on the first PLAY edge; start a fresh
-        // one-second interval after that load pulse has passed.
+        // phys_init loads the limit; the merged timer also requires visible
+        // maze content and a first player action before starting its interval.
         @(negedge clk);
         while (dut.phys_init) @(negedge clk);
+        force dut.maze_pixel_visible = 1'b1;
+        force dut.timer_player_action = 1'b1;
+        repeat (3) @(negedge clk);
+        release dut.maze_pixel_visible;
+        release dut.timer_player_action;
+        if (!dut.elapsed_timer_i.play_started) begin
+            $display("FAIL Story 4.4 integration: visible player action did not arm countdown");
+            errors = errors + 1;
+        end
         timeout = 0;
         while ((dut.elapsed_seconds_bcd == 8'h00) &&
                (timeout < TIMER_CLK_HZ + 10)) begin

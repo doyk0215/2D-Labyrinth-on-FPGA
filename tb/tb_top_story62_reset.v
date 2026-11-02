@@ -149,7 +149,14 @@ module tb_top_story62_reset;
 
         click(3); click(1); click(0); // FAST, then leave settings
         if (dut.game_cfg[7:6] !== 2'b10) fail("rotation preference precondition missing");
-        start_play(); cycles(100);
+        start_play();
+        // Countdown now arms only after a visible maze and player input.
+        // Shorten scanout here while exercising the real button synchronizer.
+        force dut.maze_pixel_visible = 1'b1;
+        btnL = 1; cycles(8); btnL = 0; cycles(8);
+        release dut.maze_pixel_visible;
+        if (!dut.elapsed_timer_i.play_started) fail("PLAY timer did not arm after visible input");
+        cycles(100);
         if (dut.elapsed_seconds_bcd === 0) fail("PLAY timer reset precondition missing");
         // Short return preserves the configured speed, unlike a full reset.
         click(0);

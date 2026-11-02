@@ -115,7 +115,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   WIN/LOSE clears effects/timers and preserves the frozen box picture.
 - Effect IDs 0..7 match `item_icon_rom`: LOW_GRAV, INVINCIBLE, TIME_BONUS,
   REVERSE_GRAV, HIGH_GRAV, ZERO_GRAV, INVERT, FOG. `ITEM_NONE=15`.
-  Buff/debuff selection uses separate rejection-sampled LFSR candidates.
+  Buff/debuff selection uses separate rejection-sampled xorshift32 candidates.
 - Full pools are selected and displayed in 9.2, but only LOW_GRAV changes
   gameplay here. Other codes are timed placeholders for Stories 9.3..9.5;
   in particular 9.5 must implement instant time bonus/non-replacement and
