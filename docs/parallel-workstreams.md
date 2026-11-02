@@ -69,7 +69,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   case labels. This interface extension requires all three owners' approval.
 - Outputs: `gen_start`, `phys_init`, `phys_en`, `game_state`
 - Story 8.2 adds `game_ctrl.time_up` from `game_timer`. The timer loads EASY/HARD/HUGE limits (60/120/180 s parameters) on `phys_init` using `n_cells`, counts down only in PLAY, saturates at zero and freezes in WIN/LOSE. Legacy `elapsed_*_bcd` ports now carry remaining time. `time_up` includes the clock edge that decrements 00:01 to zero, so an exactly coincident goal cannot win at the deadline. No division is synthesized: parameter limits are converted to BCD at elaboration.
-- In LOSE physics is disabled and both smooth and queued snap rotation are frozen. A short or full CENTER reset still returns to MENU. Story 8.3 supplies the TIME UP display; this story retains the current display mask/formatter.
+- In LOSE physics is disabled and both smooth and queued snap rotation are frozen. A short or full CENTER reset still returns to MENU. Story 8.3 shows a dedicated OLED TIME UP / TIME 00:00 page with the active stage and automatic-menu hint; the existing OLED mailbox still switches text only at its own frame boundary.
 - Inputs: `gen_done`, `in_goal`, reset, `game_cfg` (from `menu_ctrl`)
 
 **CENTER and reset (Story 6.2)**
@@ -112,6 +112,14 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   its flags have the same one-clock pixel latency as the renderer. The top
   enables map reads/display in PLAY and WIN, and masks MENU/GENERATE. QZ still
   connects goal detection and supplies the approximately three-second WIN pause.
+
+- Story 8.3: `lose_overlay` draws a white TIME UP title on a dark red panel
+  with a red panel/screen outline. Its flags/font output use the same one-clock
+  pixel latency as `win_overlay`. `render.lose_frame` is captured with the
+  angle/trig/WIN snapshot in vertical blanking and has priority over the ball
+  and map. The top enables frozen maze reads/display in LOSE as in WIN, then
+  masks them on return to MENU. Existing WIN glyphs/timing are unchanged.
+  No module port widths or state encodings change.
 
 ## 4. Dependencies and integration points
 
@@ -156,7 +164,7 @@ For v2.0 each person takes a different stream from v1, so everyone works across 
 | DY | A (physics engine) | C (graphics and top level) | `vga_timing`, `render`, `maze_ram`, `ball_overlay`, `My_Top_Module.v`, `constraints/basys3.xdc`; new: `camera`, item icon ROM |
 | Shared | | | `labyrinth_pkg.vh` (owner: DY; changes need all three owners to approve) |
 
-Files not named above follow their stream: `Oled_Display`, `oled_text_pixel`, `oled_xy`, `oled_clk_div` and `seed_source` go with QZ; `win_overlay` goes with DY.
+Files not named above follow their stream: `Oled_Display`, `oled_text_pixel`, `oled_xy`, `oled_clk_div` and `seed_source` go with QZ; `win_overlay` and `lose_overlay` go with DY.
 
 The v1.0 rules still hold: one owner per file (AD-5), feature branches, and a pull request reviewed by the owner of the touched interface. A story that touches a file of another person is paired: the second owner writes their own file and reviews the rest.
 

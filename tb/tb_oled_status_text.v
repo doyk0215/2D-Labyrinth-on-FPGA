@@ -85,6 +85,29 @@ module tb_oled_status_text;
         check_char(16, "T", "generation timer reset display");
         check_char(21, "0", "generation time starts at zero");
 
+        // LOSE has its own page rather than aliasing the stage menu. Even
+        // nonzero input time cannot leak stale remaining time into TIME UP.
+        game_state = `ST_LOSE;
+        #1;
+        check_char(6, "3", "HUGE retained in LOSE");
+        check_char(21, "0", "LOSE zero minutes tens");
+        check_char(22, "0", "LOSE zero minutes units");
+        check_char(24, "0", "LOSE zero seconds tens");
+        check_char(25, "0", "LOSE zero seconds units");
+        check_char(32, "T", "TIME UP title");
+        check_char(37, "U", "TIME UP word");
+        check_char(38, "P", "TIME UP last letter");
+        check_char(48, "B", "automatic menu return hint");
+        active_game_cfg = 8'h05; #1;
+        check_char(6, "1", "EASY retained in LOSE");
+        active_game_cfg = 8'h1A; #1;
+        check_char(6, "2", "HARD retained in LOSE");
+        game_state = `ST_MENU; #1;
+        if (status_text !== menu_text) begin
+            $display("FAIL tb_oled_status_text: leaving LOSE did not restore the menu");
+            errors = errors + 1;
+        end
+
         if (errors == 0)
             $display("PASS: OLED status formatter menu passthrough, active stage, BCD time, WIN, and GENERATE");
         else

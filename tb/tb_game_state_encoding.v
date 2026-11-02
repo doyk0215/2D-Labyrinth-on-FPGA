@@ -98,14 +98,23 @@ module tb_game_state_encoding;
                 top_i.elapsed_timer_i.game_state !== state_in ||
                 top_i.oled_status_i.game_state !== state_in)
                 fail("top-level state bus or a consumer truncated the high bit");
-            if (top_i.menu_active || top_i.render_enable || top_i.phys_en)
+            if (top_i.menu_active || top_i.phys_en ||
+                top_i.render_enable !== (code == `ST_LOSE))
                 fail("reserved code aliased MENU, PLAY, or WIN in the top level");
             frame();
             if (minutes !== frozen_minutes || seconds !== frozen_seconds)
                 fail("reserved code aliased PLAY in game_timer");
-            if (status_text !== menu_text) fail("reserved code aliased a live OLED status page");
-            if (render_i.win_frame || {r,g,b} !== 12'hfc0)
-                fail("reserved code aliased WIN in the renderer");
+            if (code == `ST_LOSE) begin
+                if (status_text[32*8 +: 8] !== "T" || status_text[37*8 +: 8] !== "U")
+                    fail("LOSE did not select its dedicated OLED status page");
+            end else if (status_text !== menu_text)
+                fail("reserved code aliased a live OLED status page");
+            if (render_i.win_frame) fail("high-bit state aliased WIN in the renderer");
+            if (code == `ST_LOSE) begin
+                if (!render_i.lose_frame || {r,g,b} !== 12'hfff)
+                    fail("LOSE did not select TIME UP in the renderer");
+            end else if (render_i.lose_frame || {r,g,b} !== 12'hfc0)
+                fail("reserved code aliased a result overlay in the renderer");
         end
         release top_i.game_ctrl_i.game_state;
         state_in = `ST_WIN;
