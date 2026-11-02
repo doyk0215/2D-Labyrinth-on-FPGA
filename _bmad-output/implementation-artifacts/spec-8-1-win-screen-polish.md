@@ -79,7 +79,7 @@ context:
 - Implemented directly (no implementation subagent). Original files: `rtl/win_overlay.v`, `rtl/render.v`, `rtl/My_Top_Module.v`, `tb/tb_win_render.v`, `tb/tb_rotated_render.v`. `tb/run_current_stories.tcl` already includes `tb_win_render`.
 - Decided: label `TIME LEFT` (human update, 2026-11-02); goal dark phase is (0,3,0); `BLINK_FRAMES` is a `render` parameter (16 by default, 3 in the bench).
 - Verification of the `TIME LEFT` follow-up (Vivado 2025.2, 2026-11-02): `tb_win_render` passed its full raster comparison, including the expanded panel and `TIME LEFT` glyphs; the full current-stories regression completed, including both OLED modes. The cap-aware Story 7.5 generator regression also passed.
-- Original routed build: synthesis 0 errors and 0 critical warnings; WNS +0.323 ns, WHS +0.099 ns, all constraints met. 2,957 LUTs (+46 vs Story 4.4), 2,601 registers (+25), 1.5 BRAM tiles, 6 DSPs (unchanged). The `TIME LEFT` follow-up bitstream build is pending.
+- The `TIME LEFT` follow-up was built from commit `99cb9a2`. Routed timing met all specified constraints (WNS +0.657 ns, WHS +0.066 ns); DRC reported 0 errors and 0 critical warnings. The Basys 3 bitstream is `vivado/labyrinth.runs/impl_1/My_Top_Module.bit` (2,192,137 bytes; SHA-256 `F625A82B35C8054AA26D754F858E86F3AF7D67ACD40A1DE2D9533972553B7AB6`). The power report has a non-critical warning that reset switching activity may affect its power estimate.
 - Not done: the Basys 3 board check (needs someone other than the author). The independent review layers were not run (no subagents were requested); the review below is the author's own pass over the diff.
 
 ## Spec Change Log

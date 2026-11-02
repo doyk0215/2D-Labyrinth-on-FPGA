@@ -155,8 +155,9 @@ The cap-based follow-up was simulated with AMD Vivado 2025.2 on 2026-11-02.
 The focused generator run checked 763 generated mazes; HARD and N = 15 each
 exercised both below-cap and at-cap outcomes. The current-stories regression
 also completed, including the updated renderer and WIN overlay benches and both
-OLED display modes. The FPGA bitstream is built separately after committing
-these source changes.
+OLED display modes. After commit `99cb9a2`, the Basys 3 bitstream was generated
+successfully; all specified timing constraints were met (WNS +0.657 ns, WHS
++0.066 ns) and routed DRC reported no errors.
 
 - `tb/run_story75.tcl`: PASS, 763 generator cases. EASY remained perfect;
   HARD (N = 10) and N = 15 stayed within their caps, with both zero-loop and
@@ -169,6 +170,9 @@ these source changes.
 - `tb/run_current_stories.tcl`: PASS with both OLED display modes. This
   regression includes the cap-aware renderer expectation, generator bench,
   updated WIN overlay text, and current top-level/story benches.
+- Bitstream: `vivado/labyrinth.runs/impl_1/My_Top_Module.bit` (Vivado 2025.2,
+  commit `99cb9a2`, 2026-11-02); 2,192,137 bytes. SHA-256:
+  `F625A82B35C8054AA26D754F858E86F3AF7D67ACD40A1DE2D9533972553B7AB6`.
 - `tb/run_story14.tcl`: PASS. Its `tb_maze_gen` marker is now `PASS: maze_gen`,
   since this story changes the generator's PASS line.
 - `scripts/check_timing.tcl` (routed, 100 MHz): timing met. WNS +0.235 ns
