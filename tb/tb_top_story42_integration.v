@@ -21,7 +21,7 @@ module tb_top_story42_integration;
 
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnL(1'b0), .btnR(1'b0),
-        .btnD(btnD), .sw(16'h0001), .led(led),
+        .btnD(btnD), .sw(16'h0020), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data),

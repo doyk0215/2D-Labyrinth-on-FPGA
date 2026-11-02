@@ -54,6 +54,18 @@
 `define ST_WIN         3'd3
 `define ST_LOSE        3'd4
 
+// ---- Item effects (Story 9.2), IDs match item_icon_rom for 0..7 ----
+`define ITEM_EFFECT_W  4
+`define ITEM_LOW_GRAV  4'd0
+`define ITEM_INVINCIBLE 4'd1
+`define ITEM_TIME_BONUS 4'd2
+`define ITEM_REVERSE_GRAV 4'd3
+`define ITEM_HIGH_GRAV 4'd4
+`define ITEM_ZERO_GRAV 4'd5
+`define ITEM_INVERT    4'd6
+`define ITEM_FOG       4'd7
+`define ITEM_NONE      4'd15
+
 // ---- Rotation command (rot_cmd[1:0], signed) ----
 `define ROT_CCW        2'b11    // -1
 `define ROT_NONE       2'b00    //  0

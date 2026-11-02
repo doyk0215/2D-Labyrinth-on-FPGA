@@ -27,7 +27,7 @@ module tb_top_story44_integration;
         .WIN_HOLD_FRAMES(2), .TIMER_CLK_HZ(TIMER_CLK_HZ)
     ) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR),
-        .btnD(btnD), .sw(16'h0001), .led(led),
+        .btnD(btnD), .sw(16'h0020), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data),

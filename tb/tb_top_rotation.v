@@ -5,7 +5,7 @@ module tb_top_rotation;
     reg clk = 1'b0;
     reg rst = 1'b1;
     reg btnR = 1'b0;
-    reg [15:0] sw = 16'h0001;
+    reg [15:0] sw = 16'h0020;
     wire [15:0] led;
     wire [3:0] vga_r, vga_g, vga_b;
     wire vga_hs, vga_vs;
@@ -65,9 +65,9 @@ module tb_top_rotation;
             $finish;
         end
 
-        // SW5 selects the fallback. A complete board-button press moves the
+        // SW0 selects the fallback. A complete board-button press moves the
         // same angle/sine/cosine pipeline to the next quadrant on a frame.
-        @(negedge clk); sw[5] = 1'b1;
+        @(negedge clk); sw[0] = 1'b1;
         repeat (4) @(negedge clk);
         // A short board-button bounce is ignored by the snap-only debouncer.
         btnR = 1'b1;
@@ -93,12 +93,12 @@ module tb_top_rotation;
         if (dut.angle !== 12'd1024 || dut.render_i.angle_snap !== 12'd1024 ||
             dut.render_i.sin_snap !== dut.trig_i.sin_q ||
             dut.render_i.cos_snap !== dut.trig_i.cos_q) begin
-            $display("FAIL top rotation: SW5 snap did not reach 90 degrees");
+            $display("FAIL top rotation: SW0 snap did not reach 90 degrees");
             $finish;
         end
 
         // Returning to smooth mode continues from 90 degrees.
-        @(negedge clk); sw[5] = 1'b0; btnR = 1'b1;
+        @(negedge clk); sw[0] = 1'b0; btnR = 1'b1;
         repeat (8) @(negedge clk);
         wait (dut.frame_tick === 1'b1);
         repeat (5) @(posedge clk);
@@ -112,7 +112,7 @@ module tb_top_rotation;
         // Snap mode must wait for the actual button release.
         @(negedge clk); btnR = 1'b0;
         repeat (8) @(negedge clk);
-        sw[5] = 1'b1;
+        sw[0] = 1'b1;
         repeat (4) @(negedge clk);
         force dut.mouse_right = 1'b1;
         force dut.mouse_connected = 1'b1;

@@ -8,10 +8,13 @@ module tb_oled_status_text;
     reg [7:0] active_game_cfg = 8'h05;
     reg [7:0] elapsed_minutes_bcd = 8'h00;
     reg [7:0] elapsed_seconds_bcd = 8'h00;
+    reg [3:0] item_effect=`ITEM_NONE;
+    reg [6:0] item_seconds=0;
     wire [511:0] status_text;
     integer errors = 0;
 
     oled_status_text dut (
+        .active_effect(item_effect), .effect_seconds(item_seconds),
         .menu_text(menu_text), .game_state(game_state),
         .active_game_cfg(active_game_cfg),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
@@ -34,6 +37,11 @@ module tb_oled_status_text;
         end
     endtask
 
+    task check_item_row;
+        input [127:0] expected;
+        integer j;
+        begin for(j=0;j<16;j=j+1) check_char(32+j,expected[127-j*8-:8],"item status row"); end
+    endtask
     initial begin
         menu_text[7:0] = "M";
         #1;
@@ -108,6 +116,17 @@ module tb_oled_status_text;
             errors = errors + 1;
         end
 
+        game_state=`ST_PLAY; item_effect=`ITEM_LOW_GRAV;item_seconds=8;#1;
+        check_item_row("ITEM:LOW GRAV 08");
+        item_effect=`ITEM_REVERSE_GRAV;item_seconds=12;#1;
+        check_item_row("ITEM:REV GRAV 12");
+        item_effect=`ITEM_FOG;item_seconds=99;#1;
+        check_item_row("ITEM:FOG      99");
+        item_seconds=0;#1;check_item_row("PLAYING         ");
+        item_effect=`ITEM_NONE;item_seconds=8;#1;check_item_row("PLAYING         ");
+        game_state=`ST_WIN;item_effect=`ITEM_LOW_GRAV;#1;
+        check_item_row("YOU WIN         ");
+        game_state=`ST_LOSE;#1;check_item_row("TIME UP         ");
         if (errors == 0)
             $display("PASS: OLED status formatter menu passthrough, active stage, BCD time, WIN, and GENERATE");
         else

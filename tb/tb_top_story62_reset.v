@@ -9,7 +9,7 @@ module tb_top_story62_reset;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
         .LONG_PRESS_CYCLES(64), .TIMER_CLK_HZ(32), .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(btnL), .btnR(1'b0),
-        .sw(16'h0001), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
+        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
         .oled_res(oled_res), .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)
     );
     // Only this integration bench scales the supplied driver's delay/frame

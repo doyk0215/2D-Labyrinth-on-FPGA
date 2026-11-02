@@ -11,7 +11,7 @@ module tb_top_story83_time_up;
         .TIMER_CLK_HZ(1024), .EASY_TIME_SECONDS(2), .HARD_TIME_SECONDS(3),
         .LOSE_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnD(btnD), .btnL(1'b0),
-        .btnR(btnR), .sw(16'h0001), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
+        .btnR(btnR), .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     task fail;
         input [767:0] message;
