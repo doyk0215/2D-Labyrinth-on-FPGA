@@ -28,7 +28,9 @@ module item_ctrl #(
     output reg [6:0] effect_seconds,
     output reg pickup_pulse,
     output reg [1:0] pickup_index,
-    output reg [`ITEM_EFFECT_W-1:0] pickup_effect
+    output reg [`ITEM_EFFECT_W-1:0] pickup_effect,
+    output reg debuff_blocked,
+    output wire time_bonus_pulse
 );
     localparam integer SECOND_W = (CLK_HZ > 1) ? $clog2(CLK_HZ) : 1;
     localparam integer DURATION = (EFFECT_SECONDS < 0) ? 0 :
@@ -63,6 +65,12 @@ module item_ctrl #(
     reg hit_valid;
     reg [1:0] hit_index;
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
+    wire pickup_now = !rst && !phys_init && game_state == `ST_PLAY && phys_done && hit_valid;
+    wire block_debuff = active_effect == `ITEM_INVINCIBLE && effect_seconds != 0 && hit_index >= 2;
+    // Same-edge grant: registering this through pickup_pulse would lose a
+    // pickup coincident with the timer's terminal edge. phys_done is one cycle;
+    // consuming visibility on that edge also prevents a duplicate grant.
+    assign time_bonus_pulse = pickup_now && !block_debuff && rolled_effect == `ITEM_TIME_BONUS;
     integer k;
     always @* begin
         for(k=0;k<4;k=k+1)
@@ -80,7 +88,7 @@ module item_ctrl #(
     end
     integer i;
     always @(posedge clk) begin
-        pickup_pulse<=0;
+        pickup_pulse<=0; debuff_blocked<=0;
         if(rst) begin
             box_visible<=0; active_effect<=`ITEM_NONE; effect_seconds<=0;
             effect_subsecond<=0; pickup_index<=0; pickup_effect<=`ITEM_NONE;
@@ -119,9 +127,16 @@ module item_ctrl #(
             if(phys_done && hit_valid) begin
                 pickup_pulse<=1; pickup_index<=hit_index; pickup_effect<=rolled_effect;
                 box_visible[hit_index]<=0; respawn_left[hit_index]<=RESPAWN_CYCLES;
-                effect_subsecond<=0;
-                effect_seconds<=DURATION;
-                active_effect <= (DURATION > 0) ? rolled_effect : `ITEM_NONE;
+                // Both paths keep the ordinary effect countdown above running:
+                // neither blocking a debuff nor an instant bonus refreshes it.
+                if(block_debuff) begin
+                    debuff_blocked<=1;
+                    pickup_effect<=`ITEM_NONE;
+                end else if(rolled_effect != `ITEM_TIME_BONUS) begin
+                    effect_subsecond<=0;
+                    effect_seconds<=DURATION;
+                    active_effect <= (DURATION > 0) ? rolled_effect : `ITEM_NONE;
+                end
             end
         end
     end
