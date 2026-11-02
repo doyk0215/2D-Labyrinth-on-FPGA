@@ -34,7 +34,11 @@ module My_Top_Module #(
     parameter integer ITEM_EFFECT_SECONDS = 8,
     parameter integer ITEM_RESPAWN_SECONDS = 15,
     parameter integer ITEM_TIME_BONUS_SECONDS = 10,
-    parameter ITEM_STUB_LOW_ONLY = 1'b0
+    parameter ITEM_STUB_LOW_ONLY = 1'b0,
+    parameter ITEM_ROULETTE_ENABLE = 1'b1,
+    parameter integer ITEM_ROULETTE_SPIN_MS = 1500,
+    parameter integer ITEM_ROULETTE_HOLD_MS = 1000,
+    parameter integer ITEM_BLOCK_ICON_MS = 1000
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -154,6 +158,12 @@ module My_Top_Module #(
     wire [`ITEM_EFFECT_W-1:0] item_pickup_effect;
     wire item_debuff_blocked;
     wire item_time_bonus;
+    wire item_pending_valid;
+    wire [`ITEM_EFFECT_W-1:0] item_pending_effect;
+    wire roulette_busy,roulette_commit,roulette_returning;
+    wire [3:0] roulette_visual;
+    reg oled_display_frame=0;
+    reg [3:0] oled_display_visual=0;
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
@@ -499,15 +509,26 @@ module My_Top_Module #(
     // Item coordinates share physics' stage-centred Q9.8 frame. The pickup
     // commits after physics and is visible to gravity on the following frame.
     item_ctrl #(.CLK_HZ(TIMER_CLK_HZ), .EFFECT_SECONDS(ITEM_EFFECT_SECONDS),
-        .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY)) item_i (
+        .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY),
+        .DEFER_EFFECT(ITEM_ROULETTE_ENABLE)) item_i (
         .clk(clk), .rst(rst), .game_state(game_state), .phys_init(phys_init),
         .phys_done(phys_done), .n_cells(n_cells), .ball_x(ball_x), .ball_y(ball_y),
         .box_cols(box_cols), .box_rows(box_rows), .box_valid(box_valid), .seed(seed),
+        .roulette_busy(roulette_busy), .roulette_commit(roulette_commit),
         .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
         .pickup_pulse(item_pickup), .pickup_index(item_pickup_index),
         .pickup_effect(item_pickup_effect), .debuff_blocked(item_debuff_blocked),
-        .time_bonus_pulse(item_time_bonus)
+        .time_bonus_pulse(item_time_bonus), .pending_valid(item_pending_valid),
+        .pending_effect(item_pending_effect)
     );
+
+    item_roulette #(.CLK_HZ(TIMER_CLK_HZ),.SPIN_MS(ITEM_ROULETTE_SPIN_MS),
+        .HOLD_MS(ITEM_ROULETTE_HOLD_MS),.BLOCK_MS(ITEM_BLOCK_ICON_MS)) roulette_i (
+        .clk(clk),.rst(rst || !ITEM_ROULETTE_ENABLE),.phys_init(phys_init),.game_state(game_state),
+        .pickup_pulse(item_pickup),.pickup_index(item_pickup_index),.pickup_effect(item_pickup_effect),
+        .debuff_blocked(item_debuff_blocked),.display_frame(oled_display_frame),
+        .display_visual(oled_display_visual),.busy(roulette_busy),.visual(roulette_visual),
+        .commit(roulette_commit),.returning(roulette_returning));
 
     // Camera (Story 7.2): follows the ball on stages too large for the
     // screen, the map centre otherwise. render centres the view on it and
@@ -619,16 +640,19 @@ module My_Top_Module #(
     reg text_ack_toggle = 1'b0;
     reg text_req_toggle = 1'b0;
     reg [511:0] text_mailbox = 512'd0;
+    reg [3:0] visual_mailbox=0;
     always @(posedge clk) begin
         if (system_reset) begin
             text_ack_sync <= 2'b00;
             text_mailbox <= status_text;
+            visual_mailbox <= 0;
             text_req_toggle <= 1'b1;
         end else begin
             text_ack_sync <= {text_ack_sync[0], text_ack_toggle};
             if ((text_req_toggle == text_ack_sync[1]) &&
-                (status_text != text_mailbox)) begin
+                ((status_text != text_mailbox) || (roulette_visual != visual_mailbox))) begin
                 text_mailbox <= status_text;
+                visual_mailbox <= roulette_visual;
                 text_req_toggle <= ~text_req_toggle;
             end
         end
@@ -638,6 +662,8 @@ module My_Top_Module #(
     reg [511:0] text_pending = 512'd0;
     reg [511:0] text_active = 512'd0;
     reg text_pending_valid = 1'b0;
+    reg [3:0] visual_pending=0,visual_active=0;
+    reg oled_frame_toggle=0;
     always @(posedge clk_6m25) begin
         if (oled_reset) begin
             text_req_sync <= 2'b00;
@@ -645,25 +671,50 @@ module My_Top_Module #(
             text_pending <= 512'd0;
             text_active <= 512'd0;
             text_pending_valid <= 1'b0;
+            visual_pending<=0;visual_active<=0;oled_frame_toggle<=0;
         end else begin
             text_req_sync <= {text_req_sync[0], text_req_toggle};
             if (text_req_sync[1] != text_ack_toggle) begin
                 text_pending <= text_mailbox;
+                visual_pending <= visual_mailbox;
                 text_ack_toggle <= text_req_sync[1];
                 text_pending_valid <= 1'b1;
             end
             if (oled_frame_begin && text_pending_valid &&
                 (text_req_sync[1] == text_ack_toggle)) begin
                 text_active <= text_pending;
+                visual_active <= visual_pending;
                 text_pending_valid <= 1'b0;
+            end
+            if(oled_frame_begin)oled_frame_toggle<=~oled_frame_toggle;
+        end
+    end
+
+    // The applied visual is held for an entire OLED frame. Synchronising its
+    // frame toggle gives the bundle time to settle before system-domain capture.
+    (* ASYNC_REG="TRUE" *) reg [1:0] oled_frame_sync=0;
+    reg oled_frame_seen=0;
+    always @(posedge clk)begin
+        if(system_reset)begin
+            oled_frame_sync<=0;oled_frame_seen<=0;oled_display_frame<=0;oled_display_visual<=0;
+        end else begin
+            oled_frame_sync<={oled_frame_sync[0],oled_frame_toggle};
+            oled_display_frame<=0;
+            if(oled_frame_sync[1]!=oled_frame_seen)begin
+                oled_frame_seen<=oled_frame_sync[1];oled_display_visual<=visual_active;oled_display_frame<=1;
             end
         end
     end
 
+    wire [15:0] oled_text_data,oled_icon_data;
+
     oled_text_pixel oled_text_i (
         .clk(clk_6m25), .pixel_index(oled_pixel_index),
-        .status_text(text_active), .pixel_data(oled_pixel_data)
+        .status_text(text_active), .pixel_data(oled_text_data)
     );
+    oled_roulette_pixel roulette_pixel_i(.clk(clk_6m25),.pixel_index(oled_pixel_index),
+        .icon(visual_active[2:0]),.pixel_data(oled_icon_data));
+    assign oled_pixel_data=visual_active[3] ? oled_icon_data : oled_text_data;
 
     Oled_Display oled_i (
         .clk(clk_6m25), .reset(oled_reset),
