@@ -53,7 +53,9 @@ acceptance text that started effects after the hold. Revisit during 9.8.
 - The held-data text mailbox now transfers source/icon metadata atomically
   with the text page. The OLED domain applies both only at its frame boundary.
   A frame toggle plus held visual data reports the applied frame back to the
-  system domain, so no unsynchronised multi-bit visual state drives activation.
+  system domain, qualified by the SPI driver's actual pixel request. Power-up
+  frame-counter boundaries cannot start animation/activation before the driver
+  is ready. No unsynchronised multi-bit visual state drives activation.
   Text is composed while icons are displayed; a complete live page is ready
   when status returns. The SPI/power driver is unchanged.
 - Shipping `My_Top_Module.ITEM_ROULETTE_ENABLE` defaults true. Direct standalone
@@ -79,7 +81,10 @@ Vivado 2025.2, 2026-11-02:
   6,144-pixel icon-only top frame with no text/mixed icons, frame-boundary metadata,
   ongoing game countdown/physics, unchanged rolled-over busy boxes, actual
   selected-frame activation, blocked notice, exactly one delayed time bonus,
-  live status return and LOSE/full-reset cancellation. RNG/effects are not forced.
+  live status return and LOSE/full-reset cancellation. An unready power-up frame
+  is explicitly rejected. Only ball placement and OLED frame/pixel requests are
+  supplied by the fixture; RNG/effects are not forced. The unchanged SPI driver
+  retains its separate nominal-clock initialization/frame regressions.
 - Prior item/timer/top/OLED fixtures PASS in the focused suite.
 - Full 50-run regression and routed Basys 3 build: running; results pending.
 - Hardware check: pending; no author board PASS claimed.

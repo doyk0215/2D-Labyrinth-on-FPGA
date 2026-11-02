@@ -159,7 +159,8 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   y=8..55 in a black 96x64 frame, with one registered-pixel latency.
   The existing held-data text mailbox now carries the source/icon nibble in
   the same request and latches both at `oled_frame_begin`. Applied visual/frame
-  feedback returns through a synchronized toggle and held-data capture. Thus
+  feedback returns through a synchronized toggle and held-data capture, qualified
+  by an actual driver pixel request (power-up counter boundaries do not count). Thus
   activation waits for the actual selected-result frame; source/icon never
   change inside an OLED frame. Status text continues updating behind the icon.
 

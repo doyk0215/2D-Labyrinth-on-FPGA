@@ -686,7 +686,9 @@ module My_Top_Module #(
                 visual_active <= visual_pending;
                 text_pending_valid <= 1'b0;
             end
-            if(oled_frame_begin)oled_frame_toggle<=~oled_frame_toggle;
+            // frame_begin also runs during OLED power-up. A display frame
+            // counts only when the SPI driver actually requests its pixels.
+            if(oled_frame_begin && oled_sample_pixel)oled_frame_toggle<=~oled_frame_toggle;
         end
     end
 

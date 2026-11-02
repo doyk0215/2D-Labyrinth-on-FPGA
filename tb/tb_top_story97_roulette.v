@@ -46,9 +46,9 @@ module tb_top_story97_roulette;
             if(guard==3000)fail("atomic text/visual mailbox did not settle");end endtask
     task oled_frame;
         begin
-            @(negedge dut.clk_6m25);force dut.oled_frame_begin=1;
+            @(negedge dut.clk_6m25);force dut.oled_frame_begin=1;force dut.oled_sample_pixel=1;
             @(posedge dut.clk_6m25);#1;
-            @(negedge dut.clk_6m25);force dut.oled_frame_begin=0;cycles(80);
+            @(negedge dut.clk_6m25);force dut.oled_frame_begin=0;release dut.oled_sample_pixel;cycles(80);
         end endtask
     reg [3:0] previous_visual=0;
     always @(posedge dut.clk_6m25)begin
@@ -68,7 +68,15 @@ module tb_top_story97_roulette;
         force dut.frame_tick=0;force dut.oled_frame_begin=0;cycles(20);start();
         pick(0,`ITEM_INVINCIBLE);
         if(!dut.item_pending_valid || dut.item_effect!==`ITEM_NONE || !dut.roulette_busy)fail("pickup not deferred");
-        drain();oled_frame();
+        drain();
+        // A counter boundary while the driver is still powering up is not
+        // evidence of a visible frame and must not start the animation clock.
+        if(dut.oled_sample_pixel)fail("power-up precondition missing");
+        @(negedge dut.clk_6m25);force dut.oled_frame_begin=1;
+        @(posedge dut.clk_6m25);#1;
+        @(negedge dut.clk_6m25);force dut.oled_frame_begin=0;cycles(80);
+        if(dut.roulette_i.shown || dut.item_effect!==`ITEM_NONE)fail("power-up frame counter started roulette");
+        oled_frame();
         if(!dut.visual_active[3] || dut.item_effect!==`ITEM_NONE)fail("spin did not display before activation");
         frame_visual=dut.visual_active;
         // Even when the request changes to the selected icon, the frame being
