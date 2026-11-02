@@ -16,7 +16,7 @@ module tb_lose_render;
         .cam_x(18'sd0),.cam_y(18'sd0),.angle(12'd0),.sin_q(16'sd0),.cos_q(16'sd16384),
         .pixel_x(x),.pixel_y(y),.active_video(active),.hsync_in(hs),.vsync_in(vs),
         .maze_raddr(),.maze_rdata(1'b1),.start_col(5'd19),.start_row(5'd19),
-        .goal_col(5'd1),.goal_row(5'd1),.ball_on(ball_on),
+        .goal_col(5'd1),.goal_row(5'd1),.ball_on(ball_on),.fog_en(1'b0),.fog_clear(1'b0),
         .vga_r(r),.vga_g(g),.vga_b(b),.vga_hs(out_hs),.vga_vs(out_vs),.sin_snap(),.cos_snap()
     );
     task fail;

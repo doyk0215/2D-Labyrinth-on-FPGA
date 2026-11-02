@@ -16,8 +16,11 @@
 // ball_on is registered once, so it lines up with render.v's *_d flags (one
 // clock behind pixel_x / pixel_y) and can be used directly as render's ball_on.
 // The ball is the filled disc of radius BALL_RADIUS around (ball_sx, ball_sy)
-// in screen pixels, so it is always round.
-module ball_overlay (
+// in screen pixels, so it is always round. fog_clear (Story 9.4) is the same
+// test with radius FOG_RADIUS: render shows only these pixels under fog.
+module ball_overlay #(
+    parameter integer FOG_RADIUS = 48             // fog of war clear circle, pixels (1..1023)
+) (
     input  wire                         clk,
     input  wire                         rst,
     input  wire                         start,        // camera cam_done
@@ -32,7 +35,8 @@ module ball_overlay (
     input  wire                         active_video,
     output reg  signed [10:0]           ball_sx,      // screen position of the ball centre
     output reg  signed [10:0]           ball_sy,
-    output reg                          ball_on
+    output reg                          ball_on,
+    output reg                          fog_clear     // within FOG_RADIUS of the ball; lines up with ball_on
 );
 
     localparam integer R  = `BALL_RADIUS;
@@ -98,9 +102,23 @@ module ball_overlay (
     wire near = (adx <= R) && (ady <= R);
     wire [5:0] d2 = sq(adx[3:0]) + sq(ady[3:0]);
 
+    // Fog circle: a bounding-box test first, so the squares are only FW bits
+    // wide; use_dsp = "no" builds them in LUTs and keeps the DSPs for AD-8.
+    localparam integer FW  = (FOG_RADIUS < 2) ? 1 : $clog2(FOG_RADIUS + 1);
+    localparam [2*FW:0] FR2 = FOG_RADIUS * FOG_RADIUS;
+    wire fog_near = (adx <= FOG_RADIUS) && (ady <= FOG_RADIUS);
+    (* use_dsp = "no" *) wire [2*FW-1:0] fog_x2 = adx[FW-1:0] * adx[FW-1:0];
+    (* use_dsp = "no" *) wire [2*FW-1:0] fog_y2 = ady[FW-1:0] * ady[FW-1:0];
+    wire [2*FW:0] fog_d2 = fog_x2 + fog_y2;
+
     always @(posedge clk) begin
-        if (rst) ball_on <= 1'b0;
-        else     ball_on <= active_video && near && (d2 <= R2);
+        if (rst) begin
+            ball_on   <= 1'b0;
+            fog_clear <= 1'b0;
+        end else begin
+            ball_on   <= active_video && near && (d2 <= R2);
+            fog_clear <= active_video && fog_near && (fog_d2 <= FR2);
+        end
     end
 
 endmodule

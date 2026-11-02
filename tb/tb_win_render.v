@@ -22,7 +22,7 @@ module tb_win_render;
         .hsync_in(hs), .vsync_in(vs), .maze_raddr(), .maze_rdata(1'b1),
         .start_col(5'd19), .start_row(5'd19), .goal_col(5'd1), .goal_row(5'd1),
         .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
-        .ball_on(ball_on), .vga_r(r), .vga_g(g), .vga_b(b),
+        .ball_on(ball_on), .fog_en(1'b0), .fog_clear(1'b0), .vga_r(r), .vga_g(g), .vga_b(b),
         .vga_hs(vga_hs), .vga_vs(vga_vs), .sin_snap(), .cos_snap()
     );
 

@@ -46,7 +46,7 @@ module tb_story73_render;
         .maze_raddr(maze_raddr), .maze_rdata(maze_rdata),
         .start_col(5'd29), .start_row(5'd29),
         .goal_col(5'd1), .goal_row(5'd1), .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
-        .ball_on(1'b0),
+        .ball_on(1'b0), .fog_en(1'b0), .fog_clear(1'b0),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(), .vga_vs()
     );

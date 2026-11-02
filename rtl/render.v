@@ -7,7 +7,8 @@
 // the camera, which is (0, 0) on stages that fit the screen. The maze RAM and
 // the output flags share one 100 MHz clock of latency. In WIN the goal tile blinks and the panel shows
 // the timer; both are latched with the frame snapshot, so they never change
-// in the middle of a picture.
+// in the middle of a picture. The fog of war flag (Story 9.4) is latched the
+// same way; under fog only the ball and the pixels inside fog_clear are drawn.
 module render #(
     parameter integer BLINK_FRAMES = 16   // frames per blink phase, about 2 Hz at 60 Hz
 ) (
@@ -40,6 +41,8 @@ module render #(
     input  wire [3:0]        box_valid,     // from maze_gen
     input  wire [3:0]        box_visible,   // picked-up boxes are hidden (Story 9.2)
     input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
+    input  wire              fog_en,        // fog of war effect active (Story 9.4); latched per frame
+    input  wire              fog_clear,     // from ball_overlay: pixel inside the fog circle, aligned with ball_on
     output reg  [3:0]        vga_r,
     output reg  [3:0]        vga_g,
     output reg  [3:0]        vga_b,
@@ -85,6 +88,7 @@ module render #(
     reg [11:0] angle_snap;
     reg win_frame;
     reg lose_frame;
+    reg fog_frame;                          // fog of war for this picture (Story 9.4)
     reg [7:0] win_min_bcd, win_sec_bcd;
     reg [7:0] blink_count;
     reg blink_phase;
@@ -144,6 +148,7 @@ module render #(
             angle_snap <= 12'd0;
             win_frame <= 1'b0;
             lose_frame <= 1'b0;
+            fog_frame <= 1'b0;
             win_min_bcd <= 8'h00;
             win_sec_bcd <= 8'h00;
             blink_count <= 8'd0;
@@ -163,6 +168,9 @@ module render #(
                 // state with the angle/trig snapshot in vertical blanking.
                 win_frame <= (game_state == `ST_WIN);
                 lose_frame <= (game_state == `ST_LOSE);
+                // The effect can start or end at any clock; the picture
+                // follows it from the next frame, never half way down.
+                fog_frame <= fog_en;
                 win_min_bcd <= time_min_bcd;
                 win_sec_bcd <= time_sec_bcd;
                 // The goal blink restarts bright on the first WIN frame and
@@ -281,6 +289,8 @@ module render #(
                 end
             end else if (ball_on) begin
                 vga_r = BALL_R; vga_g = BALL_G; vga_b = BALL_B;
+            end else if (fog_frame && !fog_clear) begin
+                // Fog of war: black outside the circle round the ball.
             end else if (in_map_d) begin
                 if (is_start_d) begin
                     vga_r = START_R; vga_g = START_G; vga_b = START_B;
