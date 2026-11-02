@@ -37,13 +37,44 @@ module tb_rotated_render;
         .active_video(active_video), .hsync_in(hsync_in), .vsync_in(vsync_in),
         .maze_raddr(maze_raddr), .maze_rdata(maze_rdata),
         .start_col(5'd1), .start_row(5'd1),
-        .goal_col(5'd1), .goal_row(5'd19), .ball_on(1'b0),
+        .goal_col(5'd1), .goal_row(5'd19),
+        // Item boxes (Story 9.1): buff 0 at tile (5,5), buff 1 at (9,13) but
+        // hidden by box_visible, debuff 2 at (15,9), debuff 3 at (13,15) but
+        // not valid. Only boxes 0 and 2 may be drawn.
+        .box_cols({5'd13, 5'd15, 5'd9, 5'd5}), .box_rows({5'd15, 5'd9, 5'd13, 5'd5}),
+        .box_valid(4'b0111), .box_visible(4'b1101),
+        .ball_on(1'b0),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs)
     );
 
-    integer checked = 0;
+    integer checked = 0, box_checked = 0;
     real model_sin, model_cos;
+
+    // Independent model of the 16 x 16 item-box tile (spec Design Notes):
+    // margin at 0/15 shows the tile underneath, outline at 1/14, a white "?"
+    // in columns 5-10 of rows 3-11, fill elsewhere.
+    function [11:0] box_pixel;
+        input buff;
+        input integer lx, ly;
+        input [11:0] under;
+        reg [5:0] g;
+        begin
+            case (ly)
+                3: g = 6'b011110;  4: g = 6'b110011;  5: g = 6'b000011;
+                6: g = 6'b000110;  7, 8, 10, 11: g = 6'b001100;
+                default: g = 6'b000000;
+            endcase
+            if (lx == 0 || lx == 15 || ly == 0 || ly == 15)
+                box_pixel = under;
+            else if (lx >= 5 && lx <= 10 && g[10 - lx])
+                box_pixel = 12'hfff;
+            else if (lx == 1 || lx == 14 || ly == 1 || ly == 14)
+                box_pixel = buff ? 12'h0f0 : 12'hf88;
+            else
+                box_pixel = buff ? 12'h04f : 12'hc00;
+        end
+    endfunction
 
     task fail;
         input [255:0] reason;
@@ -163,6 +194,13 @@ module tb_rotated_render;
                             expected = 12'hfff;
                         else
                             expected = 12'h346;
+                        // The box mask is looked up at the renderer's own
+                        // sample point (checked against the model above), so
+                        // it is exact at every angle.
+                        if ((tile_x == 5 && tile_y == 5) || (tile_x == 15 && tile_y == 9)) begin
+                            expected = box_pixel(tile_x == 5, qx[17:14], qy[17:14], expected);
+                            box_checked = box_checked + 1;
+                        end
                     end
                 end
 
@@ -191,6 +229,9 @@ module tb_rotated_render;
         check_line(72, 1);
         check_line(407, 1);
         check_line(408, 1);
+        // Every scanline through the two drawn boxes, so each mask row is seen.
+        for (y = 152; y < 168; y = y + 1) check_line(y, 1);   // buff box, tile row 5
+        for (y = 216; y < 232; y = y + 1) check_line(y, 1);   // debuff box, tile row 9
 
         capture_angle(12'd512); // 45 degrees
         for (y = 0; y < 480; y = y + 16) check_line(y, 7);
@@ -202,10 +243,14 @@ module tb_rotated_render;
 
         capture_angle(12'd1024); // 90 degrees
         for (y = 0; y < 480; y = y + 16) check_line(y, 7);
+        // At 90 degrees the boxes turn with the map: check every line of the
+        // map at full density, so the turned "?" is seen pixel by pixel.
+        for (y = 72; y < 408; y = y + 1) check_line(y, 1);
         capture_angle(12'd1536); // 135 degrees
         for (y = 0; y < 480; y = y + 16) check_line(y, 7);
 
-        $display("PASS: rotated renderer at 0, 45, 90, 135 degrees; %0d pixels checked", checked);
+        if (box_checked < 900) fail("too few item-box pixels checked", box_checked, -1);
+        $display("PASS: rotated renderer at 0, 45, 90, 135 degrees; %0d pixels checked, %0d on item boxes", checked, box_checked);
         $finish;
     end
 endmodule

@@ -37,6 +37,7 @@ module tb_game_state_encoding;
         .pixel_x(10'd156), .pixel_y(10'd212), .active_video(1'b1),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(), .maze_rdata(1'b0),
         .start_col(5'd19), .start_row(5'd19), .goal_col(5'd1), .goal_row(5'd1),
+        .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
         .ball_on(1'b1), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .sin_snap(), .cos_snap()
     );
