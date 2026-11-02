@@ -36,10 +36,10 @@ module render #(
     input  wire [4:0]        start_row,
     input  wire [4:0]        goal_col,
     input  wire [4:0]        goal_row,
-    input  wire [19:0]       box_cols,      // item box k at bits 5k+4:5k (Story 9.1);
-    input  wire [19:0]       box_rows,      // boxes 0 and 1 buff, 2 and 3 debuff
-    input  wire [3:0]        box_valid,     // from maze_gen
-    input  wire [3:0]        box_visible,   // picked-up boxes are hidden (Story 9.2)
+    input  wire [29:0]       box_cols,      // item box k at bits 5k+4:5k
+    input  wire [29:0]       box_rows,
+    input  wire [5:0]        box_valid,     // from maze_gen
+    input  wire [5:0]        box_visible,   // picked-up boxes are hidden
     input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
     input  wire              fog_en,        // fog of war effect active (Story 9.4); latched per frame
     input  wire              fog_clear,     // from ball_overlay: pixel inside the fog circle, aligned with ball_on
@@ -209,11 +209,11 @@ module render #(
     // Every stage is stored with a fixed 32-tile row: addr = {row, col}.
     assign maze_raddr = in_map_now ? {tile_row_now, tile_col_now} : 10'd0;
 
-    wire [3:0] box_shown = box_valid & box_visible;
-    wire [3:0] is_box_now;
+    wire [5:0] box_shown = box_valid & box_visible;
+    wire [5:0] is_box_now;
     genvar bi;
     generate
-        for (bi = 0; bi < 4; bi = bi + 1) begin : box_hit
+        for (bi = 0; bi < 6; bi = bi + 1) begin : box_hit
             assign is_box_now[bi] = in_map_now && box_shown[bi] &&
                 (tile_col_now == box_cols[5*bi +: 5]) &&
                 (tile_row_now == box_rows[5*bi +: 5]);
@@ -243,8 +243,8 @@ module render #(
                 (tile_col_now == start_col) && (tile_row_now == start_row);
             is_goal_d <= in_map_now &&
                 (tile_col_now == goal_col) && (tile_row_now == goal_row);
-            is_buff_d <= |is_box_now[1:0];
-            is_debuff_d <= |is_box_now[3:2];
+            is_buff_d <= (n_cells == 4'd15) ? |is_box_now[2:0] : |is_box_now[1:0];
+            is_debuff_d <= (n_cells == 4'd15) ? |is_box_now[5:3] : |is_box_now[3:2];
             tile_px_d <= walk_x_q[17:14];
             tile_py_d <= walk_y_q[17:14];
             active_video_d <= active_video;
