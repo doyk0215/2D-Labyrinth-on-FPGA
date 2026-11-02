@@ -273,6 +273,7 @@ module My_Top_Module #(
     // Keep the completed maze visible behind the Story 3.3 win indication.
     // MENU and GENERATE still mask the display and disable map reads.
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN);
+    wire timer_display_active = render_enable_d && active_video_d;
 
     game_ctrl #(
         .START_IN_MENU(START_IN_MENU),
@@ -303,7 +304,7 @@ module My_Top_Module #(
         .HUGE_SECONDS(HUGE_TIME_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
-        .frame_tick(frame_tick),
+        .display_active(timer_display_active),
         .game_state(game_state),
         .phys_init(phys_init),
         .n_cells(n_cells),

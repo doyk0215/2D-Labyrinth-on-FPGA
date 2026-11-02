@@ -89,11 +89,12 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   together on merged RTL (five benches), including HUGE generation/OLED/goal
   and replay with the countdown connected. Regression labels are generic so
   either feature PR can merge first without a script-description conflict.
-- Timer-start follow-up (2026-11-02): `game_timer` now arms on the same
-  two-cycle-delayed frame capture that makes the first generated-maze PLAY
-  image visible. The focused Story 8.2 regression passes all three benches:
-  timer unit, real-top countdown, and shared state encoding. No bitstream was
-  generated for this follow-up.
+- Timer-start follow-up (2026-11-02): the initial fix armed at the renderer's
+  frame-capture edge, which still precedes the first active video pixels. The
+  corrected fix arms only when the top-level PLAY display is enabled and the
+  delayed active-video signal is high. The real-top test holds scanout blank
+  after generation, verifies the timer stays loaded, then enables active video
+  and checks that the timer arms on that first visible interval.
 
 ## Review and board check
 

@@ -17,10 +17,11 @@ module tb_game_state_encoding;
         .gen_start(), .seed_capture(), .phys_init(), .phys_en(phys_en)
     );
     reg timer_init = 1'b0;
+    reg timer_display_active = 1'b0;
     reg [`GAME_STATE_W-1:0] state_in = `ST_MENU;
     wire [7:0] minutes, seconds;
     game_timer #(.CLK_HZ(2)) timer_i (
-        .clk(clk), .rst(rst), .frame_tick(frame_tick), .game_state(state_in),
+        .clk(clk), .rst(rst), .display_active(timer_display_active), .game_state(state_in),
         .phys_init(timer_init), .n_cells(4'd5), .time_up(),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
@@ -58,6 +59,12 @@ module tb_game_state_encoding;
             repeat (2) @(negedge clk);
         end
     endtask
+    task visible_pixel;
+        begin
+            @(negedge clk); timer_display_active = 1'b1;
+            @(negedge clk); timer_display_active = 1'b0;
+        end
+    endtask
 
     integer code;
     reg [7:0] frozen_minutes, frozen_seconds;
@@ -88,7 +95,7 @@ module tb_game_state_encoding;
         state_in = `ST_PLAY;
         timer_init = 1'b1;
         @(negedge clk); timer_init = 1'b0;
-        frame();
+        visible_pixel();
         repeat (4) @(negedge clk);
         if (minutes !== 8'h00 || seconds !== 8'h58) fail("valid PLAY did not decrement the timer");
         frozen_minutes = minutes; frozen_seconds = seconds;

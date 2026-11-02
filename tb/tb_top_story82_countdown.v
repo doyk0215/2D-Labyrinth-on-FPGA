@@ -33,14 +33,23 @@ module tb_top_story82_countdown;
             guard=0;
             while(!dut.gen_done && guard<200000) begin cycles(1); guard=guard+1; end
             if(guard==200000) fail("generation timeout");
+            // Hold scanout blank after generation completes. PLAY may be
+            // entered and its first frame snapshot captured, but the timer
+            // must wait until active pixels are enabled.
+            force dut.active_video=1'b0;
             force dut.frame_tick=1; cycles(1);
             force dut.frame_tick=0; cycles(1);
             if(dut.game_state !== `ST_PLAY || dut.elapsed_seconds_bcd !== 8'h03 ||
                dut.elapsed_timer_i.play_started)
-                fail("timer armed before the first generated-maze frame was captured");
-            cycles(1);
+                fail("timer armed before visible video began");
+            cycles(3);
+            if(dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("timer started while the generated maze was still blanked");
+            force dut.active_video=1'b1;
+            cycles(2);
             if(!dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
-                fail("timer did not arm with the first displayed-maze frame");
+                fail("timer did not arm when active maze pixels reached scanout");
+            release dut.active_video;
             cycles(16);
             if(dut.elapsed_seconds_bcd !== 8'h03)
                 fail("countdown changed before one second of visible PLAY");

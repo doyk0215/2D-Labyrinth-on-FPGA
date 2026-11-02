@@ -11,7 +11,7 @@ module game_timer #(
 ) (
     input wire clk,
     input wire rst,
-    input wire frame_tick,
+    input wire display_active,
     input wire [`GAME_STATE_W-1:0] game_state,
     input wire phys_init,
     input wire [3:0] n_cells,
@@ -41,7 +41,6 @@ module game_timer #(
     localparam [15:0] HARD_LIMIT = limit_bcd(HARD_SECONDS);
     localparam [15:0] HUGE_LIMIT = limit_bcd(HUGE_SECONDS);
     reg play_started = 1'b0;
-    reg [1:0] frame_tick_d = 2'b00;
     wire timer_running = (game_state == `ST_PLAY) && play_started;
     wire empty = ({elapsed_minutes_bcd, elapsed_seconds_bcd} == 16'h0000);
     wire second_tick = (CLK_HZ <= 1) || (subsecond_count == CLK_HZ - 1);
@@ -50,16 +49,6 @@ module game_timer #(
     assign time_up = !rst && !phys_init && (empty ||
                      (timer_running && second_tick &&
                       ({elapsed_minutes_bcd, elapsed_seconds_bcd} == 16'h0001)));
-
-    // Match render's two-cycle frame_tick pipeline. game_ctrl enters PLAY on
-    // the generation-complete frame boundary; render captures that new state
-    // two clocks later, and this timer arms on that same capture edge.
-    always @(posedge clk) begin
-        if (rst)
-            frame_tick_d <= 2'b00;
-        else
-            frame_tick_d <= {frame_tick_d[0], frame_tick};
-    end
 
     always @(posedge clk) begin
         if (rst) begin
@@ -76,10 +65,11 @@ module game_timer #(
                 default: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HARD_LIMIT;
             endcase
         end else if (game_state == `ST_PLAY) begin
-            // PLAY is entered when generation completes, slightly before the
-            // renderer captures that state for a visible frame. Start counting
-            // when render captures the first generated-maze frame.
-            if (frame_tick_d[1])
+            // Arm only when a PLAY pixel is actually being sent to the
+            // display. Generation completion and the renderer's frame
+            // snapshot both happen during vertical blanking, before the maze
+            // is visible on the screen.
+            if (display_active)
                 play_started <= 1'b1;
 
             if (!play_started || empty) begin
