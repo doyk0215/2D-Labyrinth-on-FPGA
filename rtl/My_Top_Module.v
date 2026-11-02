@@ -296,9 +296,10 @@ module My_Top_Module #(
     wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
     wire [3:0] n_cells = START_IN_MENU ? active_game_cfg[3:0] : legacy_n_cells;
 
-    // Keep the completed maze visible behind the Story 3.3 win indication.
+    // Keep the frozen maze visible behind WIN and TIME UP indications.
     // MENU and GENERATE still mask the display and disable map reads.
-    assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN);
+    assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
+                           (game_state == `ST_LOSE);
     wire timer_display_active = render_enable_d && maze_pixel_visible;
 
     game_ctrl #(

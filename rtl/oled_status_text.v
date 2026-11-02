@@ -76,6 +76,10 @@ module oled_status_text (
                                         elapsed_seconds_bcd),
                 "YOU WIN         ", "AUTO REPLAY     "
             );
+            `ST_LOSE: status_text = pack_text(
+                stage_text, "TIME 00:00      ",
+                "TIME UP         ", "BACK TO MENU    "
+            );
             default: status_text = menu_text;
         endcase
     end

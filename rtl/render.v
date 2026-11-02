@@ -84,10 +84,17 @@ module render #(
     reg [1:0] frame_tick_d;
     reg [11:0] angle_snap;
     reg win_frame;
+    reg lose_frame;
     reg [7:0] win_min_bcd, win_sec_bcd;
     reg [7:0] blink_count;
     reg blink_phase;
     wire win_panel, win_accent, win_text;
+    wire lose_panel, lose_accent, lose_text;
+    lose_overlay lose_i (
+        .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
+        .active_video(active_video), .panel_on(lose_panel),
+        .accent_on(lose_accent), .text_on(lose_text)
+    );
     win_overlay win_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video),
@@ -136,6 +143,7 @@ module render #(
             frame_tick_d <= 2'b00;
             angle_snap <= 12'd0;
             win_frame <= 1'b0;
+            lose_frame <= 1'b0;
             win_min_bcd <= 8'h00;
             win_sec_bcd <= 8'h00;
             blink_count <= 8'd0;
@@ -154,6 +162,7 @@ module render #(
                 // game_ctrl changes state on frame_tick. Capture its new
                 // state with the angle/trig snapshot in vertical blanking.
                 win_frame <= (game_state == `ST_WIN);
+                lose_frame <= (game_state == `ST_LOSE);
                 win_min_bcd <= time_min_bcd;
                 win_sec_bcd <= time_sec_bcd;
                 // The goal blink restarts bright on the first WIN frame and
@@ -254,7 +263,15 @@ module render #(
         vga_g = 4'h0;
         vga_b = 4'h0;
         if (active_video_d) begin
-            if (win_frame && (win_panel || win_accent)) begin
+            if (lose_frame && (lose_panel || lose_accent)) begin
+                if (lose_text) begin
+                    vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'hf;
+                end else if (lose_accent) begin
+                    vga_r = 4'hf; vga_g = 4'h2; vga_b = 4'h2;
+                end else begin
+                    vga_r = 4'h3; vga_g = 4'h0; vga_b = 4'h0;
+                end
+            end else if (win_frame && (win_panel || win_accent)) begin
                 if (win_text) begin
                     vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'hf;
                 end else if (win_accent) begin
