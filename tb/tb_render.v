@@ -67,7 +67,7 @@ module tb_render;
         end
     endtask
 
-    integer r, c, floors;
+    integer r, c, floors, b, box_at, boxes_seen;
     reg [11:0] exp_rgb;
 
     // The fixed debug seed (sw[0]) makes the generated maze repeatable. The
@@ -104,11 +104,33 @@ module tb_render;
 
         // Screen map bounds are x=152..487 and y=72..407. Targets are in
         // raster order so the whole map is checked within one frame.
+        if (dut.box_valid !== 4'b1111) begin
+            $display("FAIL: box_valid=%b, expected 1111", dut.box_valid);
+            $finish;
+        end
+
+        // Each tile is sampled at its centre (local pixel 8,8). On a box tile
+        // the same scanline is also sampled at local x = 0 (floor margin),
+        // 1 (outline) and 3 (fill); the centre is the white "?" glyph.
+        boxes_seen = 0;
         check_pixel(10'd320, 10'd71, 12'h002); // background above maze
         for (r = 0; r < 21; r = r + 1) begin
             check_pixel(10'd151, 10'd80 + 16 * r, 12'h002); // background left
             for (c = 0; c < 21; c = c + 1) begin
-                if (c == dut.start_col && r == dut.start_row)
+                box_at = -1;
+                for (b = 0; b < 4; b = b + 1)
+                    if (c == dut.box_cols[5*b +: 5] && r == dut.box_rows[5*b +: 5]) box_at = b;
+                if (box_at >= 0) begin
+                    boxes_seen = boxes_seen + 1;
+                    check_pixel(10'd152 + 16 * c, 10'd80 + 16 * r, 12'h346);               // margin
+                    check_pixel(10'd153 + 16 * c, 10'd80 + 16 * r,
+                                (box_at < 2) ? 12'h0f0 : 12'hf88);                          // outline
+                    check_pixel(10'd155 + 16 * c, 10'd80 + 16 * r,
+                                (box_at < 2) ? 12'h04f : 12'hc00);                          // fill
+                end
+                if (box_at >= 0)
+                    exp_rgb = 12'hfff;                       // "?" glyph at the centre
+                else if (c == dut.start_col && r == dut.start_row)
                     exp_rgb = 12'hf00;                       // red start tile
                 else if (c == dut.goal_col && r == dut.goal_row)
                     exp_rgb = 12'h0f0;                       // green goal tile
@@ -121,8 +143,12 @@ module tb_render;
             check_pixel(10'd488, 10'd80 + 16 * r, 12'h002); // background right
         end
         check_pixel(10'd320, 10'd408, 12'h002); // background below maze
+        if (boxes_seen != 4) begin
+            $display("FAIL: %0d item boxes inside the map, expected 4", boxes_seen);
+            $finish;
+        end
 
-        $display("PASS: generated maze (fixed seed) wall, floor, start, goal, centering, and background pixels");
+        $display("PASS: generated maze (fixed seed) wall, floor, start, goal, item box, centering, and background pixels");
         $finish;
     end
 

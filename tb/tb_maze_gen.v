@@ -16,13 +16,16 @@ module tb_maze_gen;
     wire        gen_busy, gen_done, we, wdata;
     wire [`MAP_ADDR_W-1:0] waddr;
     wire [4:0]  start_col, start_row, goal_col, goal_row;
+    wire [19:0] box_cols, box_rows;
+    wire [3:0]  box_valid;
 
     always #5 clk = ~clk;
 
     maze_gen dut (
         .clk(clk), .rst(rst), .gen_start(gen_start), .n_cells(n_cells), .seed(seed),
         .gen_busy(gen_busy), .gen_done(gen_done), .we(we), .waddr(waddr), .wdata(wdata),
-        .start_col(start_col), .start_row(start_row), .goal_col(goal_col), .goal_row(goal_row)
+        .start_col(start_col), .start_row(start_row), .goal_col(goal_col), .goal_row(goal_row),
+        .box_cols(box_cols), .box_rows(box_rows), .box_valid(box_valid)
     );
 
     // ---- behavioural maze RAM (32 x 32 tiles at {row, col}, 1 = wall) ----
@@ -106,12 +109,14 @@ module tb_maze_gen;
             h = 64'hCBF29CE484222325;
             for (k = 0; k < `MAP_TILES; k = k + 1)
                 h = (h ^ {63'd0, mem[k]}) * 64'h100000001B3;
+            h = (h ^ {20'd0, box_valid, box_rows, box_cols}) * 64'h100000001B3;   // boxes too
             mem_hash = h;
         end
     endfunction
 
     // ---- one generation run, then all checks ----
     reg [63:0] last_hash;
+    reg [15:0] buff_pairs_seen = 16'd0;   // which quadrant pairs held the buffs
     task run_gen;
         input integer N;
         input [31:0] s;
@@ -127,10 +132,14 @@ module tb_maze_gen;
         integer edge_openings, edge_row, edge_col;
         integer K, cap, band, band_first, band_last, loop_addr, loop_row, loop_col;
         integer band_found, band_seen;
+        integer bx, bcol, brow, bcx, bcy, bq, quad_mask, buff_mask;
         begin
             n_cells = drive[3:0]; seed = s; floor_writes = 0;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
+            if (box_valid !== 4'b0000) begin
+                errors = errors + 1; $display("FAIL N=%0d seed=%h: boxes still valid after gen_start", N, s);
+            end
             cycles = 0; limit = 100000;
             while (!gen_done && cycles < limit) begin @(posedge clk); cycles = cycles + 1; end
             @(negedge clk);
@@ -215,6 +224,31 @@ module tb_maze_gen;
                     end else begin
                         band_seen = band_seen | (1 << band_found);
                     end
+                end
+
+                // Item boxes: N >= 4 has one per quadrant (split at N/2) on a
+                // floor cell that is not the start or goal; N < 4 has none.
+                if (box_valid !== ((N >= 4) ? 4'b1111 : 4'b0000)) begin
+                    errors = errors + 1; $display("FAIL N=%0d seed=%h: box_valid=%b", N, s, box_valid);
+                end else if (N >= 4) begin
+                    quad_mask = 0; buff_mask = 0;
+                    for (bx = 0; bx < 4; bx = bx + 1) begin
+                        bcol = box_cols[5*bx +: 5]; brow = box_rows[5*bx +: 5];
+                        bcx = (bcol - 1) / 2; bcy = (brow - 1) / 2;
+                        bq = (bcy < N / 2) ? ((bcx < N / 2) ? 0 : 1) : ((bcx < N / 2) ? 3 : 2);
+                        quad_mask = quad_mask | (1 << bq);
+                        if (bx < 2) buff_mask = buff_mask | (1 << bq);
+                        if ((bcol % 2) != 1 || (brow % 2) != 1 || bcol > 2 * N - 1 || brow > 2 * N - 1 ||
+                            mem[brow * `MAP_STRIDE + bcol] ||
+                            (bcol == start_col && brow == start_row) || (bcol == goal_col && brow == goal_row)) begin
+                            errors = errors + 1;
+                            $display("FAIL N=%0d seed=%h: box %0d at tile (%0d,%0d) is not a free floor cell", N, s, bx, bcol, brow);
+                        end
+                    end
+                    if (quad_mask != 15) begin
+                        errors = errors + 1; $display("FAIL N=%0d seed=%h: boxes do not cover all four quadrants (%b)", N, s, quad_mask[3:0]);
+                    end
+                    buff_pairs_seen[buff_mask[3:0]] = 1'b1;
                 end
 
                 // BFS: every floor tile is connected and the goal is reachable.
@@ -319,9 +353,14 @@ module tb_maze_gen;
         repeat (3) @(posedge clk);
         if (ss_seed !== snap2) begin errors = errors + 1; $display("FAIL: fresh seed was not held for its generation"); end
 
+        // Every pair of quadrants (3, 5, 6, 9, 10, 12 as masks) held the buffs at least once.
+        if (buff_pairs_seen !== 16'h1668) begin
+            errors = errors + 1; $display("FAIL: buff quadrant pairs seen %h, expected all six (1668)", buff_pairs_seen);
+        end
+
         $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), max DFS stack depth: %0d/225, done pulses: %0d",
                  runs, max_cycles, max_cycles / 100, max_stack_depth, done_pulses);
-        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok");
+        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok; item boxes one per quadrant");
         else             $display("FAIL: %0d errors", errors);
         $finish;
     end

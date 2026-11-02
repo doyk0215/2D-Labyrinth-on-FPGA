@@ -9,9 +9,15 @@ if {[catch {exec xvhdl -work work [file join $rtl Ps2Interface.vhd] [file join $
 }
 set cmd [list xvlog -work work -i $rtl]
 foreach source [glob [file join $rtl *.v]] { lappend cmd $source }
-foreach bench {tb_game_timer tb_top_story82_countdown} { lappend cmd [file join $repo tb ${bench}.v] }
+foreach bench {tb_game_timer tb_top_story82_countdown tb_game_state_encoding} {
+    lappend cmd [file join $repo tb ${bench}.v]
+}
 if {[catch {exec {*}$cmd 2>@1} output]} { puts $output; error "Verilog compilation failed" }
-foreach {bench marker} {tb_game_timer "PASS: game_timer" tb_top_story82_countdown "PASS: Story 8.2 top countdown"} {
+foreach {bench marker} {
+    tb_game_timer "PASS: game_timer"
+    tb_top_story82_countdown "PASS: Story 8.2 top countdown"
+    tb_game_state_encoding "PASS: shared game state"
+} {
     if {[catch {exec xelab -debug typical -L unisims_ver -top $bench -snapshot ${bench}_snapshot 2>@1} output]} {
         puts $output; error "Elaboration failed for $bench"
     }

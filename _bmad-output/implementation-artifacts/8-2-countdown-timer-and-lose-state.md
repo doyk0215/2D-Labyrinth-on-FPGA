@@ -14,8 +14,10 @@ source_issue: https://github.com/doyk0215/2D-Labyrinth-on-FPGA/issues/59
 Every new maze loads its stage limit: EASY 60 s, HARD 120 s, HUGE/N=15 180 s.
 The limits and LOSE hold are parameters. Counting uses the 100 MHz system
 clock, independently of the VGA frame frequency; PLAY is the only counting
-state. Reset clears the display, and `phys_init` loads a fresh limit and
-clears the fractional second. WIN and LOSE freeze the remaining time.
+state. The countdown is armed on the renderer's first PLAY-frame capture, after
+the generated maze is ready to appear. Reset clears the display, and
+`phys_init` loads a fresh limit and clears the fractional second. WIN and LOSE
+freeze the remaining time.
 
 ## Implementation and interface
 
@@ -48,7 +50,8 @@ source [file join $repo tb run_current_stories.tcl]
 ```
 
 - Timer: exact full-second cadence; default 60/120/180-second limits; no
-  reload on a mid-game stage change; PLAY-only countdown; discarded partial
+  reload on a mid-game stage change; countdown starts when the renderer captures
+  the first PLAY frame; discarded partial
   second on pause; WIN/LOSE/MENU freeze; new-maze reload and reset; terminal
   expiry edge; zero saturation. CLK_HZ=1 exercises every BCD transition from
   99:59 through zero and the minimum counter width; negative/over-cap limits
@@ -86,6 +89,11 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   together on merged RTL (five benches), including HUGE generation/OLED/goal
   and replay with the countdown connected. Regression labels are generic so
   either feature PR can merge first without a script-description conflict.
+- Timer-start follow-up (2026-11-02): the timer now waits for both an actual
+  maze pixel at VGA scanout and the first player action. Mouse movement, mouse
+  left/right buttons, and board btnL/btnR can start it. Once started, the timer
+  continues through idle time. The real-top test verifies that a maze alone or
+  an action before maze visibility leaves the loaded limit unchanged.
 
 ## Review and board check
 

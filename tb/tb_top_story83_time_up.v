@@ -32,6 +32,17 @@ module tb_top_story83_time_up;
             btnC=0; btnD=0; cycles(12);
         end
     endtask
+    task player_action;
+        begin
+            // The Story 8.2 timer waits for both a visible maze pixel and the
+            // first player action. Force the visibility qualifier here so
+            // this timeout integration bench does not need to simulate a
+            // complete 800x525 VGA scan before its short timer can start.
+            force dut.maze_pixel_visible=1'b1;
+            btnR=1; cycles(8); btnR=0; cycles(8);
+            release dut.maze_pixel_visible;
+        end
+    endtask
     task oled_snapshot;
         integer guard;
         reg [511:0] old_page;
@@ -109,7 +120,7 @@ module tb_top_story83_time_up;
         force dut.frame_tick=0; force dut.oled_frame_begin=0;
         cycles(20);
         for(stage=0;stage<2;stage=stage+1) begin
-            start(stage); btnR=1; cycles(8); frame(); btnR=0; cycles(8);
+            start(stage); player_action(); frame();
             timeout(); frozen_angle=dut.angle;
             if(dut.status_text[8*6+:8] !== (stage ? "2" : "1")) fail("LOSE lost the active stage name");
             frame(); frame();
@@ -120,11 +131,11 @@ module tb_top_story83_time_up;
             oled_snapshot();
             if(dut.text_active[7:0] !== "S") fail("TIME UP remained on OLED after menu return");
         end
-        start(0); timeout(); click(0);
+        start(0); player_action(); timeout(); click(0);
         if(dut.game_state !== `ST_MENU || dut.elapsed_minutes_bcd !== 0 || dut.elapsed_seconds_bcd !== 0)
             fail("short CENTER reset from LOSE failed");
         oled_snapshot();
-        start(1); timeout(); btnC=1; cycles(96);
+        start(1); player_action(); timeout(); btnC=1; cycles(96);
         if(!dut.full_reset || dut.game_state !== `ST_MENU || !dut.oled_reset)
             fail("full CENTER reset from LOSE missed controller/OLED");
         btnC=0; cycles(20); frame();

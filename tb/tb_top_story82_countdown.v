@@ -33,9 +33,39 @@ module tb_top_story82_countdown;
             guard=0;
             while(!dut.gen_done && guard<200000) begin cycles(1); guard=guard+1; end
             if(guard==200000) fail("generation timeout");
-            frame();
-            if(dut.game_state !== `ST_PLAY || dut.elapsed_seconds_bcd !== 8'h03)
-                fail("real generator did not start PLAY with fresh countdown");
+            // PLAY can begin after generation, but countdown waits until the
+            // maze has a scanout pixel and the player makes a control input.
+            force dut.active_video=1'b0;
+            force dut.frame_tick=1; cycles(1);
+            force dut.frame_tick=0; cycles(1);
+            if(dut.game_state !== `ST_PLAY || dut.elapsed_seconds_bcd !== 8'h03 ||
+               dut.elapsed_timer_i.play_started)
+                fail("timer armed before visible video began");
+            cycles(3);
+            if(dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("timer started while the generated maze was still blanked");
+            force dut.maze_pixel_visible=1'b0;
+            force dut.timer_player_action=1'b1;
+            if(dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("player action before maze visibility started the timer");
+            cycles(2);
+            if(dut.elapsed_timer_i.play_started)
+                fail("player action without maze content started the timer");
+            force dut.timer_player_action=1'b0;
+            force dut.maze_pixel_visible=1'b1;
+            cycles(2);
+            if(dut.elapsed_timer_i.play_started)
+                fail("visible maze started the timer without player action");
+            force dut.timer_player_action=1'b1;
+            cycles(2);
+            if(!dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("timer did not arm on first player action with the maze visible");
+            release dut.maze_pixel_visible;
+            release dut.timer_player_action;
+            release dut.active_video;
+            cycles(16);
+            if(dut.elapsed_seconds_bcd !== 8'h03)
+                fail("countdown changed before one second of visible PLAY");
         end
     endtask
     task start;

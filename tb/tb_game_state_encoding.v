@@ -17,10 +17,14 @@ module tb_game_state_encoding;
         .gen_start(), .seed_capture(), .phys_init(), .phys_en(phys_en)
     );
     reg timer_init = 1'b0;
+    reg timer_maze_pixel_visible = 1'b0;
+    reg timer_player_action = 1'b0;
     reg [`GAME_STATE_W-1:0] state_in = `ST_MENU;
     wire [7:0] minutes, seconds;
     game_timer #(.CLK_HZ(2)) timer_i (
-        .clk(clk), .rst(rst), .game_state(state_in), .phys_init(timer_init), .n_cells(4'd5), .time_up(),
+        .clk(clk), .rst(rst), .maze_pixel_visible(timer_maze_pixel_visible),
+        .player_action(timer_player_action), .game_state(state_in),
+        .phys_init(timer_init), .n_cells(4'd5), .time_up(),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
     reg [511:0] menu_text = 512'h4d; // distinct from PLAY/WIN status pages
@@ -36,6 +40,7 @@ module tb_game_state_encoding;
         .pixel_x(10'd156), .pixel_y(10'd212), .active_video(1'b1),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(), .maze_rdata(1'b0),
         .start_col(5'd19), .start_row(5'd19), .goal_col(5'd1), .goal_row(5'd1),
+        .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
         .ball_on(1'b1), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .sin_snap(), .cos_snap()
     );
@@ -53,7 +58,13 @@ module tb_game_state_encoding;
         begin
             @(negedge clk); frame_tick = 1'b1;
             @(negedge clk); frame_tick = 1'b0;
-            repeat (3) @(negedge clk);
+            repeat (2) @(negedge clk);
+        end
+    endtask
+    task visible_pixel;
+        begin
+            @(negedge clk); timer_maze_pixel_visible = 1'b1; timer_player_action = 1'b1;
+            @(negedge clk); timer_player_action = 1'b0; timer_maze_pixel_visible = 1'b0;
         end
     endtask
 
@@ -86,6 +97,7 @@ module tb_game_state_encoding;
         state_in = `ST_PLAY;
         timer_init = 1'b1;
         @(negedge clk); timer_init = 1'b0;
+        visible_pixel();
         repeat (4) @(negedge clk);
         if (minutes !== 8'h00 || seconds !== 8'h58) fail("valid PLAY did not decrement the timer");
         frozen_minutes = minutes; frozen_seconds = seconds;

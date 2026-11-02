@@ -1,5 +1,11 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
+//////////////////////////////////////////////////////////////////////////////////
+//  FILL IN THE FOLLOWING INFORMATION:
+//  STUDENT A NAME: Han Qi-Ze
+//  STUDENT B NAME: Kim Doyeon
+//  STUDENT C NAME: Chua Choon Hsiang
+//////////////////////////////////////////////////////////////////////////////////
 
 // Integration top: game_ctrl sequences generation/play, and the renderer is
 // held off while maze_gen writes the single map; rotation supports the SW5
@@ -133,6 +139,9 @@ module My_Top_Module #(
     wire [4:0]  start_row;
     wire [4:0]  goal_col;
     wire [4:0]  goal_row;
+    wire [19:0] box_cols;               // item boxes (Story 9.1)
+    wire [19:0] box_rows;
+    wire [3:0]  box_valid;
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
@@ -143,6 +152,7 @@ module My_Top_Module #(
     wire        in_goal;
     wire        render_enable;
     reg         render_enable_d = 1'b0;
+    wire        maze_pixel_visible;
     reg         active_video_d = 1'b0;
 
     wire mouse_left;
@@ -152,6 +162,10 @@ module My_Top_Module #(
     wire [11:0] mouse_x;
     wire [11:0] mouse_y;
     wire [3:0] mouse_z;
+    reg [11:0] mouse_x_action_prev = 12'd0;
+    reg [11:0] mouse_y_action_prev = 12'd0;
+    reg mouse_motion_action = 1'b0;
+    wire timer_player_action;
     reg mouse_connected = 1'b0;
     reg [25:0] mouse_event_timer = 26'd0;
     wire signed [1:0] rot_cmd;
@@ -189,6 +203,25 @@ module My_Top_Module #(
         .ps2_clk   (ps2_clk),
         .ps2_data  (ps2_data)
     );
+
+    // Treat an actual mouse-position change as player action. A report with
+    // unchanged coordinates (including an idle/status packet) must not start
+    // the countdown by itself.
+    always @(posedge clk) begin
+        if (rst) begin
+            mouse_x_action_prev <= 12'd0;
+            mouse_y_action_prev <= 12'd0;
+            mouse_motion_action <= 1'b0;
+        end else begin
+            mouse_motion_action <= 1'b0;
+            if (mouse_event) begin
+                mouse_motion_action <= (mouse_x != mouse_x_action_prev) ||
+                                       (mouse_y != mouse_y_action_prev);
+                mouse_x_action_prev <= mouse_x;
+                mouse_y_action_prev <= mouse_y;
+            end
+        end
+    end
 
     always @(posedge clk) begin
         if (rst) begin
@@ -240,6 +273,8 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
+    assign timer_player_action = mouse_motion_action || mouse_left || mouse_right ||
+                                 btnL_sync[1] || btnR_sync[1];
     assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
@@ -265,6 +300,7 @@ module My_Top_Module #(
     // MENU and GENERATE still mask the display and disable map reads.
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE);
+    wire timer_display_active = render_enable_d && maze_pixel_visible;
 
     game_ctrl #(
         .START_IN_MENU(START_IN_MENU),
@@ -295,6 +331,8 @@ module My_Top_Module #(
         .HUGE_SECONDS(HUGE_TIME_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
+        .maze_pixel_visible(timer_display_active),
+        .player_action(timer_player_action),
         .game_state(game_state),
         .phys_init(phys_init),
         .n_cells(n_cells),
@@ -387,7 +425,10 @@ module My_Top_Module #(
         .start_col (start_col),
         .start_row (start_row),
         .goal_col  (goal_col),
-        .goal_row  (goal_row)
+        .goal_row  (goal_row),
+        .box_cols  (box_cols),
+        .box_rows  (box_rows),
+        .box_valid (box_valid)
     );
 
     // maze_gen is the sole writer; ball_physics reads walls through the
@@ -506,12 +547,17 @@ module My_Top_Module #(
         .start_row    (start_row),
         .goal_col     (goal_col),
         .goal_row     (goal_row),
+        .box_cols     (box_cols),
+        .box_rows     (box_rows),
+        .box_valid    (box_valid),
+        .box_visible  (4'b1111),        // Story 9.2 hides picked-up boxes
         .ball_on      (ball_on),
         .vga_r        (render_r),
         .vga_g        (render_g),
         .vga_b        (render_b),
         .vga_hs       (vga_hs),
         .vga_vs       (vga_vs),
+        .maze_pixel_visible(maze_pixel_visible),
         .sin_snap     (sin_frame),
         .cos_snap     (cos_frame)
     );
