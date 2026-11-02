@@ -85,7 +85,11 @@ Vivado 2025.2 on 2026-11-02, full `My_Top_Module`, Basys 3
   The isolated RTL snapshot matches this branch byte for byte.
 - Bitstream SHA-256:
   `A548FB40BE36813FA6E322B171040E38CC314A9510CA76746AD86DCBA7908079`.
-- Full regression: final result recorded after completion.
+- Full `tb/run_current_stories.tcl` regression: **40/40 simulation runs PASS**
+  (38 core benches plus both nominal-frequency OLED driver modes), exit 0.
+  Existing WIN, rotation, maze/camera/physics, reset, menu and countdown
+  scenarios all pass alongside the new TIME UP raster/integration checks.
+- `git diff --check`: PASS.
 - Hardware verification remains pending.
 
 ## Non-author board checklist
