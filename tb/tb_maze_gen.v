@@ -4,7 +4,7 @@
 // Self-checking testbench for maze_gen and seed_source (Stories 1.3 and 7.5).
 // For many seeds and sizes it checks: done pulse, start/goal tiles, outer
 // walls, nothing outside the maze region, BFS connectivity/reachability,
-// exact opening counts (perfect EASY, K extra openings for loop stages),
+// maximum opening counts (perfect EASY, up to K extra openings on loop stages),
 // deterministic output per seed, and diversity across seeds.
 module tb_maze_gen;
 
@@ -44,6 +44,7 @@ module tb_maze_gen;
     integer runs;
     integer cycles, max_cycles;
     integer done_pulses;
+    integer n10_below_cap, n10_at_cap, n15_below_cap, n15_at_cap;
     integer max_stack_depth = 0;
     always @(posedge clk) if (gen_done) done_pulses <= done_pulses + 1;
     always @(negedge clk) if (gen_busy) begin
@@ -85,13 +86,13 @@ module tb_maze_gen;
         end
     endtask
 
-    function integer expected_loop_count;
+    function integer max_loop_count;
         input integer N;
         begin
             case (N)
-                10: expected_loop_count = 3;  // HARD
-                15: expected_loop_count = 5;  // largest stage
-                default: expected_loop_count = 0;
+                10: max_loop_count = 3;  // HARD
+                15: max_loop_count = 5;  // largest stage
+                default: max_loop_count = 0;
             endcase
         end
     endfunction
@@ -123,8 +124,9 @@ module tb_maze_gen;
         input integer drive;
         input [31:0] s;
         integer limit, k, outside_floor, perimeter_floor, map_col, map_row;
-        integer edge_openings, expected_openings, edge_row, edge_col;
-        integer K, band, band_first, band_last, loop_addr, loop_row, loop_col;
+        integer edge_openings, edge_row, edge_col;
+        integer K, cap, band, band_first, band_last, loop_addr, loop_row, loop_col;
+        integer band_found, band_seen;
         begin
             n_cells = drive[3:0]; seed = s; floor_writes = 0;
             @(negedge clk); gen_start = 1'b1;
@@ -173,27 +175,45 @@ module tb_maze_gen;
                         if ((edge_row < N-1) && !mem[(2*edge_row+2)*`MAP_STRIDE + (2*edge_col+1)])
                             edge_openings = edge_openings + 1;
                     end
-                expected_openings = N * N - 1 + expected_loop_count(N);
-                if (edge_openings != expected_openings) begin
+                cap = max_loop_count(N);
+                K = edge_openings - (N * N - 1);
+                if (K < 0 || K > cap) begin
                     errors = errors + 1;
-                    $display("FAIL N=%0d seed=%h: %0d open adjacencies, expected %0d (K=%0d)",
-                             N, s, edge_openings, expected_openings, expected_loop_count(N));
+                    $display("FAIL N=%0d seed=%h: %0d extra openings, allowed 0..%0d",
+                             N, s, K, cap);
+                end
+                if (N == 10) begin
+                    if (K < cap) n10_below_cap = n10_below_cap + 1;
+                    if (K == cap) n10_at_cap = n10_at_cap + 1;
+                end else if (N == 15) begin
+                    if (K < cap) n15_below_cap = n15_below_cap + 1;
+                    if (K == cap) n15_at_cap = n15_at_cap + 1;
                 end
 
-                // Loop placement: the last K floor writes are interior walls,
-                // loop k in band k (cell rows 3k..3k+2, the last band to N-1).
-                K = expected_loop_count(N);
+                // Loop placement: at most one of the last K floor writes may
+                // occupy each existing row band. Skipped bands stay empty.
+                band_seen = 0;
                 for (band = 0; band < K; band = band + 1) begin
-                    loop_addr  = wlog[(floor_writes - K + band) % 8];
+                    loop_addr = wlog[(floor_writes - K + band) % 8];
                     loop_row   = loop_addr / `MAP_STRIDE;
                     loop_col   = loop_addr % `MAP_STRIDE;
-                    band_first = 2 * (3 * band) + 1;
-                    band_last  = (band == K - 1) ? 2 * N - 1 : 2 * (3 * band + 2) + 1;
-                    if (((loop_row + loop_col) % 2) != 1 || loop_row < band_first || loop_row > band_last ||
+                    band_found = -1;
+                    for (k = 0; k < cap; k = k + 1) begin
+                        band_first = 6 * k + 1;
+                        band_last  = (k == cap - 1) ? 2 * N - 1 : 6 * k + 5;
+                        if (loop_row >= band_first && loop_row <= band_last)
+                            band_found = k;
+                    end
+                    if (((loop_row + loop_col) % 2) != 1 || band_found < 0 ||
                         loop_col < 1 || loop_col > 2 * N - 1) begin
                         errors = errors + 1;
-                        $display("FAIL N=%0d seed=%h: loop %0d at tile (%0d,%0d), outside band rows %0d-%0d",
-                                 N, s, band, loop_col, loop_row, band_first, band_last);
+                        $display("FAIL N=%0d seed=%h: loop at tile (%0d,%0d) is outside the configured bands",
+                                 N, s, loop_col, loop_row);
+                    end else if (band_seen & (1 << band_found)) begin
+                        errors = errors + 1;
+                        $display("FAIL N=%0d seed=%h: more than one loop in band %0d", N, s, band_found);
+                    end else begin
+                        band_seen = band_seen | (1 << band_found);
                     end
                 end
 
@@ -201,9 +221,9 @@ module tb_maze_gen;
                 bfs_check(N, start_col, start_row, goal_col, goal_row);
                 if (!goal_reached) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: goal not reachable", N, s); end
                 if (reached != floor_total) begin errors = errors + 1; $display("FAIL N=%0d seed=%h: %0d of %0d floor tiles reachable", N, s, reached, floor_total); end
-                if (floor_total != N * N + expected_openings) begin
+                if (floor_total != N * N + edge_openings) begin
                     errors = errors + 1;
-                    $display("FAIL N=%0d seed=%h: %0d floor tiles, expected %0d", N, s, floor_total, N*N+expected_openings);
+                    $display("FAIL N=%0d seed=%h: %0d floor tiles, expected %0d", N, s, floor_total, N*N+edge_openings);
                 end
 
                 last_hash = mem_hash(1'b0);
@@ -224,6 +244,7 @@ module tb_maze_gen;
 
     initial begin
         errors = 0; runs = 0; max_cycles = 0; done_pulses = 0; last_hash = 0;
+        n10_below_cap = 0; n10_at_cap = 0; n15_below_cap = 0; n15_at_cap = 0;
         repeat (4) @(posedge clk);
         rst = 1'b0; ss_rst = 1'b0;
         repeat (4) @(posedge clk);
@@ -233,6 +254,11 @@ module tb_maze_gen;
             run_gen(10, 32'h1000_0000 + s * 32'h9E37_79B1);
             hashes[s] = last_hash;
         end
+
+        // HARD and N=15 loop counts must vary by seed while staying within
+        // their caps; every selected loop remains in a distinct row band.
+        for (s = 0; s < 200; s = s + 1)
+            run_gen(15, 32'h1500_0000 + s * 32'h7F4A_7C15);
 
         // 2) every size 2..15, 25 seeds each, stressing N=15 stack capacity.
         for (nn = 15; nn >= 2; nn = nn - 1)
@@ -261,6 +287,14 @@ module tb_maze_gen;
             for (b = a + 1; b < 200; b = b + 1)
                 if (hashes[a] === hashes[b]) same_pairs = same_pairs + 1;
         if (same_pairs != 0) begin errors = errors + 1; $display("FAIL: %0d duplicate mazes among 200 seeds", same_pairs); end
+        if (n10_below_cap == 0 || n10_at_cap == 0) begin
+            errors = errors + 1;
+            $display("FAIL: N=10 did not exercise both below-cap and at-cap loop counts");
+        end
+        if (n15_below_cap == 0 || n15_at_cap == 0) begin
+            errors = errors + 1;
+            $display("FAIL: N=15 did not exercise both below-cap and at-cap loop counts");
+        end
 
         // 5) seed 0 and out-of-range sizes are handled (0/1 -> 2; 15 is max).
         run_gen(15, 32'd0);
@@ -287,7 +321,7 @@ module tb_maze_gen;
 
         $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), max DFS stack depth: %0d/225, done pulses: %0d",
                  runs, max_cycles, max_cycles / 100, max_stack_depth, done_pulses);
-        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts exact, connected, solvable and deterministic; seed_source ok");
+        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok");
         else             $display("FAIL: %0d errors", errors);
         $finish;
     end

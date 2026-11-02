@@ -78,6 +78,8 @@ module tb_win_render;
                 "I": cols = {8'h00,8'h41,8'h7F,8'h41,8'h00};
                 "M": cols = {8'h7F,8'h02,8'h0C,8'h02,8'h7F};
                 "E": cols = {8'h7F,8'h49,8'h49,8'h49,8'h41};
+                "L": cols = {8'h7F,8'h40,8'h40,8'h40,8'h40};
+                "F": cols = {8'h7F,8'h09,8'h09,8'h09,8'h01};
                 ":": cols = {8'h00,8'h36,8'h36,8'h00,8'h00};
                 "0": cols = {8'h3E,8'h51,8'h49,8'h45,8'h3E};
                 "1": cols = {8'h00,8'h42,8'h7F,8'h40,8'h00};
@@ -100,20 +102,24 @@ module tb_win_render;
         reg [7:0] c;
         begin
             expected_time_text = 1'b0;
-            if (x >= 160 && x < 480 && y >= 284 && y < 312) begin
-                slot = (x - 160) / 32;
-                column = ((x - 160) % 32) / 4;
+            if (x >= 80 && x < 560 && y >= 284 && y < 312) begin
+                slot = (x - 80) / 32;
+                column = ((x - 80) % 32) / 4;
                 row = (y - 284) / 4;
                 case (slot)
                     0: c = "T";
                     1: c = "I";
                     2: c = "M";
                     3: c = "E";
-                    5: c = "0" + lat_min[7:4];
-                    6: c = "0" + lat_min[3:0];
-                    7: c = ":";
-                    8: c = "0" + lat_sec[7:4];
-                    9: c = "0" + lat_sec[3:0];
+                    5: c = "L";
+                    6: c = "E";
+                    7: c = "F";
+                    8: c = "T";
+                    10: c = "0" + lat_min[7:4];
+                    11: c = "0" + lat_min[3:0];
+                    12: c = ":";
+                    13: c = "0" + lat_sec[7:4];
+                    14: c = "0" + lat_sec[3:0];
                     default: c = " ";
                 endcase
                 if (column < 5) expected_time_text = model_col(c, column) >> row & 1'b1;
@@ -171,13 +177,13 @@ module tb_win_render;
         capture_frame();
         check_colour(12'hfc0);
 
-        // Time line: the value is latched with the frame, never mid-frame.
-        // Cell 5 is the minutes tens digit and cell 6 the ones digit.
+        // TIME LEFT line: the value is latched with the frame, never mid-frame.
+        // Cell 10 is the minutes tens digit and cell 11 the ones digit.
         tmin = 8'h01; tsec = 8'h23;
         game_state = `ST_WIN;
         capture_frame();
-        goto_pixel(320, 288); check_colour(12'hfff); // '0': column 0, row 1 is lit
-        goto_pixel(360, 288); check_colour(12'hfff); // '1': column 2, row 1 is lit
+        goto_pixel(402, 288); check_colour(12'hfff); // '0': column 0, row 1 is lit
+        goto_pixel(440, 288); check_colour(12'hfff); // '1': column 2, row 1 is lit
         tmin = 8'h02;
         check_colour(12'hfff);                       // still '1' until the next frame
         capture_frame();
@@ -214,8 +220,8 @@ module tb_win_render;
                 hs = !(x >= 656 && x < 752);
                 vs = !(y >= 490 && y < 492);
                 @(posedge clk); #1;
-                panel = x >= 132 && x < 508 && y >= 192 && y < 324;
-                accent = (panel && (x < 136 || x >= 504 || y < 196 || y >= 320)) ||
+                panel = x >= 76 && x < 564 && y >= 192 && y < 324;
+                accent = (panel && (x < 80 || x >= 560 || y < 196 || y >= 320)) ||
                          (x >= 12 && x < 628 && y >= 12 && y < 468 &&
                           (x < 16 || x >= 624 || y < 16 || y >= 464));
                 if (!active_video) begin
@@ -239,7 +245,7 @@ module tb_win_render;
         check_colour(12'h000);
         rst = 1'b0; game_state = `ST_PLAY; ball_on = 1'b1;
         check_colour(12'hfc0); // reset clears a stale WIN without another frame
-        $display("PASS: win render YOU WIN and TIME glyphs, goal blink, frame latching, priority, reset, blanking and sync; %0d pixels checked", checked);
+        $display("PASS: win render YOU WIN and TIME LEFT glyphs, goal blink, frame latching, priority, reset, blanking and sync; %0d pixels checked", checked);
         $finish;
     end
     initial begin #10000000; fail("timeout"); end

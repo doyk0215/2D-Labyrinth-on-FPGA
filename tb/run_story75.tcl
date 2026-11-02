@@ -1,5 +1,5 @@
 # Focused Story 7.5 generator regression (Vivado Simulator 2025.2).
-# Runs the many-seed maze_gen bench with exact loop-count and connectivity checks.
+# Runs the many-seed maze_gen bench with loop-cap and connectivity checks.
 set script_path [info script]
 if {[file pathtype $script_path] ne "absolute"} {
     set script_path [file join [pwd] $script_path]
@@ -34,7 +34,7 @@ if {[catch {exec xsim story75_maze_gen_snapshot -runall 2>@1} output]} {
 }
 puts $output
 if {[string first "FAIL" $output] >= 0 ||
-    [string first "PASS: maze_gen - EASY perfect, HARD/N=15 loop counts exact" $output] < 0} {
+    [string first "PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps" $output] < 0} {
     error "Story 7.5 generator regression did not pass"
 }
 puts "PASS: Story 7.5 focused generator regression"

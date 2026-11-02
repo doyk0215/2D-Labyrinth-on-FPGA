@@ -47,7 +47,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Why.** A perfect maze has exactly one route between any two cells, so the route is easy to find on a small map and offers no choice. Extra openings give alternative routes. EASY stays a perfect maze.
 
 **What.**
-- After the depth-first search finishes on the HARD stage and above, remove K interior wall tiles that separate two floor cells. K is fixed per stage in `maze_gen` parameters, not a menu setting: EASY 0, HARD (N = 10) 3, N = 15 5 (Story 7.5; first planned as 5 and 7). One loop goes in each band of cell rows, so the loops spread from the goal side to the start side. These values still need playtesting.
+- After the depth-first search finishes on the HARD stage and above, remove up to K interior wall tiles that separate two floor cells. K is a per-stage maximum in `maze_gen`, not a menu setting: EASY 0, HARD (N = 10) 3, N = 15 5 (Story 7.5; first planned as 5 and 7). Each existing cell-row band may contribute at most one loop, so any loops still spread from the goal side to the start side. These values still need playtesting.
 - Never remove outer-boundary walls.
 - The random choice comes from the same 32-bit LFSR. `maze_gen` stays the only writer of `maze_ram` (AD-5), so the pass lives inside `maze_gen` as an extra phase before it signals done.
 - The architecture spine states "perfect maze" as a property (AD-12 area); that text and the tests change to "connected, with K extra openings on loop stages".
@@ -55,7 +55,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Where.** `rtl/maze_gen.v`, `tb/tb_maze_gen.v`, the architecture spine.
 
 **Check.**
-- Testbench: EASY mazes are still perfect; HARD and N = 15 mazes are connected and have exactly (cells - 1 + K) openings, with start and goal reachable, for many seeds and deterministic per seed.
+- Testbench: EASY mazes are still perfect; HARD and N = 15 mazes are connected and have between (cells - 1) and (cells - 1 + K) openings, with start and goal reachable, for many seeds and deterministic per seed.
 - Physics and render benches are unaffected (they only read the map).
 - Board: visible alternative routes on HARD.
 

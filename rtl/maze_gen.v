@@ -4,10 +4,10 @@
 // maze_gen: deterministic connected-maze generator (Stories 1.3 and 7.5).
 //
 // Iterative recursive-backtracker (depth-first search) with an explicit stack.
-// After the search, a loop pass opens K more interior walls, one per band of
-// cell rows, so the loops spread from the goal side to the start side. The
-// count follows N, not the stage: N=10 (HARD, and the legacy default) gets 3
-// and N=15 gets 5. Every other N, including EASY, stays a perfect maze.
+// After the search, a loop pass may open up to K more interior walls, at most
+// one per band of cell rows, so any loops spread from the goal side to the
+// start side. The cap follows N, not the stage: N=10 gets 3 and N=15 gets 5.
+// Every other N, including EASY, stays a perfect maze.
 //
 // Loop pass: band k covers cell rows 3k..3k+2, and the last band also takes
 // any rows left over (N=10: 0-2, 3-5, 6-9; N=15: five bands of 3). From a
@@ -61,8 +61,8 @@ module maze_gen (
     reg [3:0]  state;
     reg [3:0]  n;                 // maze size in cells (2..15)
     reg [31:0] rng;
-    reg [3:0]  loop_target;
-    reg [3:0]  loops_added;       // also the current band of the loop pass
+    reg [3:0]  loop_cap;
+    reg [3:0]  band_index;
     reg [9:0]  clr_addr;
     reg [3:0]  cx, cy;            // current cell (top of the stack)
     reg [1:0]  dir;               // 0 = up, 1 = right, 2 = down, 3 = left
@@ -105,8 +105,8 @@ module maze_gen (
     wire [4:0] next_row  = {ny, 1'b1};
 
     // ---- loop pass: current band and scan candidate ----
-    wire [3:0] band_lo   = {loops_added[2:0], 1'b0} + loops_added;   // 3k
-    wire [3:0] band_hi   = (loops_added == loop_target - 4'd1) ? nm1 : band_lo + 4'd2;
+    wire [3:0] band_lo   = {band_index[2:0], 1'b0} + band_index;     // 3k
+    wire [3:0] band_hi   = (band_index == loop_cap - 4'd1) ? nm1 : band_lo + 4'd2;
     wire [3:0] band_span = band_hi - band_lo;                         // rows - 1
     wire [3:0] rand_col  = (rng[3:0] >= n) ? rng[3:0] - n : rng[3:0];
     wire [3:0] rand_row  = ({2'b00, rng[9:8]} > band_span) ? 4'd0 : {2'b00, rng[9:8]};
@@ -173,9 +173,9 @@ module maze_gen (
                     start_row        <= {n - 4'd1, 1'b1};
                     goal_col         <= 5'd1;
                     goal_row         <= 5'd1;
-                    loop_target      <= (n == 4'd10) ? 4'd3 :
+                    loop_cap         <= (n == 4'd10) ? 4'd3 :
                                         (n == 4'd15) ? 4'd5 : 4'd0;
-                    loops_added      <= 4'd0;
+                    band_index       <= 4'd0;
                     state            <= S_STEP;
                 end
 
@@ -183,7 +183,7 @@ module maze_gen (
                     if (avail != 4'b0000) begin
                         state <= S_PICK;
                     end else if (sp <= 8'd1) begin         // stack exhausted
-                        state <= (loop_target != 4'd0) ? S_BAND : S_FINISH;
+                        state <= (loop_cap != 4'd0) ? S_BAND : S_FINISH;
                     end else begin
                         sp <= sp - 8'd1;                    // backtrack
                         {cy, cx} <= stack[sp - 8'd2];
@@ -209,12 +209,20 @@ module maze_gen (
                     state             <= S_STEP;
                 end
 
-                S_BAND: begin                               // seeded scan start in band k
+                S_BAND: begin                               // seeded optional loop in band k
                     rng   <= xorshift(rng);
-                    scx   <= rand_col;
-                    scy   <= band_lo + rand_row;
-                    sdir  <= rng[12];
-                    state <= S_SCAN;
+                    // One seeded bit skips or selects this band; either way,
+                    // the next band remains in the same goal-to-start order.
+                    if (rng[31]) begin
+                        scx   <= rand_col;
+                        scy   <= band_lo + rand_row;
+                        sdir  <= rng[12];
+                        state <= S_SCAN;
+                    end else if (band_index == loop_cap - 4'd1) begin
+                        state <= S_FINISH;
+                    end else begin
+                        band_index <= band_index + 4'd1;
+                    end
                 end
 
                 S_SCAN: begin
@@ -234,8 +242,12 @@ module maze_gen (
                 end
 
                 S_WLOOP: begin                              // write port opens the wall
-                    loops_added <= loops_added + 4'd1;
-                    state       <= (loops_added + 4'd1 == loop_target) ? S_FINISH : S_BAND;
+                    if (band_index == loop_cap - 4'd1) begin
+                        state <= S_FINISH;
+                    end else begin
+                        band_index <= band_index + 4'd1;
+                        state      <= S_BAND;
+                    end
                 end
 
                 S_FINISH: begin
