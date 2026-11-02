@@ -10,7 +10,7 @@ module tb_game_timer;
     always #5 clk = ~clk;
     game_timer #(.CLK_HZ(CLK_HZ)) dut (
         .clk(clk), .rst(rst), .maze_pixel_visible(maze_pixel_visible), .player_action(player_action),
-        .phys_init(phys_init), .game_state(game_state),
+        .phys_init(phys_init), .game_state(game_state), .time_bonus_pulse(1'b0),
         .n_cells(n_cells), .elapsed_minutes_bcd(minutes),
         .elapsed_seconds_bcd(seconds), .time_up(time_up)
     );
@@ -21,7 +21,7 @@ module tb_game_timer;
     game_timer #(.CLK_HZ(1), .EASY_SECONDS(6000), .HARD_SECONDS(-1),
                  .HUGE_SECONDS(600)) cap_i (
         .clk(clk), .rst(rst), .maze_pixel_visible(maze_pixel_visible), .player_action(player_action),
-        .phys_init(cap_init), .game_state(`ST_PLAY),
+        .phys_init(cap_init), .game_state(`ST_PLAY), .time_bonus_pulse(1'b0),
         .n_cells(cap_stage), .elapsed_minutes_bcd(cap_minutes),
         .elapsed_seconds_bcd(cap_seconds), .time_up()
     );

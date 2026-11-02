@@ -12,16 +12,18 @@ module tb_item_ctrl;
     wire [3:0] visible,effect,picked;
     wire [6:0] seconds;
     wire pulse;
+    wire blocked, bonus;
     wire [1:0] index;
     wire [3:0] stub_effect;
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(2),.RESPAWN_SECONDS(3)) dut (
-        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),
+        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.roulette_busy(1'b0),.roulette_commit(1'b0),
         .n_cells(n),.ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(valid),.seed(seed),
         .box_visible(visible),.active_effect(effect),.effect_seconds(seconds),
-        .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked)
+        .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),
+        .debuff_blocked(blocked),.time_bonus_pulse(bonus)
     );
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(2),.RESPAWN_SECONDS(3),.STUB_LOW_ONLY(1)) stub_i (
-        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),
+        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.roulette_busy(1'b0),.roulette_commit(1'b0),
         .n_cells(n),.ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(valid),.seed(seed),
         .active_effect(stub_effect)
     );
@@ -34,12 +36,24 @@ module tb_item_ctrl;
         begin init=1;done=0;position(1,1);cycles(1);init=0;
             if(visible !== valid || effect !== `ITEM_NONE || seconds !== 0)fail("phys_init did not reload boxes/clear effect");
             cycles(7);end endtask
+    task choose_low;
+        integer guard;
+        begin guard=0;while(dut.buff_roll!=0 && guard<1000)begin cycles(1);guard=guard+1;end
+            if(guard==1000)fail("no low-gravity candidate");end endtask
     task pickup;input integer slot;
+        reg [3:0] previous_effect;
         begin
+            previous_effect=effect;
             position(cols[slot*5+:5],rows[slot*5+:5]);done=1;cycles(1);done=0;
-            if(!pulse || index !== slot || visible[slot] !== 0 || seconds !== 2)fail("centre pickup failed");
-            if((slot<2 && picked>2) || (slot>=2 && (picked<3 || picked>7)))fail("effect outside its pool");
-            if(effect !== picked || stub_effect !== `ITEM_LOW_GRAV)fail("effect activation/stub option failed");
+            if(!pulse || index !== slot || visible[slot] !== 0)fail("centre pickup failed");
+            if(blocked)begin
+                if(previous_effect!==`ITEM_INVINCIBLE || slot<2 || picked!==`ITEM_NONE)fail("invalid blocked pickup");
+            end else begin
+                if((slot<2 && picked>2) || (slot>=2 && (picked<3 || picked>7)))fail("effect outside its pool");
+                if(picked!=`ITEM_TIME_BONUS && (effect!==picked || seconds!==2))fail("timed effect activation failed");
+                if(picked==`ITEM_TIME_BONUS && effect==`ITEM_TIME_BONUS)fail("instant bonus became timed effect");
+            end
+            if(stub_effect !== `ITEM_LOW_GRAV)fail("stub option failed");
         end endtask
     task sample_no_pickup;
         begin done=1;cycles(1);done=0;
@@ -48,7 +62,7 @@ module tb_item_ctrl;
     reg [7:0] seen=0;
     reg [3:0] first_roll;
     initial begin
-        cycles(2);rst=0;new_maze();
+        cycles(2);rst=0;new_maze();choose_low();
         // Coordinate boundaries are half-open and use the full signed sum.
         bx=(3-5)*4096-2049;by=(3-5)*4096;sample_no_pickup();
         bx=(3-5)*4096-2048;done=1;cycles(1);done=0;
@@ -61,7 +75,7 @@ module tb_item_ctrl;
         if(visible[0])fail("occupied box appeared at physics boundary");
         position(1,1);cycles(3);if(visible[0])fail("visibility changed without phys_done");
         sample_no_pickup();if(!visible[0])fail("box did not respawn after departure");
-        pickup(0);cycles(2);pickup(2);
+        choose_low();pickup(0);cycles(2);pickup(2);
         if(visible[0] || visible[2] || !visible[1] || !visible[3])fail("per-box visibility/timers not independent");
         if(seconds!==2 || effect<3)fail("new pickup did not replace/restart old effect");
         // No underflow and no duplicate pickup while a hidden box is occupied.

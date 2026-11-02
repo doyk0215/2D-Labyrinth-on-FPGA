@@ -24,7 +24,7 @@ module tb_game_state_encoding;
     game_timer #(.CLK_HZ(2)) timer_i (
         .clk(clk), .rst(rst), .maze_pixel_visible(timer_maze_pixel_visible),
         .player_action(timer_player_action), .game_state(state_in),
-        .phys_init(timer_init), .n_cells(4'd5), .time_up(),
+        .phys_init(timer_init), .n_cells(4'd5), .time_up(), .time_bonus_pulse(1'b0),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
     reg [511:0] menu_text = 512'h4d; // distinct from PLAY/WIN status pages

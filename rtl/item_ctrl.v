@@ -9,7 +9,8 @@ module item_ctrl #(
     parameter integer CLK_HZ = 100_000_000,
     parameter integer EFFECT_SECONDS = 8,
     parameter integer RESPAWN_SECONDS = 15,
-    parameter STUB_LOW_ONLY = 1'b0
+    parameter STUB_LOW_ONLY = 1'b0,
+    parameter DEFER_EFFECT = 1'b0
 ) (
     input wire clk,
     input wire rst,
@@ -23,12 +24,18 @@ module item_ctrl #(
     input wire [19:0] box_rows,
     input wire [3:0] box_valid,
     input wire [31:0] seed,
+    input wire roulette_busy,
+    input wire roulette_commit,
     output reg [3:0] box_visible,
     output reg [`ITEM_EFFECT_W-1:0] active_effect,
     output reg [6:0] effect_seconds,
     output reg pickup_pulse,
     output reg [1:0] pickup_index,
-    output reg [`ITEM_EFFECT_W-1:0] pickup_effect
+    output reg [`ITEM_EFFECT_W-1:0] pickup_effect,
+    output reg debuff_blocked,
+    output wire time_bonus_pulse,
+    output reg pending_valid,
+    output reg [`ITEM_EFFECT_W-1:0] pending_effect
 );
     localparam integer SECOND_W = (CLK_HZ > 1) ? $clog2(CLK_HZ) : 1;
     localparam integer DURATION = (EFFECT_SECONDS < 0) ? 0 :
@@ -63,6 +70,16 @@ module item_ctrl #(
     reg hit_valid;
     reg [1:0] hit_index;
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
+    wire pickup_allowed = !DEFER_EFFECT || (!roulette_busy && !pending_valid);
+    wire pickup_now = !rst && !phys_init && game_state == `ST_PLAY && phys_done && hit_valid && pickup_allowed;
+    wire block_debuff = active_effect == `ITEM_INVINCIBLE && effect_seconds != 0 && hit_index >= 2;
+    // Same-edge grant: registering this through pickup_pulse would lose a
+    // pickup coincident with the timer's terminal edge. Immediate grants are
+    // consumed with visibility; deferred grants clear the held pending item.
+    wire commit_now = DEFER_EFFECT && pending_valid && roulette_commit &&
+                      !rst && !phys_init && game_state == `ST_PLAY;
+    assign time_bonus_pulse = DEFER_EFFECT ? (commit_now && pending_effect == `ITEM_TIME_BONUS) :
+                             (pickup_now && !block_debuff && rolled_effect == `ITEM_TIME_BONUS);
     integer k;
     always @* begin
         for(k=0;k<4;k=k+1)
@@ -80,20 +97,23 @@ module item_ctrl #(
     end
     integer i;
     always @(posedge clk) begin
-        pickup_pulse<=0;
+        pickup_pulse<=0; debuff_blocked<=0;
         if(rst) begin
             box_visible<=0; active_effect<=`ITEM_NONE; effect_seconds<=0;
             effect_subsecond<=0; pickup_index<=0; pickup_effect<=`ITEM_NONE;
             rng<=32'h1; buff_roll<=0; debuff_roll<=0;
+            pending_valid<=0; pending_effect<=`ITEM_NONE;
             for(i=0;i<4;i=i+1) respawn_left[i]<=0;
         end else if(phys_init) begin
             box_visible<=box_valid; active_effect<=`ITEM_NONE; effect_seconds<=0;
             effect_subsecond<=0; pickup_index<=0; pickup_effect<=`ITEM_NONE;
             rng<=initial_rng; buff_roll<=0; debuff_roll<=0;
+            pending_valid<=0; pending_effect<=`ITEM_NONE;
             for(i=0;i<4;i=i+1) respawn_left[i]<=0;
         end else if(game_state != `ST_PLAY) begin
             active_effect<=`ITEM_NONE; effect_seconds<=0; effect_subsecond<=0;
             pickup_effect<=`ITEM_NONE;
+            pending_valid<=0; pending_effect<=`ITEM_NONE;
             for(i=0;i<4;i=i+1) respawn_left[i]<=0;
             // Preserve the frozen result picture in WIN/LOSE. New mazes and
             // MENU/GENERATE clear visibility before phys_init reloads it.
@@ -116,12 +136,28 @@ module item_ctrl #(
                 if(phys_done && !box_visible[i] && box_valid[i] &&
                    respawn_left[i] == 0 && !on_box[i]) box_visible[i]<=1;
             end
-            if(phys_done && hit_valid) begin
+            if(commit_now) begin
+                pending_valid<=0; pending_effect<=`ITEM_NONE;
+                if(pending_effect != `ITEM_TIME_BONUS) begin
+                    active_effect <= (DURATION > 0) ? pending_effect : `ITEM_NONE;
+                    effect_seconds<=DURATION; effect_subsecond<=0;
+                end
+            end
+            if(phys_done && hit_valid && pickup_allowed) begin
                 pickup_pulse<=1; pickup_index<=hit_index; pickup_effect<=rolled_effect;
                 box_visible[hit_index]<=0; respawn_left[hit_index]<=RESPAWN_CYCLES;
-                effect_subsecond<=0;
-                effect_seconds<=DURATION;
-                active_effect <= (DURATION > 0) ? rolled_effect : `ITEM_NONE;
+                // Both paths keep the ordinary effect countdown above running:
+                // neither blocking a debuff nor an instant bonus refreshes it.
+                if(block_debuff) begin
+                    debuff_blocked<=1;
+                    pickup_effect<=`ITEM_NONE;
+                end else if(DEFER_EFFECT) begin
+                    pending_valid<=1; pending_effect<=rolled_effect;
+                end else if(rolled_effect != `ITEM_TIME_BONUS) begin
+                    effect_subsecond<=0;
+                    effect_seconds<=DURATION;
+                    active_effect <= (DURATION > 0) ? rolled_effect : `ITEM_NONE;
+                end
             end
         end
     end

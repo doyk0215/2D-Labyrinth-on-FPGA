@@ -116,17 +116,53 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Effect IDs 0..7 match `item_icon_rom`: LOW_GRAV, INVINCIBLE, TIME_BONUS,
   REVERSE_GRAV, HIGH_GRAV, ZERO_GRAV, INVERT, FOG. `ITEM_NONE=15`.
   Buff/debuff selection uses separate rejection-sampled xorshift32 candidates.
-- Full pools are selected and displayed in 9.2, but only LOW_GRAV changes
-  gameplay here. Other codes are timed placeholders for Stories 9.3..9.5;
-  in particular 9.5 must implement instant time bonus/non-replacement and
-  invincibility blocking. 9.7 will add roulette blocking/delayed activation.
+- Full pools are selected in 9.2. Story 9.5 adds INVINCIBLE and instant
+  TIME_BONUS; other gravity/control/render consumers arrive in 9.3/9.4.
+  9.7 adds roulette blocking/delayed activation (details below).
 - `ball_physics.effect_code[3:0]` is sampled with trig per frame. LOW_GRAV
   halves the full signed acceleration product before fraction accumulation;
   carried residual stays in common Q units, with the existing speed cap.
 - `oled_status_text` receives active effect/seconds and uses an exactly
   16-character PLAY row (e.g. `ITEM:LOW GRAV 08`). Its mailbox stays frame-safe.
 - `pickup_pulse`, slot index and selected code expose one event for future
-  consumers. Current effect duration is 8 s; roulette is outside this story.
+  consumers. `debuff_blocked` accompanies a consumed debuff protected by
+  invincibility; `pickup_effect=ITEM_NONE` in that event, and no effect starts.
+  Its normal respawn still runs. An ordinary buff replaces/restarts protection;
+  TIME_BONUS is the exception and never changes the active effect or its phase.
+- `time_bonus_pulse` is a same-edge, one-clock grant from `item_ctrl` to
+  `game_timer`, qualified by PLAY, reset, phys_init and accepted pickup. Do not
+  derive it from the registered pickup notification: the extra clock could
+  lose a pickup at the expiration edge. `My_Top_Module.ITEM_TIME_BONUS_SECONDS`
+  defaults to 10; `game_timer.BONUS_SECONDS` clamps to 0..5999. Addition is BCD,
+  capped at 99:59 after applying a coincident ordinary countdown tick. A positive
+  grant suppresses same-edge `time_up`; zero/negative parameters do not.
+  Partial-second phase and first-visible-input arming are preserved.
+- Story 9.7 enables `item_ctrl.DEFER_EFFECT` in the shipping top. The engine
+  holds `pending_valid/pending_effect`, consumes the box immediately, and blocks
+  new pickups while pending or `roulette_busy`. `roulette_commit` applies the
+  held selection once, preserving the same-edge bonus/deadline contract.
+  Direct module users default to immediate behavior; legacy top fixtures use
+  `ITEM_ROULETTE_ENABLE=0` explicitly. No physical switch bypasses roulette.
+- `item_roulette` owns animation timing in the system domain: `SPIN_MS=1500`,
+  `HOLD_MS=1000`, `BLOCK_MS=1000` (top `ITEM_ROULETTE_*` / `ITEM_BLOCK_ICON_MS`).
+  It cycles only that slot's pool with four progressively longer intervals,
+  then displays the held chosen ID. CJX's explicit 2026-11-02 playtest decision
+  is to activate when the stopped result is first displayed, before its 1 s
+  hold ends. This overrides the original hold-end acceptance wording for now;
+  revisit the timing in 9.8. Gameplay and existing effect timers keep running.
+- A protected debuff produces only the INVINCIBLE icon for 1 s, with no pending
+  effect or commit. Pickups stay blocked through both roulette/result hold and
+  this notification, until the OLED has returned to status. Reset, phys_init
+  and non-PLAY cancel pending work; an effect already activated at spin stop
+  follows the usual terminal-state clearing, with no later duplicate grant.
+- `oled_roulette_pixel` uses the existing icon ROM at 3x scale: x=24..71,
+  y=8..55 in a black 96x64 frame, with one registered-pixel latency.
+  The existing held-data text mailbox now carries the source/icon nibble in
+  the same request and latches both at `oled_frame_begin`. Applied visual/frame
+  feedback returns through a synchronized toggle and held-data capture, qualified
+  by an actual driver pixel request (power-up counter boundaries do not count). Thus
+  activation waits for the actual selected-result frame; source/icon never
+  change inside an OLED frame. Status text continues updating behind the icon.
 - Story 9.4: while `item_ctrl.active_effect` (the top's `item_effect`) is `ITEM_INVERT`, the top negates
   `angle_rot_cmd`, so left and right swap for the mouse and the board
   buttons in smooth and snap modes. A snap press held while the effect starts
