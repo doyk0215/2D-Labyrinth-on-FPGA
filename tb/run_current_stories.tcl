@@ -75,6 +75,8 @@ foreach {top snapshot marker} {
     tb_item_gravity item_gravity_snapshot "PASS: item low gravity"
     tb_switch_mapping switch_mapping_snapshot "PASS: switch mapping"
     tb_top_story92_items story92_snapshot "PASS: Story 9.2 generated-box pickup"
+    tb_fog_render fog_render_snapshot "PASS: fog render"
+    tb_top_story94_invert story94_invert_snapshot "PASS: Story 9.4 invert"
     tb_item_icon_rom item_icon_rom_snapshot "PASS: item icon ROM"
     input_mux_tb input_mux_snapshot "PASS input_mux_tb"
     tb_top_story21_integration top_story21_snapshot "PASS top Story 2.1 integration"

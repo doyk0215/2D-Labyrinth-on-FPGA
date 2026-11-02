@@ -12,6 +12,8 @@ module tb_oled_status_text;
     reg [6:0] item_seconds=0;
     wire [511:0] status_text;
     integer errors = 0;
+    integer seconds_value;
+    reg [7:0] tens_char, units_char;
 
     oled_status_text dut (
         .active_effect(item_effect), .effect_seconds(item_seconds),
@@ -122,6 +124,12 @@ module tb_oled_status_text;
         check_item_row("ITEM:REV GRAV 12");
         item_effect=`ITEM_FOG;item_seconds=99;#1;
         check_item_row("ITEM:FOG      99");
+        // Story 9.4: every displayable value, against /10 and %10 here.
+        for(seconds_value=1;seconds_value<100;seconds_value=seconds_value+1) begin
+            item_seconds=seconds_value;#1;
+            tens_char=8'h30+seconds_value/10; units_char=8'h30+seconds_value%10;
+            check_item_row({"ITEM:FOG      ", tens_char, units_char});
+        end
         item_seconds=0;#1;check_item_row("PLAYING         ");
         item_effect=`ITEM_NONE;item_seconds=8;#1;check_item_row("PLAYING         ");
         game_state=`ST_WIN;item_effect=`ITEM_LOW_GRAV;#1;

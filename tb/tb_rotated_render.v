@@ -43,7 +43,7 @@ module tb_rotated_render;
         // not valid. Only boxes 0 and 2 may be drawn.
         .box_cols({5'd13, 5'd15, 5'd9, 5'd5}), .box_rows({5'd15, 5'd9, 5'd13, 5'd5}),
         .box_valid(4'b0111), .box_visible(4'b1101),
-        .ball_on(1'b0),
+        .ball_on(1'b0), .fog_en(1'b0), .fog_clear(1'b0),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs)
     );

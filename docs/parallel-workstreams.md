@@ -163,6 +163,19 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   by an actual driver pixel request (power-up counter boundaries do not count). Thus
   activation waits for the actual selected-result frame; source/icon never
   change inside an OLED frame. Status text continues updating behind the icon.
+- Story 9.4: while `item_ctrl.active_effect` (the top's `item_effect`) is `ITEM_INVERT`, the top negates
+  `angle_rot_cmd`, so left and right swap for the mouse and the board
+  buttons in smooth and snap modes. A snap press held while the effect starts
+  or ends changes direction and is cancelled, like an opposite press.
+- Story 9.4: `ball_overlay` outputs `fog_clear` (pixel within `FOG_RADIUS`,
+  default 48 px, of the ball's screen centre; LUT squares, no DSP) with the
+  same one-clock latency as `ball_on`. `render.fog_en` (top:
+  `item_effect == ITEM_FOG`) is latched with the frame snapshot; under fog
+  every pixel except the ball and `fog_clear` pixels is black. The top's
+  `FOG_RADIUS_PX` parameter sets the radius for 9.8 tuning.
+- Story 9.4: `oled_status_text` takes the item seconds' tens and units from a
+  0..127 lookup table instead of `/10` and `%10` (same text), so no divider
+  sits in front of the OLED text mailbox's 512-bit compare.
 
 **Camera (C, Story 7.2)**
 - Inputs: `phys_init`, `phys_done`, `n_cells[3:0]`, `ball_x`, `ball_y`

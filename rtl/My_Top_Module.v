@@ -38,7 +38,8 @@ module My_Top_Module #(
     parameter ITEM_ROULETTE_ENABLE = 1'b1,
     parameter integer ITEM_ROULETTE_SPIN_MS = 1500,
     parameter integer ITEM_ROULETTE_HOLD_MS = 1000,
-    parameter integer ITEM_BLOCK_ICON_MS = 1000
+    parameter integer ITEM_BLOCK_ICON_MS = 1000,
+    parameter integer FOG_RADIUS_PX = 48     // fog of war clear radius (Story 9.4)
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -297,11 +298,15 @@ module My_Top_Module #(
     assign rot_held = snap_left | snap_right;
     assign timer_player_action = mouse_motion_action || mouse_left || mouse_right ||
                                  btnL_sync[1] || btnR_sync[1];
-    assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN) ||
+    wire signed [1:0] rot_cmd_normal = (menu_active || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
+    // Invert controls (Story 9.4): swap left and right for the mouse and the
+    // buttons, smooth and snap alike. A snap press held while the effect
+    // starts or ends changes direction, so angle_accumulator cancels it.
+    assign angle_rot_cmd = (item_effect == `ITEM_INVERT) ? -rot_cmd_normal : rot_cmd_normal;
     always @(posedge clk) begin
         if (system_reset) snap_sw_sync <= 2'b00;
         else snap_sw_sync <= {snap_sw_sync[0], sw[0]};
@@ -480,6 +485,7 @@ module My_Top_Module #(
     wire        phys_done;
     wire signed [10:0] ball_sx, ball_sy;
     wire        ball_on;
+    wire        fog_clear;              // inside the fog circle (Story 9.4)
 
     ball_physics ball_i (
         .clk        (clk),
@@ -549,7 +555,7 @@ module My_Top_Module #(
         .cam_done  (cam_done)
     );
 
-    ball_overlay ball_ov_i (
+    ball_overlay #(.FOG_RADIUS(FOG_RADIUS_PX)) ball_ov_i (
         .clk          (clk),
         .rst          (rst),
         .start        (cam_done),   // after the camera moves for this frame
@@ -564,7 +570,8 @@ module My_Top_Module #(
         .active_video (active_video),
         .ball_sx      (ball_sx),
         .ball_sy      (ball_sy),
-        .ball_on      (ball_on)
+        .ball_on      (ball_on),
+        .fog_clear    (fog_clear)
     );
 
     wire [3:0] render_r;
@@ -601,6 +608,8 @@ module My_Top_Module #(
         .box_valid    (box_valid),
         .box_visible  (box_visible),    // Story 9.2 pickup/respawn visibility
         .ball_on      (ball_on),
+        .fog_en       (item_effect == `ITEM_FOG),
+        .fog_clear    (fog_clear),
         .vga_r        (render_r),
         .vga_g        (render_g),
         .vga_b        (render_b),
