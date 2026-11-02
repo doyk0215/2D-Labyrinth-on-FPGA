@@ -22,15 +22,10 @@
 // Cell (cx,cy) is tile (2*cx+1,2*cy+1); passages occupy the intervening tiles.
 // Start is (2N-1,2N-1), goal is (1,1), and N is clamped to 2..15.
 //
-// Item boxes (Story 9.1): last, one box goes in each quadrant of the cell grid
-// (split at h = N/2: 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left),
-// on a seeded cell that is not the start or goal. Boxes 0 and 1 are buff boxes,
-// 2 and 3 debuff boxes; box k sits in quadrant (r + p_k) mod 4, where r and a
-// swap bit come from the RNG and p = 0,1,2,3 or 0,2,1,3, so any pair of
-// quadrants can hold the buffs: each side-by-side pair 1 time in 8, each
-// diagonal pair 1 time in 4. N < 4 gets no boxes (a quadrant there holds only
-// the start or goal), and its box coordinates stay zero. The boxes do not
-// touch the map.
+// Item boxes: EASY (N=5) has none, HARD keeps two buffs and two debuffs, and
+// HUGE (N=15) has three of each. Other eligible sizes retain four boxes.
+// Positions are seeded within quadrants and avoid the start, goal, and all
+// previously placed boxes. For HUGE, the last two slots reuse quadrants 0/1.
 //
 // Interface (contract v1.0):
 //   gen_start (pulse) + n_cells + seed -> gen_busy ... gen_done (pulse).
@@ -56,9 +51,9 @@ module maze_gen (
     output reg  [`COORD_W-1:0]       start_row,
     output reg  [`COORD_W-1:0]       goal_col,
     output reg  [`COORD_W-1:0]       goal_row,
-    output reg  [4*`COORD_W-1:0]     box_cols,
-    output reg  [4*`COORD_W-1:0]     box_rows,
-    output reg  [3:0]                box_valid
+    output reg  [6*`COORD_W-1:0]     box_cols,
+    output reg  [6*`COORD_W-1:0]     box_rows,
+    output reg  [5:0]                box_valid
 );
 
     localparam [3:0] S_IDLE   = 4'd0,
@@ -90,7 +85,8 @@ module maze_gen (
     reg [7:0]  sp;                // number of entries on the stack (0..225)
     reg [3:0]  scx, scy;          // loop-pass scan position (cell)
     reg        sdir;              // 0 = east wall, 1 = south wall
-    reg [1:0]  box_k;             // box being placed
+    reg [2:0]  box_k;             // box being placed
+    reg [2:0]  box_target;        // 0 EASY, 4 standard, 6 HUGE
     reg [1:0]  box_rot;           // quadrant of box 0
     reg        box_swap;          // swap the quadrants of boxes 1 and 2
 
@@ -137,18 +133,29 @@ module maze_gen (
 
     // ---- item boxes: quadrant of box k and a seeded cell inside it ----
     wire [3:0] half      = {1'b0, n[3:1]};
-    wire [1:0] box_perm  = !box_swap       ? box_k :
-                           (box_k == 2'd1) ? 2'd2  :
-                           (box_k == 2'd2) ? 2'd1  : box_k;
+    wire [1:0] box_perm  = !box_swap       ? box_k[1:0] :
+                           (box_k[1:0] == 2'd1) ? 2'd2  :
+                           (box_k[1:0] == 2'd2) ? 2'd1  : box_k[1:0];
     wire [1:0] box_quad  = box_rot + box_perm;
     wire       quad_right = (box_quad == 2'd1) || (box_quad == 2'd2);
     wire       quad_low   = box_quad[1];
     wire [3:0] box_cx    = (quad_right ? half : 4'd0) + {1'b0, rng[2:0]};
     wire [3:0] box_cy    = (quad_low   ? half : 4'd0) + {1'b0, rng[6:4]};
+    reg        box_duplicate;
+    integer    box_check_index;
+    always @* begin
+        box_duplicate = 1'b0;
+        for (box_check_index = 0; box_check_index < 6; box_check_index = box_check_index + 1)
+            if (box_valid[box_check_index] &&
+                box_cols[box_check_index * `COORD_W +: `COORD_W] == {box_cx, 1'b1} &&
+                box_rows[box_check_index * `COORD_W +: `COORD_W] == {box_cy, 1'b1})
+                box_duplicate = 1'b1;
+    end
     wire       box_ok    = ({1'b0, rng[2:0]} < (quad_right ? n - half : half)) &&
                            ({1'b0, rng[6:4]} < (quad_low   ? n - half : half)) &&
                            ({box_cy, box_cx} != {nm1, nm1}) &&      // start cell
-                           ({box_cy, box_cx} != 8'd0);              // goal cell
+                           ({box_cy, box_cx} != 8'd0) &&             // goal cell
+                           !box_duplicate;
 
     // ---- open-passage record: one write per cycle, no reset ----
     wire       open_clr  = (state == S_CLEAR);
@@ -180,9 +187,10 @@ module maze_gen (
             gen_busy <= 1'b0;
             gen_done <= 1'b0;
             sp       <= 8'd0;
-            box_valid <= 4'b0000;
-            box_cols  <= {4*`COORD_W{1'b0}};
-            box_rows  <= {4*`COORD_W{1'b0}};
+            box_valid <= 6'b000000;
+            box_cols  <= {6*`COORD_W{1'b0}};
+            box_rows  <= {6*`COORD_W{1'b0}};
+            box_target <= 3'd0;
         end else begin
             case (state)
                 S_IDLE: begin
@@ -191,9 +199,9 @@ module maze_gen (
                         rng      <= (seed == 32'd0) ? 32'd1 : seed;
                         clr_addr <= 10'd0;
                         gen_busy <= 1'b1;
-                        box_valid <= 4'b0000;
-                        box_cols  <= {4*`COORD_W{1'b0}};
-                        box_rows  <= {4*`COORD_W{1'b0}};
+                        box_valid <= 6'b000000;
+                        box_cols  <= {6*`COORD_W{1'b0}};
+                        box_rows  <= {6*`COORD_W{1'b0}};
                         state    <= S_CLEAR;
                     end
                 end
@@ -216,6 +224,9 @@ module maze_gen (
                     goal_row         <= 5'd1;
                     loop_cap         <= (n == 4'd10) ? 4'd3 :
                                         (n == 4'd15) ? 4'd5 : 4'd0;
+                    box_target       <= (n == 4'd5) ? 3'd0 :
+                                        (n == 4'd15) ? 3'd6 :
+                                        (n >= 4'd4) ? 3'd4 : 3'd0;
                     band_index       <= 4'd0;
                     state            <= S_STEP;
                 end
@@ -295,8 +306,8 @@ module maze_gen (
                     rng      <= xorshift(rng);
                     box_rot  <= rng[1:0];
                     box_swap <= rng[2];
-                    box_k    <= 2'd0;
-                    state    <= (n < 4'd4) ? S_FINISH : S_BOX;
+                    box_k    <= 3'd0;
+                    state    <= (box_target == 3'd0) ? S_FINISH : S_BOX;
                 end
 
                 S_BOX: begin                                // reject cells outside the quadrant
@@ -305,8 +316,8 @@ module maze_gen (
                         box_cols[box_k * `COORD_W +: `COORD_W] <= {box_cx, 1'b1};
                         box_rows[box_k * `COORD_W +: `COORD_W] <= {box_cy, 1'b1};
                         box_valid[box_k] <= 1'b1;
-                        box_k            <= box_k + 2'd1;
-                        if (box_k == 2'd3) state <= S_FINISH;
+                        box_k            <= box_k + 3'd1;
+                        if (box_k == box_target - 3'd1) state <= S_FINISH;
                     end
                 end
 

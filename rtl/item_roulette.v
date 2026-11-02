@@ -11,7 +11,7 @@ module item_roulette #(
     input wire clk,rst,phys_init,
     input wire [`GAME_STATE_W-1:0] game_state,
     input wire pickup_pulse,debuff_blocked,
-    input wire [1:0] pickup_index,
+    input wire [2:0] pickup_index,
     input wire [`ITEM_EFFECT_W-1:0] pickup_effect,
     input wire display_frame,
     input wire [3:0] display_visual,
@@ -61,8 +61,8 @@ module item_roulette #(
                 if(pickup_pulse)begin
                     if(debuff_blocked)begin state<=BLOCK;icon<=`ITEM_INVINCIBLE;end
                     else if(pickup_effect<=`ITEM_FOG)begin
-                        state<=SPIN;chosen<=pickup_effect[2:0];debuff_pool<=pickup_index[1];
-                        icon<=pickup_index[1] ? 3'd3 : 3'd0;apply_pending<=1;
+                        state<=SPIN;chosen<=pickup_effect[2:0];debuff_pool<=pickup_effect>=4'd3;
+                        icon<=(pickup_effect>=4'd3) ? 3'd3 : 3'd0;apply_pending<=1;
                     end
                 end
             end
