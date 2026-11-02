@@ -18,10 +18,12 @@ module tb_game_state_encoding;
     );
     reg timer_init = 1'b0;
     reg timer_maze_pixel_visible = 1'b0;
+    reg timer_player_action = 1'b0;
     reg [`GAME_STATE_W-1:0] state_in = `ST_MENU;
     wire [7:0] minutes, seconds;
     game_timer #(.CLK_HZ(2)) timer_i (
-        .clk(clk), .rst(rst), .maze_pixel_visible(timer_maze_pixel_visible), .game_state(state_in),
+        .clk(clk), .rst(rst), .maze_pixel_visible(timer_maze_pixel_visible),
+        .player_action(timer_player_action), .game_state(state_in),
         .phys_init(timer_init), .n_cells(4'd5), .time_up(),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
@@ -61,8 +63,8 @@ module tb_game_state_encoding;
     endtask
     task visible_pixel;
         begin
-            @(negedge clk); timer_maze_pixel_visible = 1'b1;
-            @(negedge clk); timer_maze_pixel_visible = 1'b0;
+            @(negedge clk); timer_maze_pixel_visible = 1'b1; timer_player_action = 1'b1;
+            @(negedge clk); timer_player_action = 1'b0; timer_maze_pixel_visible = 1'b0;
         end
     endtask
 

@@ -89,12 +89,11 @@ Vivado 2025.2 on 2026-11-01, full `My_Top_Module`, Basys 3
   together on merged RTL (five benches), including HUGE generation/OLED/goal
   and replay with the countdown connected. Regression labels are generic so
   either feature PR can merge first without a script-description conflict.
-- Timer-start follow-up (2026-11-02): the initial fixes armed before the maze
-  pixels reached the VGA output. The corrected fix arms only when top-level
-  PLAY output is enabled and the renderer's delayed map-pixel flag is high.
-  The real-top test holds active video without maze pixels and verifies the
-  timer stays loaded, then enables the maze-pixel flag and checks that timing
-  starts on that scanout pixel.
+- Timer-start follow-up (2026-11-02): the timer now waits for both an actual
+  maze pixel at VGA scanout and the first player action. Mouse movement, mouse
+  left/right buttons, and board btnL/btnR can start it. Once started, the timer
+  continues through idle time. The real-top test verifies that a maze alone or
+  an action before maze visibility leaves the loaded limit unchanged.
 
 ## Review and board check
 

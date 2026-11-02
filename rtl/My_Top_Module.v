@@ -162,6 +162,10 @@ module My_Top_Module #(
     wire [11:0] mouse_x;
     wire [11:0] mouse_y;
     wire [3:0] mouse_z;
+    reg [11:0] mouse_x_action_prev = 12'd0;
+    reg [11:0] mouse_y_action_prev = 12'd0;
+    reg mouse_motion_action = 1'b0;
+    wire timer_player_action;
     reg mouse_connected = 1'b0;
     reg [25:0] mouse_event_timer = 26'd0;
     wire signed [1:0] rot_cmd;
@@ -199,6 +203,25 @@ module My_Top_Module #(
         .ps2_clk   (ps2_clk),
         .ps2_data  (ps2_data)
     );
+
+    // Treat an actual mouse-position change as player action. A report with
+    // unchanged coordinates (including an idle/status packet) must not start
+    // the countdown by itself.
+    always @(posedge clk) begin
+        if (rst) begin
+            mouse_x_action_prev <= 12'd0;
+            mouse_y_action_prev <= 12'd0;
+            mouse_motion_action <= 1'b0;
+        end else begin
+            mouse_motion_action <= 1'b0;
+            if (mouse_event) begin
+                mouse_motion_action <= (mouse_x != mouse_x_action_prev) ||
+                                       (mouse_y != mouse_y_action_prev);
+                mouse_x_action_prev <= mouse_x;
+                mouse_y_action_prev <= mouse_y;
+            end
+        end
+    end
 
     always @(posedge clk) begin
         if (rst) begin
@@ -250,6 +273,8 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
+    assign timer_player_action = mouse_motion_action || mouse_left || mouse_right ||
+                                 btnL_sync[1] || btnR_sync[1];
     assign angle_rot_cmd = (menu_active || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE)) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
@@ -306,6 +331,7 @@ module My_Top_Module #(
         .clk(clk),
         .rst(rst),
         .maze_pixel_visible(timer_display_active),
+        .player_action(timer_player_action),
         .game_state(game_state),
         .phys_init(phys_init),
         .n_cells(n_cells),
