@@ -58,18 +58,22 @@ module tb_top_story92_items;
         force dut.frame_tick=0;force dut.oled_frame_begin=0;cycles(20);start();
         probe_buff(12'h04f);
         c=dut.box_cols[4:0];r=dut.box_rows[4:0];ball_at(c,r);frame();
-        if(dut.box_visible[0] || dut.item_effect > `ITEM_TIME_BONUS || dut.item_seconds==0)
+        if(dut.box_visible[0] || dut.item_pickup_effect > `ITEM_TIME_BONUS ||
+           (dut.item_pickup_effect != `ITEM_TIME_BONUS && dut.item_seconds==0))
             fail("actual physics completion did not pick up generated buff");
         if(dut.ball_i.effect_code !== dut.item_effect)fail("effect did not reach physics");
         probe_buff(12'h346);oled();
-        if(dut.text_active[8*32+:8] !== "I" || dut.text_active[8*36+:8] !== ":")
-            fail("OLED active frame does not contain the selected ITEM row");
+        if(dut.item_effect != `ITEM_NONE)begin
+            if(dut.text_active[8*32+:8] !== "I" || dut.text_active[8*36+:8] !== ":")
+                fail("OLED active frame does not contain the selected ITEM row");
+        end else if(dut.item_pickup_effect != `ITEM_TIME_BONUS || dut.text_active[8*32+:8] !== "P")
+            fail("instant bonus did not retain the PLAYING status");
         cycles(800);frame();
         if(dut.box_visible[0] || dut.item_effect !== `ITEM_NONE || dut.item_seconds!==0)
             fail("effect expiry or occupied respawn failed");
         ball_at(dut.start_col,dut.start_row);frame();
         if(!dut.box_visible[0])fail("box did not reappear on departure");probe_buff(12'h04f);
-        ball_at(c,r);frame();if(dut.item_effect > `ITEM_TIME_BONUS)fail("respawned buff box did not roll from its pool");
+        ball_at(c,r);frame();if(dut.item_pickup_effect > `ITEM_TIME_BONUS)fail("respawned buff box did not roll from its pool");
         release dut.ball_i.ball_x;release dut.ball_i.ball_y;
         click();if(dut.game_state !== `ST_MENU || dut.item_effect!==`ITEM_NONE || dut.box_visible!==0)
             fail("short reset retained item/respawn state");

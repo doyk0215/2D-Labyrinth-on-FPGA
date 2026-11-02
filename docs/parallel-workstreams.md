@@ -116,17 +116,32 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Effect IDs 0..7 match `item_icon_rom`: LOW_GRAV, INVINCIBLE, TIME_BONUS,
   REVERSE_GRAV, HIGH_GRAV, ZERO_GRAV, INVERT, FOG. `ITEM_NONE=15`.
   Buff/debuff selection uses separate rejection-sampled xorshift32 candidates.
-- Full pools are selected and displayed in 9.2, but only LOW_GRAV changes
-  gameplay here. Other codes are timed placeholders for Stories 9.3..9.5;
-  in particular 9.5 must implement instant time bonus/non-replacement and
-  invincibility blocking. 9.7 will add roulette blocking/delayed activation.
+- Full pools are selected in 9.2. Story 9.5 adds INVINCIBLE and instant
+  TIME_BONUS; other gravity/control/render consumers arrive in 9.3/9.4.
+  9.7 adds roulette blocking/delayed activation.
 - `ball_physics.effect_code[3:0]` is sampled with trig per frame. LOW_GRAV
   halves the full signed acceleration product before fraction accumulation;
   carried residual stays in common Q units, with the existing speed cap.
 - `oled_status_text` receives active effect/seconds and uses an exactly
   16-character PLAY row (e.g. `ITEM:LOW GRAV 08`). Its mailbox stays frame-safe.
 - `pickup_pulse`, slot index and selected code expose one event for future
-  consumers. Current effect duration is 8 s; roulette is outside this story.
+  consumers. `debuff_blocked` accompanies a consumed debuff protected by
+  invincibility; `pickup_effect=ITEM_NONE` in that event, and no effect starts.
+  Its normal respawn still runs. An ordinary buff replaces/restarts protection;
+  TIME_BONUS is the exception and never changes the active effect or its phase.
+- `time_bonus_pulse` is a same-edge, one-clock grant from `item_ctrl` to
+  `game_timer`, qualified by PLAY, reset, phys_init and accepted pickup. Do not
+  derive it from the registered pickup notification: the extra clock could
+  lose a pickup at the expiration edge. `My_Top_Module.ITEM_TIME_BONUS_SECONDS`
+  defaults to 10; `game_timer.BONUS_SECONDS` clamps to 0..5999. Addition is BCD,
+  capped at 99:59 after applying a coincident ordinary countdown tick. A positive
+  grant suppresses same-edge `time_up`; zero/negative parameters do not.
+  Partial-second phase and first-visible-input arming are preserved.
+- For 9.7, consume `debuff_blocked` for the protection icon without starting a
+  roulette; ordinary pickups still publish the chosen code, including the
+  instant TIME_BONUS ID. Move the grant/activation to roulette completion,
+  preserving the timer's same-edge bonus/deadline contract. The current effect
+  duration is 8 s; no OLED roulette is implemented in 9.5.
 
 **Camera (C, Story 7.2)**
 - Inputs: `phys_init`, `phys_done`, `n_cells[3:0]`, `ball_x`, `ball_y`

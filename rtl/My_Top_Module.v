@@ -33,6 +33,7 @@ module My_Top_Module #(
     parameter integer HUGE_TIME_SECONDS = 180,
     parameter integer ITEM_EFFECT_SECONDS = 8,
     parameter integer ITEM_RESPAWN_SECONDS = 15,
+    parameter integer ITEM_TIME_BONUS_SECONDS = 10,
     parameter ITEM_STUB_LOW_ONLY = 1'b0
 ) (
     input  wire       clk,
@@ -151,6 +152,8 @@ module My_Top_Module #(
     wire item_pickup;
     wire [1:0] item_pickup_index;
     wire [`ITEM_EFFECT_W-1:0] item_pickup_effect;
+    wire item_debuff_blocked;
+    wire item_time_bonus;
     wire        gen_busy;
     wire        gen_done;
     wire [31:0] seed;
@@ -337,11 +340,12 @@ module My_Top_Module #(
 
     game_timer #(.CLK_HZ(TIMER_CLK_HZ),
         .EASY_SECONDS(EASY_TIME_SECONDS), .HARD_SECONDS(HARD_TIME_SECONDS),
-        .HUGE_SECONDS(HUGE_TIME_SECONDS)) elapsed_timer_i (
+        .HUGE_SECONDS(HUGE_TIME_SECONDS), .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
         .maze_pixel_visible(timer_display_active),
         .player_action(timer_player_action),
+        .time_bonus_pulse(item_time_bonus),
         .game_state(game_state),
         .phys_init(phys_init),
         .n_cells(n_cells),
@@ -501,7 +505,8 @@ module My_Top_Module #(
         .box_cols(box_cols), .box_rows(box_rows), .box_valid(box_valid), .seed(seed),
         .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
         .pickup_pulse(item_pickup), .pickup_index(item_pickup_index),
-        .pickup_effect(item_pickup_effect)
+        .pickup_effect(item_pickup_effect), .debuff_blocked(item_debuff_blocked),
+        .time_bonus_pulse(item_time_bonus)
     );
 
     // Camera (Story 7.2): follows the ball on stages too large for the
