@@ -1,5 +1,11 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
+//////////////////////////////////////////////////////////////////////////////////
+//  FILL IN THE FOLLOWING INFORMATION:
+//  STUDENT A NAME: Han Qi-Ze
+//  STUDENT B NAME: Kim Doyeon
+//  STUDENT C NAME: Chua Choon Hsiang
+//////////////////////////////////////////////////////////////////////////////////
 
 // Integration top: game_ctrl sequences generation/play, and the renderer is
 // held off while maze_gen writes the single map; rotation supports the SW5
@@ -294,6 +300,7 @@ module My_Top_Module #(
         .HUGE_SECONDS(HUGE_TIME_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
+        .frame_tick(frame_tick),
         .game_state(game_state),
         .phys_init(phys_init),
         .n_cells(n_cells),

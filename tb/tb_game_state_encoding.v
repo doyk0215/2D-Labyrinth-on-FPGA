@@ -20,7 +20,8 @@ module tb_game_state_encoding;
     reg [`GAME_STATE_W-1:0] state_in = `ST_MENU;
     wire [7:0] minutes, seconds;
     game_timer #(.CLK_HZ(2)) timer_i (
-        .clk(clk), .rst(rst), .game_state(state_in), .phys_init(timer_init), .n_cells(4'd5), .time_up(),
+        .clk(clk), .rst(rst), .frame_tick(frame_tick), .game_state(state_in),
+        .phys_init(timer_init), .n_cells(4'd5), .time_up(),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
     reg [511:0] menu_text = 512'h4d; // distinct from PLAY/WIN status pages
@@ -53,7 +54,7 @@ module tb_game_state_encoding;
         begin
             @(negedge clk); frame_tick = 1'b1;
             @(negedge clk); frame_tick = 1'b0;
-            repeat (3) @(negedge clk);
+            repeat (2) @(negedge clk);
         end
     endtask
 
@@ -86,6 +87,7 @@ module tb_game_state_encoding;
         state_in = `ST_PLAY;
         timer_init = 1'b1;
         @(negedge clk); timer_init = 1'b0;
+        frame();
         repeat (4) @(negedge clk);
         if (minutes !== 8'h00 || seconds !== 8'h58) fail("valid PLAY did not decrement the timer");
         frozen_minutes = minutes; frozen_seconds = seconds;

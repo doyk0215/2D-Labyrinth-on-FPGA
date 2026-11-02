@@ -33,9 +33,17 @@ module tb_top_story82_countdown;
             guard=0;
             while(!dut.gen_done && guard<200000) begin cycles(1); guard=guard+1; end
             if(guard==200000) fail("generation timeout");
-            frame();
-            if(dut.game_state !== `ST_PLAY || dut.elapsed_seconds_bcd !== 8'h03)
-                fail("real generator did not start PLAY with fresh countdown");
+            force dut.frame_tick=1; cycles(1);
+            force dut.frame_tick=0; cycles(1);
+            if(dut.game_state !== `ST_PLAY || dut.elapsed_seconds_bcd !== 8'h03 ||
+               dut.elapsed_timer_i.play_started)
+                fail("timer armed before the first generated-maze frame was captured");
+            cycles(1);
+            if(!dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("timer did not arm with the first displayed-maze frame");
+            cycles(16);
+            if(dut.elapsed_seconds_bcd !== 8'h03)
+                fail("countdown changed before one second of visible PLAY");
         end
     endtask
     task start;
