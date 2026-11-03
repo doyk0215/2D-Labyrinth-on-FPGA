@@ -19,6 +19,7 @@ module menu_ctrl (
     input  wire         btn_down,
     input  wire         btn_confirm,
     input  wire         btn_settings,
+    input  wire [35:0]  stage_high_scores_bcd,
     output reg          start_game,
     output reg  [7:0]   game_cfg,
     output reg  [511:0] status_text,
@@ -69,6 +70,31 @@ module menu_ctrl (
         end
     endfunction
 
+    function [7:0] digit_ascii;
+        input [3:0] digit;
+        begin digit_ascii = (digit <= 4'd9) ? (8'h30 + digit) : 8'h3f; end
+    endfunction
+
+    function [127:0] format_stage_high;
+        input [87:0] prefix;
+        input [11:0] score_bcd;
+        begin
+            if (score_bcd[11:8] != 0)
+                format_stage_high = {prefix,
+                    digit_ascii(score_bcd[11:8]),
+                    digit_ascii(score_bcd[7:4]),
+                    digit_ascii(score_bcd[3:0]), "  "};
+            else if (score_bcd[7:4] != 0)
+                format_stage_high = {prefix,
+                    digit_ascii(score_bcd[7:4]),
+                    digit_ascii(score_bcd[3:0]), "   "};
+            else
+                format_stage_high = {prefix,
+                    digit_ascii(score_bcd[3:0]), "    "};
+        end
+    endfunction
+
+    reg [127:0] easy_high_line, hard_high_line, huge_high_line;
     always @* begin
         case (selected_stage)
             2'd1: stage_cfg = {2'b01, 4'd10};
@@ -77,6 +103,12 @@ module menu_ctrl (
         endcase
 
         game_cfg = {rot_speed_sel, stage_cfg};
+        easy_high_line = format_stage_high((selected_stage == 2'd0) ? ">EASY HIGH=" : " EASY HIGH=",
+                                           stage_high_scores_bcd[11:0]);
+        hard_high_line = format_stage_high((selected_stage == 2'd1) ? ">HARD HIGH=" : " HARD HIGH=",
+                                           stage_high_scores_bcd[23:12]);
+        huge_high_line = format_stage_high((selected_stage == 2'd2) ? ">HUGE HIGH=" : " HUGE HIGH=",
+                                           stage_high_scores_bcd[35:24]);
         if (settings_page) begin
             case (rot_speed_sel)
                 2'b01: status_text = pack_text("ROTATION SPEED  ",
@@ -97,20 +129,10 @@ module menu_ctrl (
                                                  "BTNC BACK       ");
             endcase
         end else begin
-            case (selected_stage)
-                2'd1: status_text = pack_text("STAGE L=SET C=GO",
-                                              " EASY N=05 R=00 ",
-                                              ">HARD N=10 R=01 ",
-                                              " HUGE N=15 R=01 ");
-                2'd2: status_text = pack_text("STAGE L=SET C=GO",
-                                              " EASY N=05 R=00 ",
-                                              " HARD N=10 R=01 ",
-                                              ">HUGE N=15 R=01 ");
-                default: status_text = pack_text("STAGE L=SET C=GO",
-                                                 ">EASY N=05 R=00 ",
-                                                 " HARD N=10 R=01 ",
-                                                 " HUGE N=15 R=01 ");
-            endcase
+            status_text = pack_text("L=SET C=GO      ",
+                                    easy_high_line,
+                                    hard_high_line,
+                                    huge_high_line);
         end
     end
 

@@ -54,6 +54,9 @@ module My_Top_Module #(
     output wire [3:0] vga_b,
     output wire       vga_hs,
     output wire       vga_vs,
+    output wire [6:0] seg,
+    output wire       dp,
+    output wire [3:0] an,
     inout  wire       ps2_clk,
     inout  wire       ps2_data,
     output wire       oled_cs,
@@ -109,6 +112,8 @@ module My_Top_Module #(
     wire [511:0] menu_page_text;
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
+    reg [11:0] levels_completed_bcd = 12'h000;
+    reg [35:0] stage_high_scores_bcd = 36'h000000000;
     wire time_up;
     wire menu_active = (game_state == `ST_MENU);
     assign game_reset_request = btnC_press && !menu_active;
@@ -122,6 +127,7 @@ module My_Top_Module #(
         .btn_down      (btnD_menu_press),
         .btn_confirm   (btnC_press),
         .btn_settings  (btnL_menu_press),
+        .stage_high_scores_bcd(stage_high_scores_bcd),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
         .status_text   (menu_page_text),
@@ -332,6 +338,53 @@ module My_Top_Module #(
         .phys_en      (phys_en)
     );
 
+    // Count each completed maze once on the PLAY-to-WIN frame transition.
+    // A timeout, gameplay reset (BTNC), or regeneration request (BTND) starts
+    // a fresh run. The count saturates at 999 rather than wrapping around.
+    function [11:0] increment_levels_bcd;
+        input [11:0] value;
+        begin
+            if (value >= 12'h999)
+                increment_levels_bcd = 12'h999;
+            else if (value[3:0] != 4'd9)
+                increment_levels_bcd = {value[11:4], value[3:0] + 4'd1};
+            else if (value[7:4] != 4'd9)
+                increment_levels_bcd = {value[11:8], value[7:4] + 4'd1, 4'd0};
+            else
+                increment_levels_bcd = {value[11:8] + 4'd1, 8'h00};
+        end
+    endfunction
+    wire [11:0] next_levels_completed_bcd = increment_levels_bcd(levels_completed_bcd);
+
+    always @(posedge clk) begin
+        if (system_reset || btnC_press || btnD_menu_press ||
+            ((game_state == `ST_PLAY) && (regen_request || time_up))) begin
+            levels_completed_bcd <= 12'h000;
+        end else if ((game_state == `ST_PLAY) && frame_tick && in_goal) begin
+            levels_completed_bcd <= next_levels_completed_bcd;
+        end
+    end
+
+    // Keep independent best completed-level counts for Easy (N=5), Hard
+    // (N=10), and Huge (N=15). Ordinary gameplay resets preserve these records.
+    always @(posedge clk) begin
+        if (por_reset) begin
+            stage_high_scores_bcd <= 36'h000000000;
+        end else if (!system_reset && !btnC_press && !btnD_menu_press &&
+                     !((game_state == `ST_PLAY) && (regen_request || time_up)) &&
+                     (game_state == `ST_PLAY) && frame_tick && in_goal) begin
+            case (active_game_cfg[3:0])
+                4'd5: if (next_levels_completed_bcd > stage_high_scores_bcd[11:0])
+                    stage_high_scores_bcd[11:0] <= next_levels_completed_bcd;
+                4'd10: if (next_levels_completed_bcd > stage_high_scores_bcd[23:12])
+                    stage_high_scores_bcd[23:12] <= next_levels_completed_bcd;
+                4'd15: if (next_levels_completed_bcd > stage_high_scores_bcd[35:24])
+                    stage_high_scores_bcd[35:24] <= next_levels_completed_bcd;
+                default: begin end
+            endcase
+        end
+    end
+
     game_timer #(.CLK_HZ(TIMER_CLK_HZ),
         .EASY_SECONDS(EASY_TIME_SECONDS), .HARD_SECONDS(HARD_TIME_SECONDS),
         .HUGE_SECONDS(HUGE_TIME_SECONDS), .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
@@ -348,12 +401,21 @@ module My_Top_Module #(
         .elapsed_seconds_bcd(elapsed_seconds_bcd)
     );
 
+    seven_seg_timer #(.CLK_HZ(TIMER_CLK_HZ)) timer_7seg_i (
+        .clk(clk), .rst(rst),
+        .enable((game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
+                (game_state == `ST_LOSE)),
+        .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),
+        .seg(seg), .dp(dp), .an(an)
+    );
+
     oled_status_text oled_status_i (
         .menu_text(menu_page_text),
         .game_state(game_state),
         .active_game_cfg(active_game_cfg),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
         .elapsed_seconds_bcd(elapsed_seconds_bcd),
+        .levels_completed_bcd(levels_completed_bcd),
         .active_effect(item_effect), .effect_seconds(item_seconds),
         .status_text(status_text)
     );
@@ -599,10 +661,25 @@ module My_Top_Module #(
         .cos_snap     (cos_frame)
     );
 
+    wire hud_panel, hud_accent, hud_text, hud_item_line, hud_debuff_line;
+    game_status_hud hud_i (
+        .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
+        .active_video(active_video), .game_state(game_state),
+        .n_cells(n_cells),
+        .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),
+        .active_effect(item_effect), .effect_seconds(item_seconds),
+        .panel_on(hud_panel), .accent_on(hud_accent), .text_on(hud_text),
+        .item_line(hud_item_line), .debuff_line(hud_debuff_line)
+    );
+    wire [11:0] hud_rgb = !hud_text ? (hud_accent ? 12'h0af : 12'h013) :
+                          !hud_item_line ? 12'hfff :
+                          hud_debuff_line ? 12'hf82 : 12'h4f4;
+
     // Do not present stale or partially written map pixels during GENERATE.
-    assign vga_r = render_enable_d ? render_r : (active_video_d ? 4'h0 : 4'h0);
-    assign vga_g = render_enable_d ? render_g : (active_video_d ? 4'h0 : 4'h0);
-    assign vga_b = render_enable_d ? render_b : (active_video_d ? 4'h2 : 4'h0);
+    assign vga_r = render_enable_d ? (hud_panel ? hud_rgb[11:8] : render_r) : 4'h0;
+    assign vga_g = render_enable_d ? (hud_panel ? hud_rgb[7:4]  : render_g) : 4'h0;
+    assign vga_b = render_enable_d ? (hud_panel ? hud_rgb[3:0]  : render_b) :
+                                      (active_video_d ? 4'h2 : 4'h0);
 
     // Transfer the composed 512-bit status_text buffer through a held-data
     // toggle mailbox. The OLED domain acknowledges a complete snapshot, then
