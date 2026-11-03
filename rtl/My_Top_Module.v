@@ -16,6 +16,7 @@
 //   btnU/D  = stage navigation in MENU, rotation-rate selection in settings,
 //             and pause-menu navigation while paused; btnU pauses during PLAY
 //   btnL    = open the settings page from the stage menu
+//   btnR    = open the scrollable instruction page from the stage menu
 //   btnC    = short release: confirm in MENU / return to MENU elsewhere;
 //             hold about 2 seconds: full reset, including menu/mouse/OLED
 //   btnD    = regenerate while playing
@@ -85,10 +86,11 @@ module My_Top_Module #(
     wire full_reset;
     wire system_reset = por_reset | full_reset;
     wire game_reset_request;
+    wire game_ctrl_rst = por_reset | game_reset_request;
     wire [`GAME_STATE_W-1:0] game_state;
     assign rst = system_reset | game_reset_request;
 
-    wire btnU_press, btnD_menu_press, btnC_press, btnL_menu_press;
+    wire btnU_press, btnD_menu_press, btnC_press, btnL_menu_press, btnR_menu_press;
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnU_menu_i (
         .clk(clk), .rst(system_reset), .level_in(btnU), .press(btnU_press)
     );
@@ -105,12 +107,28 @@ module My_Top_Module #(
     button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnL_menu_i (
         .clk(clk), .rst(system_reset), .level_in(btnL), .press(btnL_menu_press)
     );
+    button_press_debounce #(.STABLE_CYCLES(MENU_DEBOUNCE_CYCLES)) btnR_menu_i (
+        .clk(clk), .rst(system_reset), .level_in(btnR), .press(btnR_menu_press)
+    );
 
     wire start_game;
     wire [7:0] game_cfg;
     wire [7:0] active_game_cfg;
     wire [511:0] status_text;
     wire [511:0] menu_page_text;
+    wire settings_page;
+    reg instructions_active = 1'b0;
+    reg [2:0] instructions_scroll = 3'd0;
+    wire menu_controls_active;
+    wire menu_bg_visible;
+    wire menu_bg_seed_capture;
+    wire menu_bg_gen_start;
+    wire gen_busy;
+    wire gen_done;
+    reg menu_bg_ready = 1'b0;
+    reg [1:0] menu_bg_gen_state = 2'd0;
+    reg menu_settings_page_d = 1'b0;
+    reg menu_instructions_active_d = 1'b0;
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
     reg [11:0] levels_completed_bcd = 12'h000;
@@ -145,21 +163,85 @@ module My_Top_Module #(
         end
     end
 
+    assign menu_controls_active = menu_active && menu_bg_ready && !instructions_active;
+
+    // Generate a random N=15 backdrop on menu entry and when returning from a
+    // submenu. The maze remains centered and fixed while each page is shown.
+    localparam [1:0] MENU_BG_IDLE = 2'd0, MENU_BG_CAPTURE = 2'd1,
+                     MENU_BG_START = 2'd2, MENU_BG_WAIT = 2'd3;
+    assign menu_bg_seed_capture = menu_active && (menu_bg_gen_state == MENU_BG_CAPTURE);
+    assign menu_bg_gen_start = menu_active && (menu_bg_gen_state == MENU_BG_START);
+    always @(posedge clk) begin
+        if (system_reset) begin
+            menu_bg_gen_state <= MENU_BG_IDLE;
+            menu_bg_ready <= 1'b0;
+            menu_settings_page_d <= 1'b0;
+            menu_instructions_active_d <= 1'b0;
+        end else if (!menu_active) begin
+            menu_bg_gen_state <= MENU_BG_IDLE;
+            menu_bg_ready <= 1'b0;
+            menu_settings_page_d <= 1'b0;
+            menu_instructions_active_d <= 1'b0;
+        end else if (menu_bg_ready &&
+                     ((menu_settings_page_d && !settings_page) ||
+                      (menu_instructions_active_d && !instructions_active))) begin
+            // Back from Settings/Instructions: capture a fresh seed and
+            // replace the backdrop before enabling menu controls again.
+            menu_bg_ready <= 1'b0;
+            menu_bg_gen_state <= MENU_BG_IDLE;
+            menu_settings_page_d <= settings_page;
+            menu_instructions_active_d <= instructions_active;
+        end else begin
+            menu_settings_page_d <= settings_page;
+            menu_instructions_active_d <= instructions_active;
+            case (menu_bg_gen_state)
+                MENU_BG_IDLE: if (!menu_bg_ready && !gen_busy)
+                    menu_bg_gen_state <= MENU_BG_CAPTURE;
+                MENU_BG_CAPTURE: menu_bg_gen_state <= MENU_BG_START;
+                MENU_BG_START: menu_bg_gen_state <= MENU_BG_WAIT;
+                MENU_BG_WAIT: if (gen_done) begin
+                    menu_bg_ready <= 1'b1;
+                    menu_bg_gen_state <= MENU_BG_IDLE;
+                end
+                default: menu_bg_gen_state <= MENU_BG_IDLE;
+            endcase
+        end
+    end
+
+    always @(posedge clk) begin
+        if (system_reset || game_reset_request || !menu_active) begin
+            instructions_active <= 1'b0;
+            instructions_scroll <= 3'd0;
+        end else if (menu_bg_ready && !settings_page) begin
+            if (instructions_active) begin
+                if (btnC_press)
+                    instructions_active <= 1'b0;
+                else if (btnU_press && !btnD_menu_press && instructions_scroll != 0)
+                    instructions_scroll <= instructions_scroll - 1'b1;
+                else if (btnD_menu_press && !btnU_press && instructions_scroll < 3)
+                    instructions_scroll <= instructions_scroll + 1'b1;
+            end else if (btnR_menu_press) begin
+                instructions_active <= 1'b1;
+                instructions_scroll <= 3'd0;
+            end
+        end
+    end
+
     menu_ctrl menu_ctrl_i (
         .clk           (clk),
         .rst           (system_reset),
         .return_to_menu(game_reset_request),
-        .menu_active   (menu_active),
-        .btn_up        (btnU_press),
-        .btn_down      (btnD_menu_press),
-        .btn_confirm   (btnC_press),
-        .btn_settings  (btnL_menu_press),
+        .menu_active   (menu_controls_active),
+        .btn_up        (btnU_press && !instructions_active),
+        .btn_down      (btnD_menu_press && !instructions_active),
+        .btn_confirm   (btnC_press && !instructions_active),
+        .btn_settings  (btnL_menu_press && !instructions_active),
         .stage_high_scores_bcd(stage_high_scores_bcd),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
         .status_text   (menu_page_text),
         .selected_stage(),
-        .settings_page()
+        .settings_page(settings_page)
     );
     wire ce_pix;
     wire frame_tick;
@@ -198,16 +280,18 @@ module My_Top_Module #(
     wire [3:0] roulette_visual;
     reg oled_display_frame=0;
     reg [3:0] oled_display_visual=0;
-    wire        gen_busy;
-    wire        gen_done;
     wire [31:0] seed;
     wire        gen_start;
     wire        seed_capture;
+    wire        game_gen_start;
+    wire        game_seed_capture;
+    wire [3:0]  gen_n_cells;
     wire        phys_init;
     wire        phys_en;
     wire        in_goal;
     wire        render_enable;
     reg         render_enable_d = 1'b0;
+    reg         menu_bg_visible_d = 1'b0;
     wire        maze_pixel_visible;
     reg         active_video_d = 1'b0;
 
@@ -351,10 +435,15 @@ module My_Top_Module #(
         end
     end
 
-    // Keep the maze visible behind WIN, TIME UP, and PAUSED indications.
-    // MENU and GENERATE still mask the display and disable map reads.
+    // Keep maps visible behind game-state panels, and enable maze reads for
+    // the generated menu backdrop once it is ready.
+    assign menu_bg_visible = menu_active && menu_bg_ready;
+    assign gen_start = game_gen_start | menu_bg_gen_start;
+    assign seed_capture = game_seed_capture | menu_bg_seed_capture;
+    assign gen_n_cells = menu_bg_gen_start || (menu_bg_gen_state != MENU_BG_IDLE && menu_active)
+                       ? 4'd15 : n_cells;
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
-                           (game_state == `ST_LOSE) || pause_active;
+                           (game_state == `ST_LOSE) || pause_active || menu_bg_visible;
     wire timer_display_active = render_enable_d && maze_pixel_visible;
 
     game_ctrl #(
@@ -363,7 +452,7 @@ module My_Top_Module #(
         .LOSE_HOLD_FRAMES(LOSE_HOLD_FRAMES)
     ) game_ctrl_i (
         .clk          (clk),
-        .rst          (rst),
+        .rst          (game_ctrl_rst),
         .full_reset   (full_reset),
         .frame_tick   (frame_tick),
         .start_game   (start_game),
@@ -377,8 +466,8 @@ module My_Top_Module #(
         .in_goal      (in_goal),
         .time_up      (time_up),
         .game_state   (game_state),
-        .gen_start    (gen_start),
-        .seed_capture (seed_capture),
+        .gen_start    (game_gen_start),
+        .seed_capture (game_seed_capture),
         .phys_init    (phys_init),
         .active_game_cfg(active_game_cfg),
         .phys_en      (phys_en)
@@ -416,7 +505,7 @@ module My_Top_Module #(
     always @(posedge clk) begin
         if (por_reset) begin
             stage_high_scores_bcd <= 36'h000000000;
-        end else if (!system_reset && !btnC_press && !btnD_menu_press &&
+        end else if (!btnC_press && !btnD_menu_press &&
                      !((game_state == `ST_PLAY) && (regen_request || time_up)) &&
                      (game_state == `ST_PLAY) && frame_tick && in_goal) begin
             case (active_game_cfg[3:0])
@@ -458,6 +547,8 @@ module My_Top_Module #(
 
     oled_status_text oled_status_i (
         .menu_text(menu_page_text),
+        .instructions_active(instructions_active),
+        .instructions_scroll(instructions_scroll),
         .game_state(game_state),
         .active_game_cfg(active_game_cfg),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
@@ -472,9 +563,11 @@ module My_Top_Module #(
     always @(posedge clk) begin
         if (rst) begin
             render_enable_d <= 1'b0;
+            menu_bg_visible_d <= 1'b0;
             active_video_d  <= 1'b0;
         end else begin
             render_enable_d <= render_enable;
+            menu_bg_visible_d <= menu_bg_visible;
             active_video_d  <= active_video;
         end
     end
@@ -524,7 +617,7 @@ module My_Top_Module #(
     seed_source seed_i (
         .clk         (clk),
         .rst         (rst),
-        .debug_fixed (sw[5]),
+        .debug_fixed (menu_active ? 1'b0 : sw[5]),
         .latch_en    (seed_capture),
         .seed        (seed)
     );
@@ -533,7 +626,7 @@ module My_Top_Module #(
         .clk       (clk),
         .rst       (rst),
         .gen_start (gen_start),
-        .n_cells   (n_cells),
+        .n_cells   (gen_n_cells),
         .seed      (seed),
         .gen_busy  (gen_busy),
         .gen_done  (gen_done),
@@ -666,6 +759,15 @@ module My_Top_Module #(
     wire [3:0] render_r;
     wire [3:0] render_g;
     wire [3:0] render_b;
+    wire [3:0] render_n_cells = menu_bg_visible ? 4'd15 : n_cells;
+    wire signed [17:0] render_cam_x = menu_bg_visible ? 18'sd0 : cam_x;
+    wire signed [17:0] render_cam_y = menu_bg_visible ? 18'sd0 : cam_y;
+    wire signed [15:0] render_sin_q = menu_bg_visible ? 16'sd0 : sin_q;
+    wire signed [15:0] render_cos_q = menu_bg_visible ? 16'sd16923 : cos_q;
+    wire [4:0] render_start_col = menu_bg_visible ? 5'd31 : start_col;
+    wire [4:0] render_start_row = menu_bg_visible ? 5'd31 : start_row;
+    wire [4:0] render_goal_col = menu_bg_visible ? 5'd31 : goal_col;
+    wire [4:0] render_goal_row = menu_bg_visible ? 5'd31 : goal_row;
 
     render render_i (
         .clk          (clk),
@@ -673,14 +775,14 @@ module My_Top_Module #(
         .ce_pix       (ce_pix),
         .frame_tick   (frame_tick),
         .game_state   (game_state),
-        .n_cells      (n_cells),
-        .cam_x        (cam_x),
-        .cam_y        (cam_y),
+        .n_cells      (render_n_cells),
+        .cam_x        (render_cam_x),
+        .cam_y        (render_cam_y),
         .time_min_bcd (elapsed_minutes_bcd),
         .time_sec_bcd (elapsed_seconds_bcd),
         .angle        (angle),
-        .sin_q        (sin_q),
-        .cos_q        (cos_q),
+        .sin_q        (render_sin_q),
+        .cos_q        (render_cos_q),
         .pixel_x      (pixel_x),
         .pixel_y      (pixel_y),
         .active_video (active_video),
@@ -688,16 +790,16 @@ module My_Top_Module #(
         .vsync_in     (timing_vsync),
         .maze_raddr   (maze_raddr_r),
         .maze_rdata   (maze_rdata_r),
-        .start_col    (start_col),
-        .start_row    (start_row),
-        .goal_col     (goal_col),
-        .goal_row     (goal_row),
+        .start_col    (render_start_col),
+        .start_row    (render_start_row),
+        .goal_col     (render_goal_col),
+        .goal_row     (render_goal_row),
         .box_cols     (box_cols),
         .box_rows     (box_rows),
-        .box_valid    (box_valid),
-        .box_visible  (box_visible),    // Story 9.2 pickup/respawn visibility
-        .ball_on      (ball_on),
-        .fog_en       (item_effect == `ITEM_FOG),
+        .box_valid    (menu_bg_visible ? 6'd0 : box_valid),
+        .box_visible  (menu_bg_visible ? 6'd0 : box_visible), // Story 9.2 pickup/respawn visibility
+        .ball_on      (menu_bg_visible ? 1'b0 : ball_on),
+        .fog_en       (menu_bg_visible ? 1'b0 : (item_effect == `ITEM_FOG)),
         .fog_clear    (fog_clear),
         .vga_r        (render_r),
         .vga_g        (render_g),
@@ -723,10 +825,25 @@ module My_Top_Module #(
                           !hud_item_line ? 12'hfff :
                           hud_debuff_line ? 12'hf82 : 12'h4f4;
 
+    // The huge background stays in RAM while only the menu overlay mode changes.
+    wire [1:0] monitor_menu_mode = instructions_active ? 2'd2 :
+                                   settings_page ? 2'd1 : 2'd0;
+    wire menu_panel, menu_accent, menu_text;
+    monitor_menu_overlay menu_overlay_i (
+        .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
+        .active_video(active_video), .mode(monitor_menu_mode),
+        .panel_on(menu_panel), .accent_on(menu_accent), .text_on(menu_text)
+    );
+    wire [11:0] menu_rgb = menu_text ? 12'hfff : menu_accent ? 12'h0cf : 12'h012;
+    wire [11:0] render_rgb = {render_r, render_g, render_b};
+    wire [11:0] composed_rgb = menu_bg_visible_d ?
+                                (menu_panel || menu_accent ? menu_rgb : render_rgb) :
+                                (hud_panel ? hud_rgb : render_rgb);
+
     // Do not present stale or partially written map pixels during GENERATE.
-    assign vga_r = render_enable_d ? (hud_panel ? hud_rgb[11:8] : render_r) : 4'h0;
-    assign vga_g = render_enable_d ? (hud_panel ? hud_rgb[7:4]  : render_g) : 4'h0;
-    assign vga_b = render_enable_d ? (hud_panel ? hud_rgb[3:0]  : render_b) :
+    assign vga_r = render_enable_d ? composed_rgb[11:8] : 4'h0;
+    assign vga_g = render_enable_d ? composed_rgb[7:4]  : 4'h0;
+    assign vga_b = render_enable_d ? composed_rgb[3:0] :
                                       (active_video_d ? 4'h2 : 4'h0);
 
     // Transfer the composed 512-bit status_text buffer through a held-data
