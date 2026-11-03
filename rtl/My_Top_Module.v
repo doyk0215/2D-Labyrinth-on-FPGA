@@ -31,7 +31,7 @@ module My_Top_Module #(
     parameter integer EASY_TIME_SECONDS = 60,
     parameter integer HARD_TIME_SECONDS = 120,
     parameter integer HUGE_TIME_SECONDS = 180,
-    parameter integer ITEM_EFFECT_SECONDS = 8,
+    parameter integer ITEM_EFFECT_SECONDS = 10,         // playtested in Story 9.8
     parameter integer ITEM_RESPAWN_SECONDS = 15,
     parameter integer ITEM_TIME_BONUS_SECONDS = 10,
     parameter ITEM_STUB_LOW_ONLY = 1'b0,
