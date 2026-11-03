@@ -16,8 +16,8 @@ module tb_maze_gen;
     wire        gen_busy, gen_done, we, wdata;
     wire [`MAP_ADDR_W-1:0] waddr;
     wire [4:0]  start_col, start_row, goal_col, goal_row;
-    wire [19:0] box_cols, box_rows;
-    wire [3:0]  box_valid;
+    wire [29:0] box_cols, box_rows;
+    wire [5:0]  box_valid;
 
     always #5 clk = ~clk;
 
@@ -132,12 +132,12 @@ module tb_maze_gen;
         integer edge_openings, edge_row, edge_col;
         integer K, cap, band, band_first, band_last, loop_addr, loop_row, loop_col;
         integer band_found, band_seen;
-        integer bx, bcol, brow, bcx, bcy, bq, quad_mask, buff_mask;
+        integer bx, bcol, brow, bcx, bcy, bq, quad_mask, buff_mask, box_count;
         begin
             n_cells = drive[3:0]; seed = s; floor_writes = 0;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
-            if (box_valid !== 4'b0000) begin
+            if (box_valid !== 6'b000000) begin
                 errors = errors + 1; $display("FAIL N=%0d seed=%h: boxes still valid after gen_start", N, s);
             end
             cycles = 0; limit = 100000;
@@ -226,18 +226,20 @@ module tb_maze_gen;
                     end
                 end
 
-                // Item boxes: N >= 4 has one per quadrant (split at N/2) on a
-                // floor cell that is not the start or goal; N < 4 has none.
-                if (box_valid !== ((N >= 4) ? 4'b1111 : 4'b0000)) begin
+                // Easy N=5 has no boxes, ordinary stages have four, and HUGE
+                // N=15 has three buffs plus three debuffs.
+                box_count = (N == 5 || N < 4) ? 0 : (N == 15 ? 6 : 4);
+                if (box_valid !== ((box_count == 0) ? 6'b000000 :
+                                   (box_count == 6) ? 6'b111111 : 6'b001111)) begin
                     errors = errors + 1; $display("FAIL N=%0d seed=%h: box_valid=%b", N, s, box_valid);
-                end else if (N >= 4) begin
+                end else if (box_count != 0) begin
                     quad_mask = 0; buff_mask = 0;
-                    for (bx = 0; bx < 4; bx = bx + 1) begin
+                    for (bx = 0; bx < box_count; bx = bx + 1) begin
                         bcol = box_cols[5*bx +: 5]; brow = box_rows[5*bx +: 5];
                         bcx = (bcol - 1) / 2; bcy = (brow - 1) / 2;
                         bq = (bcy < N / 2) ? ((bcx < N / 2) ? 0 : 1) : ((bcx < N / 2) ? 3 : 2);
                         quad_mask = quad_mask | (1 << bq);
-                        if (bx < 2) buff_mask = buff_mask | (1 << bq);
+                        if (bx < ((N == 15) ? 3 : 2)) buff_mask = buff_mask | (1 << bq);
                         if ((bcol % 2) != 1 || (brow % 2) != 1 || bcol > 2 * N - 1 || brow > 2 * N - 1 ||
                             mem[brow * `MAP_STRIDE + bcol] ||
                             (bcol == start_col && brow == start_row) || (bcol == goal_col && brow == goal_row)) begin
@@ -248,7 +250,7 @@ module tb_maze_gen;
                     if (quad_mask != 15) begin
                         errors = errors + 1; $display("FAIL N=%0d seed=%h: boxes do not cover all four quadrants (%b)", N, s, quad_mask[3:0]);
                     end
-                    buff_pairs_seen[buff_mask[3:0]] = 1'b1;
+                    if (N != 15) buff_pairs_seen[buff_mask[3:0]] = 1'b1;
                 end
 
                 // BFS: every floor tile is connected and the goal is reachable.
@@ -360,7 +362,7 @@ module tb_maze_gen;
 
         $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), max DFS stack depth: %0d/225, done pulses: %0d",
                  runs, max_cycles, max_cycles / 100, max_stack_depth, done_pulses);
-        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok; item boxes one per quadrant");
+        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok; item counts match stage sizes");
         else             $display("FAIL: %0d errors", errors);
         $finish;
     end

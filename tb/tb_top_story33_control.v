@@ -37,8 +37,8 @@ module tb_top_story33_control;
 
     always @(posedge clk) begin
         if (!dut.rst) begin
-            if (dut.gen_start) gen_start_count = gen_start_count + 1;
-            if (dut.seed_capture) seed_capture_count = seed_capture_count + 1;
+            if (dut.game_gen_start) gen_start_count = gen_start_count + 1;
+            if (dut.game_seed_capture) seed_capture_count = seed_capture_count + 1;
             if (dut.phys_init) phys_init_count = phys_init_count + 1;
         end
     end
@@ -49,6 +49,18 @@ module tb_top_story33_control;
             $display("FAIL Story 3.3 control: %0s (state=%b in_goal=%b)",
                      message, dut.game_state, dut.in_goal);
             $fatal(1);
+        end
+    endtask
+
+    task wait_menu_background;
+        begin
+            guard = 0;
+            while (!dut.menu_bg_ready && guard < 500000) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            if (!dut.menu_bg_ready) fail("menu backdrop generation timeout");
+            repeat (3) @(negedge clk);
         end
     endtask
 
@@ -98,6 +110,7 @@ module tb_top_story33_control;
         force dut.frame_tick = 1'b0;
         repeat (10) @(negedge clk);
         wait_state(`ST_MENU);
+        wait_menu_background();
 
         press_start();
         pulse_frame();

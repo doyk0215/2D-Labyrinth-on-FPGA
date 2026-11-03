@@ -811,17 +811,33 @@ module My_Top_Module #(
         .cos_snap     (cos_frame)
     );
 
-    wire hud_panel, hud_accent, hud_text, hud_item_line, hud_debuff_line;
+    wire timer_warning_active, timer_flash_red;
+    wire warning_edge_glow;
+    wire [3:0] warning_edge_strength;
+    timer_warning_overlay timer_warning_i (
+        .clk(clk), .rst(rst), .frame_tick(frame_tick),
+        .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
+        .game_state(game_state), .minutes_bcd(elapsed_minutes_bcd),
+        .seconds_bcd(elapsed_seconds_bcd), .warning_active(timer_warning_active),
+        .timer_flash_red(timer_flash_red), .edge_glow(warning_edge_glow),
+        .edge_strength(warning_edge_strength)
+    );
+
+    wire hud_panel, hud_accent, hud_text, hud_timer_line, hud_timer_red;
+    wire hud_item_line, hud_debuff_line;
     game_status_hud hud_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .game_state(game_state),
         .n_cells(n_cells),
         .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),
+        .warning_active(timer_warning_active), .timer_flash_red(timer_flash_red),
         .active_effect(item_effect), .effect_seconds(item_seconds),
         .panel_on(hud_panel), .accent_on(hud_accent), .text_on(hud_text),
+        .timer_line(hud_timer_line), .timer_red(hud_timer_red),
         .item_line(hud_item_line), .debuff_line(hud_debuff_line)
     );
     wire [11:0] hud_rgb = !hud_text ? (hud_accent ? 12'h0af : 12'h013) :
+                          hud_timer_line ? (hud_timer_red ? 12'hf00 : 12'hfff) :
                           !hud_item_line ? 12'hfff :
                           hud_debuff_line ? 12'hf82 : 12'h4f4;
 
@@ -840,10 +856,23 @@ module My_Top_Module #(
                                 (menu_panel || menu_accent ? menu_rgb : render_rgb) :
                                 (hud_panel ? hud_rgb : render_rgb);
 
+    // Blend a narrow red vignette over the outer 12 pixels. Red is raised and
+    // green/blue are only reduced slightly, preserving maze detail at maximum.
+    wire [3:0] edge_red_add = {1'b0, warning_edge_strength[3:1]} +
+                              warning_edge_strength[0];
+    wire [4:0] edge_red_sum = {1'b0, composed_rgb[11:8]} + edge_red_add;
+    wire [3:0] edge_dim = warning_edge_strength[3:2];
+    wire [3:0] edge_green = (composed_rgb[7:4] > edge_dim) ?
+                            (composed_rgb[7:4] - edge_dim) : 4'd0;
+    wire [3:0] edge_blue = (composed_rgb[3:0] > edge_dim) ?
+                           (composed_rgb[3:0] - edge_dim) : 4'd0;
+    wire [11:0] warning_rgb = warning_edge_glow ?
+        {(edge_red_sum[4] ? 4'hf : edge_red_sum[3:0]), edge_green, edge_blue} : composed_rgb;
+
     // Do not present stale or partially written map pixels during GENERATE.
-    assign vga_r = render_enable_d ? composed_rgb[11:8] : 4'h0;
-    assign vga_g = render_enable_d ? composed_rgb[7:4]  : 4'h0;
-    assign vga_b = render_enable_d ? composed_rgb[3:0] :
+    assign vga_r = render_enable_d ? warning_rgb[11:8] : 4'h0;
+    assign vga_g = render_enable_d ? warning_rgb[7:4]  : 4'h0;
+    assign vga_b = render_enable_d ? warning_rgb[3:0] :
                                       (active_video_d ? 4'h2 : 4'h0);
 
     // Transfer the composed 512-bit status_text buffer through a held-data
