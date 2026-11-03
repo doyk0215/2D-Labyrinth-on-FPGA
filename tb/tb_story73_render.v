@@ -20,7 +20,7 @@ module tb_story73_render;
     reg active_video = 1'b0;
     reg signed [`POS_W-1:0] cam_x = 0, cam_y = 0;
     wire signed [15:0] sin_q, cos_q;
-    wire [9:0] maze_raddr;
+    wire [`MAP_ADDR_W-1:0] maze_raddr;
     reg maze_rdata = 1'b0;
     wire [3:0] vga_r, vga_g, vga_b;
 
@@ -29,8 +29,8 @@ module tb_story73_render;
     reg tile_mem [0:`MAP_TILES-1];
     integer r, c;
     initial
-        for (r = 0; r < 32; r = r + 1)
-            for (c = 0; c < 32; c = c + 1)
+        for (r = 0; r < `MAP_STRIDE; r = r + 1)
+            for (c = 0; c < `MAP_STRIDE; c = c + 1)
                 tile_mem[r * `MAP_STRIDE + c] = (r == 0 || c == 0 || r >= 30 || c >= 30) ? 1'b1 :
                                                 (((r * 7 + c * 13 + r * c) % 5) == 0);
     always @(posedge clk) maze_rdata <= tile_mem[maze_raddr];   // maze_ram's one-clock read
@@ -38,14 +38,14 @@ module tb_story73_render;
     sincos_rom trig_i (.clk(clk), .angle(angle), .sin_q(sin_q), .cos_q(cos_q));
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(`ST_PLAY), .n_cells(4'd15), .cam_x(cam_x), .cam_y(cam_y),
+        .game_state(`ST_PLAY), .n_cells(5'd15), .cam_x(cam_x), .cam_y(cam_y),
         .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .hsync_in(1'b1), .vsync_in(1'b1),
         .maze_raddr(maze_raddr), .maze_rdata(maze_rdata),
-        .start_col(5'd29), .start_row(5'd29),
-        .goal_col(5'd1), .goal_row(5'd1), .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
+        .start_col(6'd29), .start_row(6'd29),
+        .goal_col(6'd1), .goal_row(6'd1), .box_cols(36'd0), .box_rows(36'd0), .box_valid(4'b0000), .box_visible(4'b1111),
         .ball_on(1'b0), .fog_en(1'b0), .fog_clear(1'b0),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(), .vga_vs()

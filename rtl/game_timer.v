@@ -9,6 +9,7 @@ module game_timer #(
     parameter integer EASY_SECONDS = 60,
     parameter integer HARD_SECONDS = 120,
     parameter integer HUGE_SECONDS = 180,
+    parameter integer XL_SECONDS = 240,          // N = 20, tested on its own
     parameter integer BONUS_SECONDS = 10
 ) (
     input wire clk,
@@ -19,7 +20,7 @@ module game_timer #(
     input wire time_bonus_pulse,
     input wire [`GAME_STATE_W-1:0] game_state,
     input wire phys_init,
-    input wire [3:0] n_cells,
+    input wire [`N_CELLS_W-1:0] n_cells,
     output reg [7:0] elapsed_minutes_bcd = 8'h00,
     output reg [7:0] elapsed_seconds_bcd = 8'h00,
     output wire time_up
@@ -45,6 +46,7 @@ module game_timer #(
     localparam [15:0] EASY_LIMIT = limit_bcd(EASY_SECONDS);
     localparam [15:0] HARD_LIMIT = limit_bcd(HARD_SECONDS);
     localparam [15:0] HUGE_LIMIT = limit_bcd(HUGE_SECONDS);
+    localparam [15:0] XL_LIMIT = limit_bcd(XL_SECONDS);
     localparam [15:0] BONUS_BCD = limit_bcd(BONUS_SECONDS);
     function [15:0] decrement_bcd;
         input [15:0] value;
@@ -113,8 +115,9 @@ module game_timer #(
             subsecond_count <= {COUNT_WIDTH{1'b0}};
             play_started <= 1'b0;
             case (n_cells)
-                4'd5: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= EASY_LIMIT;
-                4'd15: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HUGE_LIMIT;
+                5'd5: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= EASY_LIMIT;
+                5'd15: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HUGE_LIMIT;
+                5'd20: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= XL_LIMIT;
                 default: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HARD_LIMIT;
             endcase
         end else if (timer_state_active) begin

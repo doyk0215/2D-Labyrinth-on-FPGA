@@ -9,12 +9,12 @@ module tb_item_gravity;
     wire signed [17:0] x,y;
     wire signed [11:0] vx,vy;
     wire done;
-    wire [9:0] addr;
+    wire [`MAP_ADDR_W-1:0] addr;
     reg wall=1;
-    always@(posedge clk) wall <= addr[9:5]==0 || addr[9:5]>=30 || addr[4:0]==0 || addr[4:0]>=30;
+    always@(posedge clk) wall <= addr[`MAP_ADDR_W-1:`COORD_W]==0 || addr[`MAP_ADDR_W-1:`COORD_W]>=30 || addr[`COORD_W-1:0]==0 || addr[`COORD_W-1:0]>=30;
     ball_physics dut (
         .clk(clk),.rst(rst),.frame_tick(frame_tick),.phys_init(init),.phys_en(1'b1),
-        .spawn_col(5'd15),.spawn_row(5'd15),.goal_col(5'd1),.goal_row(5'd1),.n_cells(4'd15),
+        .spawn_col(6'd15),.spawn_row(6'd15),.goal_col(6'd1),.goal_row(6'd1),.n_cells(5'd15),
         .sin_q(sn),.cos_q(cs),.effect_code(effect),.restitution_sel(restitution),
         .maze_raddr(addr),.maze_rdata(wall),.ball_x(x),.ball_y(y),.vel_x(vx),.vel_y(vy),.phys_done(done),.in_goal()
     );

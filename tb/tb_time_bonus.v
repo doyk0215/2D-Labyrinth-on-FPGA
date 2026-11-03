@@ -4,7 +4,7 @@
 module tb_time_bonus;
     reg clk=0,rst=1,init=0,visible=0,action=0,bonus=0;
     reg [`GAME_STATE_W-1:0] state=`ST_PLAY;
-    reg [3:0] stage=5;
+    reg [`N_CELLS_W-1:0] stage=5;
     always #5 clk=~clk;
     wire [7:0] minutes[0:4],seconds[0:4];
     wire deadline[0:4];

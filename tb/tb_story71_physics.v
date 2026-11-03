@@ -7,18 +7,18 @@ module tb_story71_physics;
     reg frame_tick = 1'b0;
     reg phys_init = 1'b0;
     reg phys_en = 1'b1;
-    reg [3:0] n_cells = 4'd15;
-    reg [4:0] spawn_col = 5'd29, spawn_row = 5'd15;
-    reg [4:0] goal_col = 5'd1, goal_row = 5'd1;
+    reg [`N_CELLS_W-1:0] n_cells = 4'd15;
+    reg [`COORD_W-1:0] spawn_col = 5'd29, spawn_row = 5'd15;
+    reg [`COORD_W-1:0] goal_col = 5'd1, goal_row = 5'd1;
     reg signed [15:0] sin_q = 16'sd16384, cos_q = 16'sd0;
-    wire [9:0] maze_raddr;
+    wire [`MAP_ADDR_W-1:0] maze_raddr;
     wire maze_rdata;
     wire signed [17:0] ball_x, ball_y;
     wire signed [11:0] vel_x, vel_y;
     wire phys_done, in_goal;
 
     reg map_we = 1'b0;
-    reg [9:0] map_waddr = 10'd0;
+    reg [`MAP_ADDR_W-1:0] map_waddr = 0;
     reg map_wdata = 1'b1;
     reg map_t [0:`MAP_TILES-1];
     integer i, row, col, guard, errors = 0;
@@ -28,7 +28,7 @@ module tb_story71_physics;
     maze_ram ram_i (
         .clk(clk), .we(map_we), .waddr(map_waddr), .wdata(map_wdata),
         .raddr_p(maze_raddr), .rdata_p(maze_rdata),
-        .ren_r(1'b0), .raddr_r(10'd0), .rdata_r()
+        .ren_r(1'b0), .raddr_r({`MAP_ADDR_W{1'b0}}), .rdata_r()
     );
 
     ball_physics dut (
@@ -44,8 +44,8 @@ module tb_story71_physics;
 
     task open_room_n15;
         begin
-            for (row = 0; row < 32; row = row + 1)
-                for (col = 0; col < 32; col = col + 1)
+            for (row = 0; row < `MAP_STRIDE; row = row + 1)
+                for (col = 0; col < `MAP_STRIDE; col = col + 1)
                     map_t[row * `MAP_STRIDE + col] = (row == 0 || row >= 30 || col == 0 || col >= 30);
         end
     endtask
@@ -53,7 +53,7 @@ module tb_story71_physics;
     task load_map;
         begin
             for (i = 0; i < `MAP_TILES; i = i + 1) begin
-                @(negedge clk); map_we = 1'b1; map_waddr = i[9:0]; map_wdata = map_t[i];
+                @(negedge clk); map_we = 1'b1; map_waddr = i; map_wdata = map_t[i];
             end
             @(negedge clk); map_we = 1'b0;
         end

@@ -28,7 +28,7 @@ module tb_top_story95_buffs;
     task position;input integer slot;
         begin
             if(slot<0)begin x=(dut.start_col-dut.n_cells)*4096;y=(dut.start_row-dut.n_cells)*4096;end
-            else begin x=(dut.box_cols[slot*5+:5]-dut.n_cells)*4096;y=(dut.box_rows[slot*5+:5]-dut.n_cells)*4096;end
+            else begin x=(dut.box_cols[slot*`COORD_W+:`COORD_W]-dut.n_cells)*4096;y=(dut.box_rows[slot*`COORD_W+:`COORD_W]-dut.n_cells)*4096;end
             force dut.ball_i.ball_x=x;force dut.ball_i.ball_y=y;
         end endtask
     task pick;

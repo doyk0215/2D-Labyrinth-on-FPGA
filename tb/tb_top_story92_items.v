@@ -34,7 +34,7 @@ module tb_top_story92_items;
     reg signed [26:0] probe_x,probe_y;
     task probe_buff;
         input [11:0] expected;
-        begin probe_x=(dut.box_cols[4:0]*16+2)*16384;probe_y=(dut.box_rows[4:0]*16+2)*16384;
+        begin probe_x=(dut.box_cols[`COORD_W-1:0]*16+2)*16384;probe_y=(dut.box_rows[`COORD_W-1:0]*16+2)*16384;
             force dut.render_i.walk_x_q=probe_x;force dut.render_i.walk_y_q=probe_y;
             force dut.ball_on=0;force dut.active_video=1;cycles(4);
             if({dut.vga_r,dut.vga_g,dut.vga_b} !== expected)fail("visible/hidden box VGA pixel incorrect");
@@ -57,7 +57,7 @@ module tb_top_story92_items;
     initial begin
         force dut.frame_tick=0;force dut.oled_frame_begin=0;cycles(20);start();
         probe_buff(12'h04f);
-        c=dut.box_cols[4:0];r=dut.box_rows[4:0];ball_at(c,r);frame();
+        c=dut.box_cols[`COORD_W-1:0];r=dut.box_rows[`COORD_W-1:0];ball_at(c,r);frame();
         if(dut.box_visible[0] || dut.item_pickup_effect > `ITEM_TIME_BONUS ||
            (dut.item_pickup_effect != `ITEM_TIME_BONUS && dut.item_seconds==0))
             fail("actual physics completion did not pick up generated buff");
@@ -82,7 +82,7 @@ module tb_top_story92_items;
         force dut.game_ctrl_i.game_state=`ST_WIN;cycles(2);
         if(dut.item_effect!==`ITEM_NONE || dut.item_seconds!==0)fail("WIN did not clear active item");
         release dut.game_ctrl_i.game_state;click();release dut.ball_i.ball_x;release dut.ball_i.ball_y;
-        start();ball_at(dut.box_cols[4:0],dut.box_rows[4:0]);frame();
+        start();ball_at(dut.box_cols[`COORD_W-1:0],dut.box_rows[`COORD_W-1:0]);frame();
         force dut.game_ctrl_i.game_state=`ST_LOSE;cycles(2);
         if(dut.item_effect!==`ITEM_NONE || dut.item_seconds!==0)fail("LOSE did not clear active item");
         release dut.game_ctrl_i.game_state;btnC=1;cycles(96);

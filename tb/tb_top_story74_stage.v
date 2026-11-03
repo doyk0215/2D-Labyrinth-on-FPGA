@@ -51,33 +51,33 @@ module tb_top_story74_stage;
     endtask
     // Independent tile-level BFS through the generated map, starting at the
     // bottom-right cell. This does not assume a particular seed or DFS path.
-    integer queue[0:1023];
-    reg seen[0:1023];
+    integer queue[0:`MAP_TILES-1];
+    reg seen[0:`MAP_TILES-1];
     integer head,tail,a,b,k,row,col,dir;
     task check_reachable;
         begin
-            for(k=0;k<1024;k=k+1) seen[k]=0;
-            head=0; tail=1; queue[0]=29*32+29; seen[29*32+29]=1;
-            if(dut.maze_ram_i.tile_mem[29*32+29] !== 0 || dut.maze_ram_i.tile_mem[33] !== 0)
+            for(k=0;k<`MAP_TILES;k=k+1) seen[k]=0;
+            head=0; tail=1; queue[0]=29*`MAP_STRIDE+29; seen[29*`MAP_STRIDE+29]=1;
+            if(dut.maze_ram_i.tile_mem[29*`MAP_STRIDE+29] !== 0 || dut.maze_ram_i.tile_mem[`MAP_STRIDE+1] !== 0)
                 fail("start or goal tile is a wall");
             while(head<tail) begin
-                a=queue[head]; head=head+1; row=a/32; col=a%32;
+                a=queue[head]; head=head+1; row=a/`MAP_STRIDE; col=a%`MAP_STRIDE;
                 for(dir=0;dir<4;dir=dir+1) begin
                     b=-1;
                     case(dir)
-                        0:if(row>0)b=a-32;
+                        0:if(row>0)b=a-`MAP_STRIDE;
                         1:if(col<30)b=a+1;
-                        2:if(row<30)b=a+32;
+                        2:if(row<30)b=a+`MAP_STRIDE;
                         3:if(col>0)b=a-1;
                     endcase
-                    if(b>=0 && b<1024) begin
+                    if(b>=0 && b<`MAP_TILES) begin
                         if(!seen[b] && dut.maze_ram_i.tile_mem[b] === 0) begin
                             seen[b]=1; queue[tail]=b; tail=tail+1;
                         end
                     end
                 end
             end
-            if(!seen[33]) fail("goal not reachable from generated HUGE start");
+            if(!seen[`MAP_STRIDE+1]) fail("goal not reachable from generated HUGE start");
         end
     endtask
     integer i;

@@ -17,11 +17,11 @@ module item_ctrl #(
     input wire [`GAME_STATE_W-1:0] game_state,
     input wire phys_init,
     input wire phys_done,
-    input wire [3:0] n_cells,
+    input wire [`N_CELLS_W-1:0] n_cells,
     input wire signed [`POS_W-1:0] ball_x,
     input wire signed [`POS_W-1:0] ball_y,
-    input wire [29:0] box_cols,
-    input wire [29:0] box_rows,
+    input wire [6*`COORD_W-1:0] box_cols,
+    input wire [6*`COORD_W-1:0] box_rows,
     input wire [5:0] box_valid,
     input wire [31:0] seed,
     input wire roulette_busy,
@@ -56,21 +56,21 @@ module item_ctrl #(
     endfunction
     wire [31:0] initial_rng = (seed ^ 32'h9e3779b9) == 0 ? 32'h1 : seed ^ 32'h9e3779b9;
 
-    // Full signed intermediate is essential near negative map edges and N=15.
-    wire signed [18:0] centre = ($signed({15'd0,n_cells}) <<< `TILE_SHIFT) + 19'sd2048;
+    // Full signed intermediate is essential near negative map edges and N=20.
+    wire signed [18:0] centre = ($signed({{(19-`N_CELLS_W){1'b0}},n_cells}) <<< `TILE_SHIFT) + 19'sd2048;
     wire signed [18:0] absolute_x = $signed({ball_x[17],ball_x}) + centre;
     wire signed [18:0] absolute_y = $signed({ball_y[17],ball_y}) + centre;
-    wire signed [18:0] map_limit = $signed({14'd0,n_cells,1'b0}) + 19'sd1;
+    wire signed [18:0] map_limit = $signed({{(18-`N_CELLS_W){1'b0}},n_cells,1'b0}) + 19'sd1;
     wire in_map = absolute_x >= 0 && absolute_y >= 0 &&
                   (absolute_x >>> `TILE_SHIFT) < map_limit &&
                   (absolute_y >>> `TILE_SHIFT) < map_limit;
-    wire [4:0] ball_col = absolute_x[16:12];
-    wire [4:0] ball_row = absolute_y[16:12];
+    wire [`COORD_W-1:0] ball_col = absolute_x[`TILE_SHIFT+`COORD_W-1:`TILE_SHIFT];
+    wire [`COORD_W-1:0] ball_row = absolute_y[`TILE_SHIFT+`COORD_W-1:`TILE_SHIFT];
     reg [5:0] on_box;
     reg hit_valid;
     reg [2:0] hit_index;
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
-    wire [2:0] buff_count = (n_cells == 4'd15) ? 3'd3 : 3'd2;
+    wire [2:0] buff_count = (n_cells >= 15) ? 3'd3 : 3'd2;   // six boxes from N = 15 up
     wire pickup_allowed = !DEFER_EFFECT || (!roulette_busy && !pending_valid);
     wire pickup_now = !rst && !phys_init && game_state == `ST_PLAY && phys_done && hit_valid && pickup_allowed;
     wire block_debuff = active_effect == `ITEM_INVINCIBLE && effect_seconds != 0 && hit_index >= buff_count;
@@ -85,7 +85,7 @@ module item_ctrl #(
     always @* begin
         for(k=0;k<6;k=k+1)
             on_box[k] = in_map && box_valid[k] &&
-                        ball_col == box_cols[k*5+:5] && ball_row == box_rows[k*5+:5];
+                        ball_col == box_cols[k*`COORD_W+:`COORD_W] && ball_row == box_rows[k*`COORD_W+:`COORD_W];
         hit_valid=0; hit_index=0;
         // Lowest slot wins if a malformed map overlaps boxes. At most one
         // pickup is published per completed physics frame.

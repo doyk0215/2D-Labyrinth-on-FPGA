@@ -11,12 +11,12 @@ module tb_maze_gen;
     reg         clk = 1'b0;
     reg         rst = 1'b1;
     reg         gen_start = 1'b0;
-    reg  [3:0]  n_cells = 4'd10;
+    reg [`N_CELLS_W-1:0] n_cells = 4'd10;
     reg  [31:0] seed = 32'd1;
     wire        gen_busy, gen_done, we, wdata;
     wire [`MAP_ADDR_W-1:0] waddr;
-    wire [4:0]  start_col, start_row, goal_col, goal_row;
-    wire [19:0] box_cols, box_rows;
+    wire [`COORD_W-1:0] start_col, start_row, goal_col, goal_row;
+    wire [6*`COORD_W-1:0] box_cols, box_rows;
     wire [3:0]  box_valid;
 
     always #5 clk = ~clk;
@@ -109,7 +109,7 @@ module tb_maze_gen;
             h = 64'hCBF29CE484222325;
             for (k = 0; k < `MAP_TILES; k = k + 1)
                 h = (h ^ {63'd0, mem[k]}) * 64'h100000001B3;
-            h = (h ^ {20'd0, box_valid, box_rows, box_cols}) * 64'h100000001B3;   // boxes too
+            h = (h ^ {box_valid, box_rows, box_cols}) * 64'h100000001B3;   // boxes too
             mem_hash = h;
         end
     endfunction
@@ -233,7 +233,7 @@ module tb_maze_gen;
                 end else if (N >= 4) begin
                     quad_mask = 0; buff_mask = 0;
                     for (bx = 0; bx < 4; bx = bx + 1) begin
-                        bcol = box_cols[5*bx +: 5]; brow = box_rows[5*bx +: 5];
+                        bcol = box_cols[`COORD_W*bx +: `COORD_W]; brow = box_rows[`COORD_W*bx +: `COORD_W];
                         bcx = (bcol - 1) / 2; bcy = (brow - 1) / 2;
                         bq = (bcy < N / 2) ? ((bcx < N / 2) ? 0 : 1) : ((bcx < N / 2) ? 3 : 2);
                         quad_mask = quad_mask | (1 << bq);

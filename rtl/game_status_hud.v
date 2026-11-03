@@ -12,7 +12,7 @@ module game_status_hud (
     input  wire [9:0] pixel_y,
     input  wire       active_video,
     input  wire [`GAME_STATE_W-1:0] game_state,
-    input  wire [3:0] n_cells,
+    input  wire [`N_CELLS_W-1:0] n_cells,
     input  wire [7:0] minutes_bcd,
     input  wire [7:0] seconds_bcd,
     input  wire [`ITEM_EFFECT_W-1:0] active_effect,

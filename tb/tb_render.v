@@ -119,7 +119,7 @@ module tb_render;
             for (c = 0; c < 21; c = c + 1) begin
                 box_at = -1;
                 for (b = 0; b < 4; b = b + 1)
-                    if (c == dut.box_cols[5*b +: 5] && r == dut.box_rows[5*b +: 5]) box_at = b;
+                    if (c == dut.box_cols[`COORD_W*b +: `COORD_W] && r == dut.box_rows[`COORD_W*b +: `COORD_W]) box_at = b;
                 if (box_at >= 0) begin
                     boxes_seen = boxes_seen + 1;
                     check_pixel(10'd152 + 16 * c, 10'd80 + 16 * r, 12'h346);               // margin

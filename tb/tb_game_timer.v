@@ -4,7 +4,7 @@ module tb_game_timer;
     localparam CLK_HZ = 4;
     reg clk = 0, rst = 1, phys_init = 0, maze_pixel_visible = 0, player_action = 0;
     reg [`GAME_STATE_W-1:0] game_state = `ST_GENERATE;
-    reg [3:0] n_cells = 5;
+    reg [`N_CELLS_W-1:0] n_cells = 5;
     wire [7:0] minutes, seconds;
     wire time_up;
     always #5 clk = ~clk;
@@ -17,7 +17,7 @@ module tb_game_timer;
     );
     // CLK_HZ=1 exercises minimum counter width, all BCD borrows and cap.
     reg cap_init = 0;
-    reg [3:0] cap_stage = 5;
+    reg [`N_CELLS_W-1:0] cap_stage = 5;
     wire [7:0] cap_minutes, cap_seconds;
     game_timer #(.CLK_HZ(1), .EASY_SECONDS(6000), .HARD_SECONDS(-1),
                  .HUGE_SECONDS(600)) cap_i (

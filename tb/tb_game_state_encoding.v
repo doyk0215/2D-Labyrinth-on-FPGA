@@ -27,7 +27,7 @@ module tb_game_state_encoding;
         .clk(clk), .rst(rst), .preserve_time(1'b0),
         .maze_pixel_visible(timer_maze_pixel_visible),
         .player_action(timer_player_action), .game_state(state_in),
-        .phys_init(timer_init), .n_cells(4'd5), .time_up(), .time_bonus_pulse(1'b0),
+        .phys_init(timer_init), .n_cells(5'd5), .time_up(), .time_bonus_pulse(1'b0),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
     );
     reg [511:0] menu_text = 512'h4d; // distinct from PLAY/WIN status pages
@@ -40,12 +40,12 @@ module tb_game_state_encoding;
     );
     wire [3:0] r, g, b;
     render render_i (
-        .clk(clk), .rst(rst), .ce_pix(1'b0), .frame_tick(frame_tick), .game_state(state_in), .time_min_bcd(8'h00), .time_sec_bcd(8'h00), .n_cells(4'd10), .cam_x(18'sd0), .cam_y(18'sd0),
+        .clk(clk), .rst(rst), .ce_pix(1'b0), .frame_tick(frame_tick), .game_state(state_in), .time_min_bcd(8'h00), .time_sec_bcd(8'h00), .n_cells(5'd10), .cam_x(18'sd0), .cam_y(18'sd0),
         .angle(12'd0), .sin_q(16'sd0), .cos_q(16'sd16384),
         .pixel_x(10'd156), .pixel_y(10'd212), .active_video(1'b1),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(), .maze_rdata(1'b0),
-        .start_col(5'd19), .start_row(5'd19), .goal_col(5'd1), .goal_row(5'd1),
-        .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
+        .start_col(6'd19), .start_row(6'd19), .goal_col(6'd1), .goal_row(6'd1),
+        .box_cols(36'd0), .box_rows(36'd0), .box_valid(4'b0000), .box_visible(4'b1111),
         .ball_on(1'b1), .fog_en(1'b0), .fog_clear(1'b0), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .sin_snap(), .cos_snap()
     );

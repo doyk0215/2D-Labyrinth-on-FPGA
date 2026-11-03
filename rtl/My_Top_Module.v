@@ -41,7 +41,12 @@ module My_Top_Module #(
     parameter integer ITEM_ROULETTE_SPIN_MS = 1500,
     parameter integer ITEM_ROULETTE_HOLD_MS = 1000,
     parameter integer ITEM_BLOCK_ICON_MS = 1000,
-    parameter integer FOG_RADIUS_PX = 48     // fog of war clear radius (Story 9.4)
+    parameter integer FOG_RADIUS_PX = 48,    // fog of war clear radius (Story 9.4)
+    parameter integer XL_TIME_SECONDS = 240,            // N = 20 time limit
+    // Test build for N = 20 before it has a menu stage: a nonzero value
+    // replaces every game's maze size (the menu still picks rotation and
+    // bounce; the OLED keeps the menu stage's text and no HIGH score updates).
+    parameter integer TEST_N_CELLS = 0
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -259,12 +264,12 @@ module My_Top_Module #(
     wire        maze_we;
     wire [`MAP_ADDR_W-1:0] maze_waddr;
     wire        maze_wdata;
-    wire [4:0]  start_col;
-    wire [4:0]  start_row;
-    wire [4:0]  goal_col;
-    wire [4:0]  goal_row;
-    wire [29:0] box_cols;               // up to six item boxes
-    wire [29:0] box_rows;
+    wire [`COORD_W-1:0] start_col;
+    wire [`COORD_W-1:0] start_row;
+    wire [`COORD_W-1:0] goal_col;
+    wire [`COORD_W-1:0] goal_row;
+    wire [6*`COORD_W-1:0] box_cols;     // up to six item boxes
+    wire [6*`COORD_W-1:0] box_rows;
     wire [5:0]  box_valid;
     wire [5:0] box_visible;
     wire [`ITEM_EFFECT_W-1:0] item_effect;
@@ -285,7 +290,7 @@ module My_Top_Module #(
     wire        seed_capture;
     wire        game_gen_start;
     wire        game_seed_capture;
-    wire [3:0]  gen_n_cells;
+    wire [`N_CELLS_W-1:0] gen_n_cells;
     wire        phys_init;
     wire        phys_en;
     wire        in_goal;
@@ -417,7 +422,9 @@ module My_Top_Module #(
     end
     wire regen_request = btnD_s[1] & ~btnD_s[2];
     wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
-    wire [3:0] n_cells = START_IN_MENU ? active_game_cfg[3:0] : legacy_n_cells;
+    wire [`N_CELLS_W-1:0] n_cells = (TEST_N_CELLS != 0) ? TEST_N_CELLS :
+                                    START_IN_MENU ? {1'b0, active_game_cfg[3:0]} :
+                                                    {1'b0, legacy_n_cells};
 
     // A normal in-game BTND regeneration reuses the latched seed and keeps
     // the current timer running through maze generation. Pause-menu Restart
@@ -441,7 +448,7 @@ module My_Top_Module #(
     assign gen_start = game_gen_start | menu_bg_gen_start;
     assign seed_capture = game_seed_capture | menu_bg_seed_capture;
     assign gen_n_cells = menu_bg_gen_start || (menu_bg_gen_state != MENU_BG_IDLE && menu_active)
-                       ? 4'd15 : n_cells;
+                       ? 5'd15 : n_cells;
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE) || pause_active || menu_bg_visible;
     wire timer_display_active = render_enable_d && maze_pixel_visible;
@@ -505,7 +512,7 @@ module My_Top_Module #(
     always @(posedge clk) begin
         if (por_reset) begin
             stage_high_scores_bcd <= 36'h000000000;
-        end else if (!btnC_press && !btnD_menu_press &&
+        end else if ((TEST_N_CELLS == 0) && !btnC_press && !btnD_menu_press &&
                      !((game_state == `ST_PLAY) && (regen_request || time_up)) &&
                      (game_state == `ST_PLAY) && frame_tick && in_goal) begin
             case (active_game_cfg[3:0])
@@ -522,7 +529,8 @@ module My_Top_Module #(
 
     game_timer #(.CLK_HZ(TIMER_CLK_HZ),
         .EASY_SECONDS(EASY_TIME_SECONDS), .HARD_SECONDS(HARD_TIME_SECONDS),
-        .HUGE_SECONDS(HUGE_TIME_SECONDS), .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
+        .HUGE_SECONDS(HUGE_TIME_SECONDS), .XL_SECONDS(XL_TIME_SECONDS),
+        .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
         .preserve_time(preserve_timer),
@@ -759,15 +767,16 @@ module My_Top_Module #(
     wire [3:0] render_r;
     wire [3:0] render_g;
     wire [3:0] render_b;
-    wire [3:0] render_n_cells = menu_bg_visible ? 4'd15 : n_cells;
+    wire [`N_CELLS_W-1:0] render_n_cells = menu_bg_visible ? 5'd15 : n_cells;
     wire signed [17:0] render_cam_x = menu_bg_visible ? 18'sd0 : cam_x;
     wire signed [17:0] render_cam_y = menu_bg_visible ? 18'sd0 : cam_y;
     wire signed [15:0] render_sin_q = menu_bg_visible ? 16'sd0 : sin_q;
     wire signed [15:0] render_cos_q = menu_bg_visible ? 16'sd16923 : cos_q;
-    wire [4:0] render_start_col = menu_bg_visible ? 5'd31 : start_col;
-    wire [4:0] render_start_row = menu_bg_visible ? 5'd31 : start_row;
-    wire [4:0] render_goal_col = menu_bg_visible ? 5'd31 : goal_col;
-    wire [4:0] render_goal_row = menu_bg_visible ? 5'd31 : goal_row;
+    // Tile 31 is just off the N = 15 backdrop, so it hides start and goal.
+    wire [`COORD_W-1:0] render_start_col = menu_bg_visible ? 6'd31 : start_col;
+    wire [`COORD_W-1:0] render_start_row = menu_bg_visible ? 6'd31 : start_row;
+    wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd31 : goal_col;
+    wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd31 : goal_row;
 
     render render_i (
         .clk          (clk),
