@@ -3,7 +3,8 @@
 # Usage from the repository root:
 #   vivado -mode batch -source scripts/build_bitstream.tcl
 set repo [file normalize [file join [file dirname [info script]] ..]]
-set project_dir [file join $repo build click-timer-items-vivado]
+set build_stamp [clock format [clock seconds] -format "%Y%m%d-%H%M%S"]
+set project_dir [file join $repo build "sevenseg-vga-status-vivado-$build_stamp"]
 
 create_project -force labyrinth $project_dir -part xc7a35tcpg236-1
 
