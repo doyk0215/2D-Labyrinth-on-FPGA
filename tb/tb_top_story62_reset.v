@@ -28,7 +28,7 @@ module tb_top_story62_reset;
     reg [4:0] previous_oled_state = 0;
     always @(posedge clk) begin
         if (dut.btnC_press) short_count = short_count + 1;
-        if (dut.gen_start) starts = starts + 1;
+        if (dut.game_gen_start) starts = starts + 1;
     end
     always @(negedge oled_res) oled_resets = oled_resets + 1;
     always @(posedge dut.clk_6m25) begin
@@ -69,12 +69,23 @@ module tb_top_story62_reset;
             if (guard == 500000 || !oled_vddc || !oled_vbatc) fail("OLED did not complete startup");
             force dut.oled_frame_begin = 1'b1;
             cycles(80); release dut.oled_frame_begin;
-            if (dut.text_active[7:0] !== "S") fail("OLED mailbox retained a pre-reset page");
+            if (dut.text_active[7:0] !== "L") fail("OLED mailbox retained a pre-reset page");
+        end
+    endtask
+    task menu_ready;
+        integer guard;
+        begin
+            guard = 0;
+            while (!dut.menu_bg_ready && guard < 50000) begin
+                cycles(1); guard = guard + 1;
+            end
+            if (guard == 50000) fail("menu backdrop generation timeout");
         end
     endtask
     task start_play;
         integer guard;
         begin
+            menu_ready();
             click(0); frame();
             guard = 0;
             while (!dut.gen_done && guard < 50000) begin cycles(1); guard = guard + 1; end
@@ -119,7 +130,7 @@ module tb_top_story62_reset;
             if (dut.full_reset || dut.rst || dut.game_state !== `ST_MENU ||
                 short_count != before_shorts || starts != before_starts)
                 fail("long release confirmed a stage or did not return to MENU");
-            oled_ready();
+            oled_ready(); menu_ready();
             if (oled_resets <= before_oled_resets || oled_display_offs <= before_display_offs)
                 fail("OLED failed to repeat reset-pin and initialization-command phases");
             if (dut.game_state !== `ST_MENU || starts != before_starts)
@@ -128,7 +139,7 @@ module tb_top_story62_reset;
     endtask
     initial begin
         force dut.frame_tick = 1'b0;
-        cycles(20); oled_ready();
+        cycles(20); oled_ready(); menu_ready();
         // MENU: reset nondefault stage/speed and an open settings page.
         click(1); click(3); click(1);
         if (dut.game_cfg === 8'h05 || !dut.menu_ctrl_i.settings_page)
@@ -143,6 +154,7 @@ module tb_top_story62_reset;
         if (dut.game_state !== `ST_GENERATE) fail("short release failed to confirm");
         click(0);
         if (dut.game_state !== `ST_MENU) fail("short release failed to return from GENERATE");
+        menu_ready();
         click(0); frame();
         if (dut.game_state !== `ST_GENERATE) fail("GENERATION reset precondition missing");
         long_reset();
@@ -152,9 +164,9 @@ module tb_top_story62_reset;
         if (dut.game_cfg[7:6] !== 2'b10) fail("rotation preference precondition missing");
         start_play();
         // Countdown now arms only after a visible maze and player input.
-        // Shorten scanout here while exercising the real button synchronizer.
+        // Shorten scanout and inject the same left-click action used by the timer.
         force dut.maze_pixel_visible = 1'b1;
-        btnL = 1; cycles(8); btnL = 0; cycles(8);
+        force dut.mouse_left = 1'b1; cycles(8); release dut.mouse_left; cycles(8);
         release dut.maze_pixel_visible;
         if (!dut.elapsed_timer_i.play_started) fail("PLAY timer did not arm after visible input");
         cycles(100);
