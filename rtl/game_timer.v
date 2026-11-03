@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// Stage countdown, loaded on phys_init and advanced only in PLAY.
+// Stage countdown, loaded on phys_init and held through pause. Normal BTND
+// regeneration keeps the countdown running during GENERATE via preserve_time.
 // Legacy elapsed_* names now carry TIME LEFT for existing OLED/render wiring.
 module game_timer #(
     parameter integer CLK_HZ = 100_000_000,
@@ -12,6 +13,7 @@ module game_timer #(
 ) (
     input wire clk,
     input wire rst,
+    input wire preserve_time,
     input wire maze_pixel_visible,
     input wire player_action,
     input wire time_bonus_pulse,
@@ -85,7 +87,9 @@ module game_timer #(
         end
     endfunction
     reg play_started = 1'b0;
-    wire timer_running = (game_state == `ST_PLAY) && play_started;
+    wire timer_state_active = (game_state == `ST_PLAY) ||
+                              ((game_state == `ST_GENERATE) && preserve_time);
+    wire timer_running = timer_state_active && play_started;
     wire empty = ({elapsed_minutes_bcd, elapsed_seconds_bcd} == 16'h0000);
     wire second_tick = (CLK_HZ <= 1) || (subsecond_count == CLK_HZ - 1);
     wire bonus_now = game_state == `ST_PLAY && time_bonus_pulse && BONUS_BCD != 0;
@@ -105,7 +109,7 @@ module game_timer #(
             play_started <= 1'b0;
             elapsed_minutes_bcd <= 8'h00;
             elapsed_seconds_bcd <= 8'h00;
-        end else if (phys_init) begin
+        end else if (phys_init && !preserve_time) begin
             subsecond_count <= {COUNT_WIDTH{1'b0}};
             play_started <= 1'b0;
             case (n_cells)
@@ -113,12 +117,12 @@ module game_timer #(
                 4'd15: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HUGE_LIMIT;
                 default: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HARD_LIMIT;
             endcase
-        end else if (game_state == `ST_PLAY) begin
+        end else if (timer_state_active) begin
             // Arm only when a PLAY pixel is actually being sent to the
             // display. Generation completion and the renderer's frame
             // snapshot both happen during vertical blanking, before the maze
             // is visible on the screen.
-            if (maze_pixel_visible && player_action)
+            if ((game_state == `ST_PLAY) && maze_pixel_visible && player_action)
                 play_started <= 1'b1;
 
             if (bonus_now)
@@ -133,7 +137,7 @@ module game_timer #(
             end else begin
                 subsecond_count <= subsecond_count + 1'b1;
             end
-        end else begin
+        end else if (game_state != `ST_PAUSED) begin
             subsecond_count <= {COUNT_WIDTH{1'b0}};
             play_started <= 1'b0;
         end

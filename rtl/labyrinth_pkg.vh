@@ -46,13 +46,14 @@
 `define SCREEN_CY      240
 
 // ---- Shared game state (Story 6.1) ----
-// Keep v1's codes; Story 8.2 uses ST_LOSE for countdown expiry.
+// Keep v1's codes; LOSE marks countdown expiry and PAUSED freezes an active run.
 `define GAME_STATE_W   3
 `define ST_MENU        3'd0
 `define ST_GENERATE    3'd1
 `define ST_PLAY        3'd2
 `define ST_WIN         3'd3
 `define ST_LOSE        3'd4
+`define ST_PAUSED      3'd5
 
 // ---- Item effects (Story 9.2), IDs match item_icon_rom for 0..7 ----
 `define ITEM_EFFECT_W  4

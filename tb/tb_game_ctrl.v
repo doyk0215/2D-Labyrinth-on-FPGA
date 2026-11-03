@@ -33,6 +33,9 @@ module tb_game_ctrl;
         .start_game   (start_game),
         .game_cfg     (8'hA5),
         .regen_button (regen_button),
+        .pause_button (1'b0),
+        .pause_resume (1'b0),
+        .pause_restart(1'b0),
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
         .in_goal      (in_goal),
@@ -174,8 +177,8 @@ module tb_game_ctrl;
             errors = errors + 1;
         end
 
-        if (start_count != 3 || seed_count != 3 || init_count != 2) begin
-            $display("FAIL: starts=%0d seed captures=%0d phys_init=%0d (expected 3,3,2)",
+        if (start_count != 3 || seed_count != 2 || init_count != 2) begin
+            $display("FAIL: starts=%0d seed captures=%0d phys_init=%0d (expected 3,2,2)",
                      start_count, seed_count, init_count);
             errors = errors + 1;
         end

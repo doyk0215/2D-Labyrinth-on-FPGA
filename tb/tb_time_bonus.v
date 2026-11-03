@@ -20,7 +20,8 @@ module tb_time_bonus;
     generate for(g=0;g<5;g=g+1)begin: variants
         game_timer #(.CLK_HZ(g>=3 ? 1 : 4),.EASY_SECONDS(59),.HARD_SECONDS(5990),
             .HUGE_SECONDS(0),.BONUS_SECONDS(g==0 ? 10 : g==1 ? 73 : g==2 ? 0 : g==3 ? 6000 : -1)) timer_i (
-            .clk(clk),.rst(rst),.phys_init(init),.maze_pixel_visible(visible),.player_action(action),
+            .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),
+            .maze_pixel_visible(visible),.player_action(action),
             .time_bonus_pulse(bonus),.game_state(state),.n_cells(stage),
             .elapsed_minutes_bcd(minutes[g]),.elapsed_seconds_bcd(seconds[g]),.time_up(deadline[g]));
     end endgenerate

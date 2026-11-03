@@ -21,6 +21,7 @@ module tb_oled_status_text;
         .active_game_cfg(active_game_cfg),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
         .elapsed_seconds_bcd(elapsed_seconds_bcd),
+        .pause_selection(2'd0),
         .status_text(status_text)
     );
 

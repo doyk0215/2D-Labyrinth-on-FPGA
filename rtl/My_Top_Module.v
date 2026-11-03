@@ -13,7 +13,8 @@
 //   sw[5]   = debug seed (fixed seed, same maze every time)
 //   sw[4:1] = retained debug value; Story 4.2 stage configuration selects N
 //   sw[0]   = 90-degree snap fallback (off = smooth rotation)
-//   btnU/D  = stage navigation in MENU, rotation-rate selection in settings
+//   btnU/D  = stage navigation in MENU, rotation-rate selection in settings,
+//             and pause-menu navigation while paused; btnU pauses during PLAY
 //   btnL    = open the settings page from the stage menu
 //   btnC    = short release: confirm in MENU / return to MENU elsewhere;
 //             hold about 2 seconds: full reset, including menu/mouse/OLED
@@ -116,7 +117,33 @@ module My_Top_Module #(
     reg [35:0] stage_high_scores_bcd = 36'h000000000;
     wire time_up;
     wire menu_active = (game_state == `ST_MENU);
-    assign game_reset_request = btnC_press && !menu_active;
+    reg [1:0] pause_selection = 2'd0;
+    wire pause_active = (game_state == `ST_PAUSED);
+    wire pause_resume_request = btnC_press && pause_active &&
+                                (pause_selection == 2'd0);
+    wire pause_restart_request = btnC_press && pause_active &&
+                                 (pause_selection == 2'd1);
+    wire pause_menu_request = btnC_press && pause_active &&
+                              (pause_selection == 2'd2);
+    assign game_reset_request = (btnC_press && !menu_active && !pause_active) ||
+                                pause_menu_request;
+
+    // Resume is selected whenever the pause screen opens. Up/down wrap through
+    // RESUME, RESTART, and MENU.
+    always @(posedge clk) begin
+        if (system_reset || game_reset_request) begin
+            pause_selection <= 2'd0;
+        end else if ((game_state == `ST_PLAY) && btnU_press) begin
+            pause_selection <= 2'd0;
+        end else if (pause_active) begin
+            if (btnU_press && !btnD_menu_press)
+                pause_selection <= (pause_selection == 2'd0) ? 2'd2 :
+                                   pause_selection - 2'd1;
+            else if (btnD_menu_press && !btnU_press)
+                pause_selection <= (pause_selection == 2'd2) ? 2'd0 :
+                                   pause_selection + 2'd1;
+        end
+    end
 
     menu_ctrl menu_ctrl_i (
         .clk           (clk),
@@ -284,7 +311,7 @@ module My_Top_Module #(
     // Motion and board-button rotation do not count as starting the game.
     assign timer_player_action = mouse_left || mouse_right;
     wire signed [1:0] rot_cmd_normal = (menu_active || (game_state == `ST_WIN) ||
-                           (game_state == `ST_LOSE)) ? 2'sd0 :
+                           (game_state == `ST_LOSE) || pause_active) ? 2'sd0 :
                            !snap_mode ? rot_cmd :
                            (snap_left && !snap_right) ? -2'sd1 :
                            (snap_right && !snap_left) ? 2'sd1 : 2'sd0;
@@ -308,10 +335,26 @@ module My_Top_Module #(
     wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
     wire [3:0] n_cells = START_IN_MENU ? active_game_cfg[3:0] : legacy_n_cells;
 
-    // Keep the frozen maze visible behind WIN and TIME UP indications.
+    // A normal in-game BTND regeneration reuses the latched seed and keeps
+    // the current timer running through maze generation. Pause-menu Restart
+    // deliberately leaves this clear, preserving its original fresh-run reset.
+    reg preserve_timer = 1'b0;
+    always @(posedge clk) begin
+        if (system_reset || game_reset_request || pause_restart_request ||
+            game_state == `ST_MENU || game_state == `ST_PAUSED ||
+            game_state == `ST_WIN || game_state == `ST_LOSE) begin
+            preserve_timer <= 1'b0;
+        end else if ((game_state == `ST_PLAY) && regen_request) begin
+            preserve_timer <= 1'b1;
+        end else if ((game_state == `ST_PLAY) && preserve_timer && phys_init) begin
+            preserve_timer <= 1'b0;
+        end
+    end
+
+    // Keep the maze visible behind WIN, TIME UP, and PAUSED indications.
     // MENU and GENERATE still mask the display and disable map reads.
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
-                           (game_state == `ST_LOSE);
+                           (game_state == `ST_LOSE) || pause_active;
     wire timer_display_active = render_enable_d && maze_pixel_visible;
 
     game_ctrl #(
@@ -326,6 +369,9 @@ module My_Top_Module #(
         .start_game   (start_game),
         .game_cfg     (game_cfg),
         .regen_button (regen_request),
+        .pause_button (btnU_press),
+        .pause_resume (pause_resume_request),
+        .pause_restart(pause_restart_request),
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
         .in_goal      (in_goal),
@@ -339,8 +385,8 @@ module My_Top_Module #(
     );
 
     // Count each completed maze once on the PLAY-to-WIN frame transition.
-    // A timeout, gameplay reset (BTNC), or regeneration request (BTND) starts
-    // a fresh run. The count saturates at 999 rather than wrapping around.
+    // Timeout, BTNC-to-menu, and pause-menu Restart clear the run count;
+    // ordinary BTND regeneration preserves it. Saturate at 999.
     function [11:0] increment_levels_bcd;
         input [11:0] value;
         begin
@@ -357,8 +403,8 @@ module My_Top_Module #(
     wire [11:0] next_levels_completed_bcd = increment_levels_bcd(levels_completed_bcd);
 
     always @(posedge clk) begin
-        if (system_reset || btnC_press || btnD_menu_press ||
-            ((game_state == `ST_PLAY) && (regen_request || time_up))) begin
+        if (system_reset || game_reset_request || pause_restart_request ||
+            ((game_state == `ST_PLAY) && time_up)) begin
             levels_completed_bcd <= 12'h000;
         end else if ((game_state == `ST_PLAY) && frame_tick && in_goal) begin
             levels_completed_bcd <= next_levels_completed_bcd;
@@ -390,6 +436,7 @@ module My_Top_Module #(
         .HUGE_SECONDS(HUGE_TIME_SECONDS), .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
+        .preserve_time(preserve_timer),
         .maze_pixel_visible(timer_display_active),
         .player_action(timer_player_action),
         .time_bonus_pulse(item_time_bonus),
@@ -404,7 +451,7 @@ module My_Top_Module #(
     seven_seg_timer #(.CLK_HZ(TIMER_CLK_HZ)) timer_7seg_i (
         .clk(clk), .rst(rst),
         .enable((game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
-                (game_state == `ST_LOSE)),
+                (game_state == `ST_LOSE) || pause_active),
         .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),
         .seg(seg), .dp(dp), .an(an)
     );
@@ -416,6 +463,7 @@ module My_Top_Module #(
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
         .elapsed_seconds_bcd(elapsed_seconds_bcd),
         .levels_completed_bcd(levels_completed_bcd),
+        .pause_selection(pause_selection),
         .active_effect(item_effect), .effect_seconds(item_seconds),
         .status_text(status_text)
     );

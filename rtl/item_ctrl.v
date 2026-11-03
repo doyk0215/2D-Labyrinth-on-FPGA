@@ -111,6 +111,8 @@ module item_ctrl #(
             rng<=initial_rng; buff_roll<=0; debuff_roll<=0;
             pending_valid<=0; pending_effect<=`ITEM_NONE;
             for(i=0;i<6;i=i+1) respawn_left[i]<=0;
+        end else if(game_state == `ST_PAUSED) begin
+            // Preserve effects, respawn timers, and box visibility for Resume.
         end else if(game_state != `ST_PLAY) begin
             active_effect<=`ITEM_NONE; effect_seconds<=0; effect_subsecond<=0;
             pickup_effect<=`ITEM_NONE;

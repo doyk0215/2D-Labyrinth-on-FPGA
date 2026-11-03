@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// Story 6.1: codes with bit 2 set must survive every state port and must not
-// alias the v1 MENU/PLAY/WIN behaviours, including the new LOSE code.
+// Shared state codes must survive every state port without aliasing. Code 5 is
+// now the dedicated PAUSED state; codes 6 and 7 remain reserved.
 module tb_game_state_encoding;
     reg clk = 1'b0, rst = 1'b1;
     always #5 clk = ~clk;
@@ -12,7 +12,9 @@ module tb_game_state_encoding;
     wire phys_en;
     game_ctrl #(.START_IN_MENU(1'b1), .WIN_HOLD_FRAMES(2)) ctrl_i (
         .clk(clk), .rst(rst), .full_reset(1'b0), .frame_tick(frame_tick), .start_game(start_game),
-        .game_cfg(8'ha5), .regen_button(1'b0), .gen_busy(1'b0), .gen_done(gen_done),
+        .game_cfg(8'ha5), .regen_button(1'b0), .pause_button(1'b0),
+        .pause_resume(1'b0), .pause_restart(1'b0),
+        .gen_busy(1'b0), .gen_done(gen_done),
         .time_up(1'b0), .in_goal(in_goal), .game_state(ctrl_state), .active_game_cfg(active_cfg),
         .gen_start(), .seed_capture(), .phys_init(), .phys_en(phys_en)
     );
@@ -22,7 +24,8 @@ module tb_game_state_encoding;
     reg [`GAME_STATE_W-1:0] state_in = `ST_MENU;
     wire [7:0] minutes, seconds;
     game_timer #(.CLK_HZ(2)) timer_i (
-        .clk(clk), .rst(rst), .maze_pixel_visible(timer_maze_pixel_visible),
+        .clk(clk), .rst(rst), .preserve_time(1'b0),
+        .maze_pixel_visible(timer_maze_pixel_visible),
         .player_action(timer_player_action), .game_state(state_in),
         .phys_init(timer_init), .n_cells(4'd5), .time_up(), .time_bonus_pulse(1'b0),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds)
@@ -32,7 +35,8 @@ module tb_game_state_encoding;
     oled_status_text status_i (
         .active_effect(`ITEM_NONE), .effect_seconds(7'd0),
         .menu_text(menu_text), .game_state(state_in), .active_game_cfg(8'ha5),
-        .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds), .status_text(status_text)
+        .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds),
+        .pause_selection(2'd0), .status_text(status_text)
     );
     wire [3:0] r, g, b;
     render render_i (
@@ -73,8 +77,9 @@ module tb_game_state_encoding;
     reg [7:0] frozen_minutes, frozen_seconds;
     initial begin
         if (`GAME_STATE_W != 3 || `ST_MENU != 3'd0 || `ST_GENERATE != 3'd1 ||
-            `ST_PLAY != 3'd2 || `ST_WIN != 3'd3 || `ST_LOSE != 3'd4)
-            fail("shared codes changed the v1 encoding or did not retain LOSE");
+            `ST_PLAY != 3'd2 || `ST_WIN != 3'd3 || `ST_LOSE != 3'd4 ||
+            `ST_PAUSED != 3'd5)
+            fail("shared codes changed an established state or omitted PAUSED");
         repeat (8) @(negedge clk);
         rst = 1'b0;
         if (ctrl_state !== `ST_MENU) fail("reset did not select shared MENU");
@@ -112,20 +117,26 @@ module tb_game_state_encoding;
                 top_i.oled_status_i.game_state !== state_in)
                 fail("top-level state bus or a consumer truncated the high bit");
             if (top_i.menu_active || top_i.phys_en ||
-                top_i.render_enable !== (code == `ST_LOSE))
-                fail("reserved code aliased MENU, PLAY, or WIN in the top level");
+                top_i.render_enable !== ((code == `ST_LOSE) || (code == `ST_PAUSED)))
+                fail("state aliased MENU/PLAY or failed to enable its required VGA output");
             frame();
             if (minutes !== frozen_minutes || seconds !== frozen_seconds)
                 fail("reserved code aliased PLAY in game_timer");
             if (code == `ST_LOSE) begin
                 if (status_text[32*8 +: 8] !== "T" || status_text[37*8 +: 8] !== "U")
                     fail("LOSE did not select its dedicated OLED status page");
+            end else if (code == `ST_PAUSED) begin
+                if (status_text[0 +: 8] !== "P" || status_text[16*8 +: 8] !== ">")
+                    fail("PAUSED did not select the pause menu with RESUME selected");
             end else if (status_text !== menu_text)
                 fail("reserved code aliased a live OLED status page");
             if (render_i.win_frame) fail("high-bit state aliased WIN in the renderer");
             if (code == `ST_LOSE) begin
                 if (!render_i.lose_frame || {r,g,b} !== 12'hfff)
                     fail("LOSE did not select TIME UP in the renderer");
+            end else if (code == `ST_PAUSED) begin
+                if (!render_i.pause_frame || {r,g,b} !== 12'h013)
+                    fail("PAUSED did not select the VGA pause panel");
             end else if (render_i.lose_frame || {r,g,b} !== 12'hfc0)
                 fail("reserved code aliased a result overlay in the renderer");
         end
@@ -135,8 +146,7 @@ module tb_game_state_encoding;
         if (!render_i.win_frame || {r,g,b} !== 12'hfff || status_text[32*8 +: 8] !== "Y")
             fail("valid WIN no longer selects VGA and OLED win indications");
 
-        // Codes 5..7 remain unused after Story 8.2 adds LOSE.
-        // They keep the controller's existing recovery path.
+        // Code 7 remains unused and keeps the controller's recovery path.
         @(negedge clk); force ctrl_i.game_state = UNUSED_WITH_WIN_BITS;
         #1;
         if (phys_en) fail("physics was enabled for an unused controller state");

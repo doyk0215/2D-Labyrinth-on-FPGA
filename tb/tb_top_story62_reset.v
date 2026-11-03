@@ -21,6 +21,7 @@ module tb_top_story62_reset;
     game_ctrl #(.START_IN_MENU(1'b0)) legacy_ctrl_i (
         .clk(clk), .rst(dut.rst), .full_reset(dut.full_reset), .frame_tick(1'b1),
         .start_game(1'b0), .game_cfg(8'h05), .regen_button(1'b0),
+        .pause_button(1'b0), .pause_resume(1'b0), .pause_restart(1'b0),
         .gen_busy(1'b0), .gen_done(1'b0), .time_up(1'b0), .in_goal(1'b0), .game_state()
     );
     integer short_count = 0, starts = 0, oled_resets = 0, oled_display_offs = 0;
