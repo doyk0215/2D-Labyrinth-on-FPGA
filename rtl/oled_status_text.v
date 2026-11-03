@@ -12,6 +12,7 @@ module oled_status_text (
     input wire [`ITEM_EFFECT_W-1:0] active_effect,
     input wire [6:0] effect_seconds,
     input wire [11:0] levels_completed_bcd,
+    input wire [1:0] pause_selection,
     output reg  [511:0] status_text
 );
 
@@ -40,6 +41,7 @@ module oled_status_text (
 
     reg [127:0] stage_text;
     reg [127:0] completed_count_line;
+    reg [127:0] pause_resume_line, pause_restart_line, pause_menu_line;
     always @* begin
         case (active_game_cfg[3:0])
             4'd5:    stage_text = "STAGE 1 EASY    ";
@@ -52,6 +54,9 @@ module oled_status_text (
             digit_ascii(levels_completed_bcd[7:4]),
             digit_ascii(levels_completed_bcd[3:0]),
             "          "};
+        pause_resume_line = (pause_selection == 2'd0) ? ">RESUME         " : " RESUME         ";
+        pause_restart_line = (pause_selection == 2'd1) ? ">RESTART        " : " RESTART        ";
+        pause_menu_line = (pause_selection == 2'd2) ? ">MENU           " : " MENU           ";
 
         case (game_state)
             `ST_MENU: status_text = menu_text;
@@ -62,6 +67,10 @@ module oled_status_text (
             `ST_PLAY: status_text = pack_text(
                 stage_text, "LEVELS COMPLETED", completed_count_line,
                 "BTNC RESET      "
+            );
+            `ST_PAUSED: status_text = pack_text(
+                "PAUSED          ", pause_resume_line, pause_restart_line,
+                pause_menu_line
             );
             `ST_WIN: status_text = pack_text(
                 stage_text, "LEVELS COMPLETED", completed_count_line,

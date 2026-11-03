@@ -88,12 +88,14 @@ module render #(
     reg [11:0] angle_snap;
     reg win_frame;
     reg lose_frame;
+    reg pause_frame;
     reg fog_frame;                          // fog of war for this picture (Story 9.4)
     reg [7:0] win_min_bcd, win_sec_bcd;
     reg [7:0] blink_count;
     reg blink_phase;
     wire win_panel, win_accent, win_text;
     wire lose_panel, lose_accent, lose_text;
+    wire pause_panel, pause_accent, pause_text;
     lose_overlay lose_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .panel_on(lose_panel),
@@ -105,6 +107,11 @@ module render #(
         .time_min_bcd(win_min_bcd), .time_sec_bcd(win_sec_bcd),
         .panel_on(win_panel),
         .accent_on(win_accent), .text_on(win_text)
+    );
+    pause_overlay pause_i (
+        .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
+        .active_video(active_video), .panel_on(pause_panel),
+        .accent_on(pause_accent), .text_on(pause_text)
     );
     reg signed [26:0] walk_x_q, walk_y_q;
     reg signed [10:0] next_dy;
@@ -148,6 +155,7 @@ module render #(
             angle_snap <= 12'd0;
             win_frame <= 1'b0;
             lose_frame <= 1'b0;
+            pause_frame <= 1'b0;
             fog_frame <= 1'b0;
             win_min_bcd <= 8'h00;
             win_sec_bcd <= 8'h00;
@@ -168,6 +176,7 @@ module render #(
                 // state with the angle/trig snapshot in vertical blanking.
                 win_frame <= (game_state == `ST_WIN);
                 lose_frame <= (game_state == `ST_LOSE);
+                pause_frame <= (game_state == `ST_PAUSED);
                 // The effect can start or end at any clock; the picture
                 // follows it from the next frame, never half way down.
                 fog_frame <= fog_en;
@@ -284,6 +293,14 @@ module render #(
                     vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'hf;
                 end else if (win_accent) begin
                     vga_r = 4'h0; vga_g = 4'hf; vga_b = 4'h0;
+                end else begin
+                    vga_r = 4'h0; vga_g = 4'h1; vga_b = 4'h3;
+                end
+            end else if (pause_frame && (pause_panel || pause_accent)) begin
+                if (pause_text) begin
+                    vga_r = 4'hf; vga_g = 4'hf; vga_b = 4'hf;
+                end else if (pause_accent) begin
+                    vga_r = 4'h0; vga_g = 4'hc; vga_b = 4'hf;
                 end else begin
                     vga_r = 4'h0; vga_g = 4'h1; vga_b = 4'h3;
                 end

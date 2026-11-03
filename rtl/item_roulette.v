@@ -42,19 +42,23 @@ module item_roulette #(
         else step_interval=SPIN_CYCLES/8;
         if(step_interval<1)step_interval=1;
     end
-    wire enabled=!rst && !phys_init && game_state==`ST_PLAY;
+    wire enabled=!rst && !phys_init &&
+                 (game_state==`ST_PLAY || game_state==`ST_PAUSED);
+    wire running=enabled && game_state==`ST_PLAY;
     assign busy=enabled && state!=IDLE;
-    assign visual={enabled && (state==SPIN || state==HOLD || state==BLOCK),icon};
-    assign returning=enabled && state==RETURN;
+    assign visual={running && (state==SPIN || state==HOLD || state==BLOCK),icon};
+    assign returning=running && state==RETURN;
     // CJX's playtest choice: activate when the stopped result is first visible,
     // then keep that icon on screen during HOLD while gameplay uses the effect.
     // item_ctrl and game_timer consume this same-edge grant together.
-    assign commit=enabled && state==HOLD && !shown && apply_pending &&
+    assign commit=running && state==HOLD && !shown && apply_pending &&
                   display_frame && display_visual==visual;
     always @(posedge clk)begin
         if(!enabled)begin
             state<=IDLE;icon<=0;chosen<=0;debuff_pool<=0;shown<=0;apply_pending<=0;
             elapsed<=0;step_elapsed<=0;
+        end else if(game_state==`ST_PAUSED)begin
+            // Freeze the animation during pause; its OLED icon is hidden above.
         end else case(state)
             IDLE:begin
                 shown<=0;elapsed<=0;step_elapsed<=0;apply_pending<=0;

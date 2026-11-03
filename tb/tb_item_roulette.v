@@ -30,11 +30,11 @@ module tb_item_roulette;
         .pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),.display_frame(display_frame),
         .display_visual(display_visual),.busy(busy),.visual(visual),.commit(commit),.returning(returning));
     game_timer #(.CLK_HZ(1000),.EASY_SECONDS(59)) timer_i (
-        .clk(clk),.rst(rst),.phys_init(init),.game_state(game_state),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(game_state),.n_cells(4'd5),
         .maze_pixel_visible(1'b1),.player_action(1'b0),.time_bonus_pulse(bonus),
         .elapsed_minutes_bcd(timer_minutes),.elapsed_seconds_bcd(timer_seconds),.time_up());
     game_timer #(.CLK_HZ(1000),.EASY_SECONDS(1)) near_timer_i (
-        .clk(clk),.rst(rst),.phys_init(init),.game_state(game_state),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(game_state),.n_cells(4'd5),
         .maze_pixel_visible(1'b1),.player_action(near_action),.time_bonus_pulse(bonus),
         .elapsed_minutes_bcd(near_minutes),.elapsed_seconds_bcd(near_seconds),.time_up(near_deadline));
     always @(negedge clk)begin
