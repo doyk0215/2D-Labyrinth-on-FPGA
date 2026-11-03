@@ -47,7 +47,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 **Why.** A perfect maze has exactly one route between any two cells, so the route is easy to find on a small map and offers no choice. Extra openings give alternative routes. EASY stays a perfect maze.
 
 **What.**
-- After the depth-first search finishes on the HARD stage and above, remove up to K interior wall tiles that separate two floor cells. K is a per-stage maximum in `maze_gen`, not a menu setting: EASY 0, HARD (N = 10) 3, N = 15 5 (Story 7.5; first planned as 5 and 7). Each existing cell-row band may contribute at most one loop, so any loops still spread from the goal side to the start side. These values still need playtesting.
+- After the depth-first search finishes on the HARD stage and above, remove up to K interior wall tiles that separate two floor cells. K is a per-stage maximum in `maze_gen`, not a menu setting: EASY 0, HARD (N = 10) 3, N = 15 5 (Story 7.5; first planned as 5 and 7). Each existing cell-row band may contribute at most one loop, so any loops still spread from the goal side to the start side. Kept after the Story 9.8 playtest.
 - Never remove outer-boundary walls.
 - The random choice comes from the same 32-bit LFSR. `maze_gen` stays the only writer of `maze_ram` (AD-5), so the pass lives inside `maze_gen` as an extra phase before it signals done.
 - The architecture spine states "perfect maze" as a property (AD-12 area); that text and the tests change to "connected, with K extra openings on loop stages".
@@ -107,7 +107,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
   - Time bonus (buff box only): an instant effect with no duration. It adds seconds to the countdown (item 5), capped at the display maximum of 99:59. The amount is a parameter (for example 10 s). It does not replace the active effect, since it has no timer of its own.
 - **Pools.** Buff box: low gravity, invincibility, time bonus. Debuff box: reverse gravity, high gravity, zero gravity, invert controls, fog of war.
 - **Rejected for now:** checkpoints and trap tiles (dropped from the v2.0 list), speed-cap changes, bounce (restitution) effects, time penalty, teleports, mirror view, fast or slow rotation, ball-size changes, ghost mode and path reveal.
-- **Rules.** One effect is active at a time, and a new pickup replaces it. Duration is about 8 s (a parameter, to be playtested). The effect clears on a replay, on reset and on LOSE or WIN.
+- **Rules.** One effect is active at a time, and a new pickup replaces it. Duration is 10 s (a parameter; 8 s at first, set to 10 s in the Story 9.8 playtest). The effect clears on a replay, on reset and on LOSE or WIN.
 - **Placement and count.** Each stage has 2 buff boxes and 2 debuff boxes. They sit on floor cells that are not the start or goal cell, and no two boxes share a cell. A box is a pickup, not an obstacle, so it never blocks the route.
 - **Respawn.** Boxes respawn. After a pickup the box disappears from its cell and reappears there after a delay (a parameter, for example 15 s; to be playtested). If the ball is on the cell when the delay ends, the box waits until the ball leaves. Each pickup rolls a fresh random effect from that box's pool. Respawn timers clear on a new maze.
 - **Owner.** A new `item_ctrl` module is the single owner of the active effect and its remaining time (AD-5). It outputs the effect code to the consumers below.
@@ -139,5 +139,5 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 ## Open questions
 
 - Larger stages: should there be a hint (for example an arrow at the screen edge) when the goal is off-screen? Decide after playing N = 15 on the board.
-- Item boxes: the time bonus amount (placeholder 10 s).
-- Item boxes: the respawn delay and the effect duration are placeholders (15 s and 8 s) that need playtesting.
+- Item boxes: the time bonus amount, 10 s, kept after the Story 9.8 playtest.
+- Item boxes: playtested in Story 9.8. Effect duration 10 s (first 8 s); respawn delay 15 s, kept.
