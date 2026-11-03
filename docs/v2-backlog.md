@@ -107,7 +107,7 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
   - Time bonus (buff box only): an instant effect with no duration. It adds seconds to the countdown (item 5), capped at the display maximum of 99:59. The amount is a parameter (for example 10 s). It does not replace the active effect, since it has no timer of its own.
 - **Pools.** Buff box: low gravity, invincibility, time bonus. Debuff box: reverse gravity, high gravity, zero gravity, invert controls, fog of war.
 - **Rejected for now:** checkpoints and trap tiles (dropped from the v2.0 list), speed-cap changes, bounce (restitution) effects, time penalty, teleports, mirror view, fast or slow rotation, ball-size changes, ghost mode and path reveal.
-- **Rules.** One effect is active at a time, and a new pickup replaces it. Duration is 10 s (a parameter; 8 s at first, set to 10 s in the Story 9.8 playtest). The effect clears on a replay, on reset and on LOSE or WIN.
+- **Rules.** One effect is active at a time, and a new pickup replaces it. Each effect has its own duration (a parameter per effect): low gravity, high gravity and invincibility 12 s; reverse gravity 10 s; zero gravity, invert controls and fog 8 s. (8 s for all at first, 10 s for all after the Story 9.8 playtest.) The effect clears on a replay, on reset and on LOSE or WIN.
 - **Placement and count.** Each stage has 2 buff boxes and 2 debuff boxes. They sit on floor cells that are not the start or goal cell, and no two boxes share a cell. A box is a pickup, not an obstacle, so it never blocks the route.
 - **Respawn.** Boxes respawn. After a pickup the box disappears from its cell and reappears there after a delay (a parameter, for example 15 s; to be playtested). If the ball is on the cell when the delay ends, the box waits until the ball leaves. Each pickup rolls a fresh random effect from that box's pool. Respawn timers clear on a new maze.
 - **Owner.** A new `item_ctrl` module is the single owner of the active effect and its remaining time (AD-5). It outputs the effect code to the consumers below.
@@ -140,4 +140,4 @@ Features deferred past the graded v1.0 build. Each entry says why it came up, wh
 
 - Larger stages: should there be a hint (for example an arrow at the screen edge) when the goal is off-screen? Decide after playing N = 15 on the board.
 - Item boxes: the time bonus amount, 10 s, kept after the Story 9.8 playtest.
-- Item boxes: playtested in Story 9.8. Effect duration 10 s (first 8 s); respawn delay 15 s, kept.
+- Item boxes: playtested in Story 9.8. Effect duration 10 s (first 8 s), since set per effect (12, 10 or 8 s, see the rules above); respawn delay 15 s, kept.

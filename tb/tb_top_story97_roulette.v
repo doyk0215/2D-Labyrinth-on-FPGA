@@ -5,7 +5,7 @@ module tb_top_story97_roulette;
     always #5 clk=~clk;
     tri1 ps2_clk,ps2_data;
     My_Top_Module #(.POR_CYCLES(4),.MENU_DEBOUNCE_CYCLES(2),.LONG_PRESS_CYCLES(64),
-        .TIMER_CLK_HZ(1000),.EASY_TIME_SECONDS(600),.ITEM_EFFECT_SECONDS(8),
+        .TIMER_CLK_HZ(1000),.EASY_TIME_SECONDS(600),.ITEM_LOW_GRAV_SECONDS(8),.ITEM_HIGH_GRAV_SECONDS(8),.ITEM_INVINCIBLE_SECONDS(8),.ITEM_REVERSE_GRAV_SECONDS(8),.ITEM_ZERO_GRAV_SECONDS(8),.ITEM_INVERT_SECONDS(8),.ITEM_FOG_SECONDS(8),
         .ITEM_ROULETTE_SPIN_MS(64),.ITEM_ROULETTE_HOLD_MS(16),.ITEM_BLOCK_ICON_MS(16)) dut (
         .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(1'b0),.btnL(1'b0),.btnR(btnR),
         .sw(16'h0020),.ps2_clk(ps2_clk),.ps2_data(ps2_data));
