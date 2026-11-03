@@ -11,7 +11,7 @@ module tb_top_story92_items;
         .TIMER_CLK_HZ(256),.EASY_TIME_SECONDS(99),.ITEM_EFFECT_SECONDS(2),
         .ITEM_RESPAWN_SECONDS(3),.ITEM_STUB_LOW_ONLY(1'b0),.ITEM_ROULETTE_ENABLE(1'b0),.WIN_HOLD_FRAMES(2)) dut (
         .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(1'b0),.btnL(1'b0),.btnR(1'b0),
-        .sw(16'h0020),.ps2_clk(ps2_clk),.ps2_data(ps2_data)
+        .sw(16'h4000),.ps2_clk(ps2_clk),.ps2_data(ps2_data)
     );
     task fail;input [767:0] msg;
         begin $display("FAIL Story 9.2 top: %0s state=%0d vis=%b effect=%0d sec=%0d",msg,dut.game_state,dut.box_visible,dut.item_effect,dut.item_seconds);$fatal(1);end endtask

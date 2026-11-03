@@ -8,11 +8,11 @@ module tb_game_state_encoding;
     always #5 clk = ~clk;
     reg frame_tick = 1'b0, start_game = 1'b0, gen_done = 1'b0, in_goal = 1'b0;
     wire [`GAME_STATE_W-1:0] ctrl_state;
-    wire [7:0] active_cfg;
+    wire [9:0] active_cfg;
     wire phys_en;
     game_ctrl #(.START_IN_MENU(1'b1), .WIN_HOLD_FRAMES(2)) ctrl_i (
         .clk(clk), .rst(rst), .full_reset(1'b0), .frame_tick(frame_tick), .start_game(start_game),
-        .game_cfg(8'ha5), .regen_button(1'b0), .pause_button(1'b0),
+        .game_cfg(10'h145), .regen_button(1'b0), .pause_button(1'b0),
         .pause_resume(1'b0), .pause_restart(1'b0),
         .gen_busy(1'b0), .gen_done(gen_done),
         .time_up(1'b0), .in_goal(in_goal), .game_state(ctrl_state), .active_game_cfg(active_cfg),
@@ -34,7 +34,7 @@ module tb_game_state_encoding;
     wire [511:0] status_text;
     oled_status_text status_i (
         .active_effect(`ITEM_NONE), .effect_seconds(7'd0),
-        .menu_text(menu_text), .game_state(state_in), .active_game_cfg(8'ha5),
+        .menu_text(menu_text), .game_state(state_in), .active_game_cfg(10'h145),
         .elapsed_minutes_bcd(minutes), .elapsed_seconds_bcd(seconds),
         .pause_selection(2'd0), .status_text(status_text)
     );
@@ -52,7 +52,7 @@ module tb_game_state_encoding;
     tri1 ps2_clk, ps2_data;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3)) top_i (
         .clk(clk), .btnC(1'b0), .btnU(1'b0), .btnD(1'b0), .btnL(1'b0), .btnR(1'b0),
-        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
+        .sw(16'h4000), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     localparam [`GAME_STATE_W-1:0] UNUSED_WITH_WIN_BITS = 3'b111;
     task fail;
@@ -85,7 +85,7 @@ module tb_game_state_encoding;
         if (ctrl_state !== `ST_MENU) fail("reset did not select shared MENU");
         start_game = 1'b1;
         frame(); start_game = 1'b0;
-        if (ctrl_state !== `ST_GENERATE || active_cfg !== 8'ha5)
+        if (ctrl_state !== `ST_GENERATE || active_cfg !== 10'h145)
             fail("MENU start changed the 8-bit game configuration");
         repeat (5) @(negedge clk);
         gen_done = 1'b1;
@@ -97,7 +97,7 @@ module tb_game_state_encoding;
         frame();
         if (ctrl_state !== `ST_WIN) fail("WIN pause changed during state migration");
         frame();
-        if (ctrl_state !== `ST_GENERATE || active_cfg !== 8'ha5)
+        if (ctrl_state !== `ST_GENERATE || active_cfg !== 10'h145)
             fail("replay changed state behaviour or the latched game configuration");
 
         state_in = `ST_PLAY;

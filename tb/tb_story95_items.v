@@ -15,7 +15,7 @@ module tb_story95_items;
     reg signed [17:0] bx,by;
     wire [4*`COORD_W-1:0] cols={6'd5,6'd3,6'd5,6'd3}, rows={6'd5,6'd5,6'd3,6'd3};
     game_ctrl #(.START_IN_MENU(0),.WIN_HOLD_FRAMES(2),.LOSE_HOLD_FRAMES(2)) ctrl_i (
-        .clk(clk),.rst(rst),.full_reset(1'b0),.frame_tick(frame),.start_game(1'b0),.game_cfg(8'h05),
+        .clk(clk),.rst(rst),.full_reset(1'b0),.frame_tick(frame),.start_game(1'b0),.game_cfg(10'h005),
         .regen_button(1'b0),.pause_button(1'b0),.pause_resume(1'b0),.pause_restart(1'b0),
         .gen_busy(1'b0),.gen_done(generated),.in_goal(goal),.time_up(expired),
         .game_state(state),.phys_init(init));

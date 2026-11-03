@@ -27,7 +27,7 @@ module tb_top_story14_integration;
         .btnL       (1'b0),
         .btnR       (1'b0),
         .btnD       (btnD),
-        .sw         (16'h0006), // N=3, free-running seed
+        .sw         (16'h0003), // N=3 (SW4..SW0), free-running seed
         .led        (led),
         .vga_r      (vga_r),
         .vga_g      (vga_g),

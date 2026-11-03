@@ -5,7 +5,7 @@ module tb_oled_status_text;
 
     reg [511:0] menu_text = 512'd0;
     reg [`GAME_STATE_W-1:0] game_state = `ST_MENU;
-    reg [7:0] active_game_cfg = 8'h05;
+    reg [9:0] active_game_cfg = 10'h005;
     reg [7:0] elapsed_minutes_bcd = 8'h00;
     reg [7:0] elapsed_seconds_bcd = 8'h00;
     reg [3:0] item_effect=`ITEM_NONE;
@@ -53,7 +53,7 @@ module tb_oled_status_text;
             errors = errors + 1;
         end
 
-        active_game_cfg = 8'h05;
+        active_game_cfg = 10'h005;
         elapsed_minutes_bcd = 8'h09;
         elapsed_seconds_bcd = 8'h42;
         game_state = `ST_PLAY;
@@ -69,26 +69,26 @@ module tb_oled_status_text;
         check_char(25, "2", "seconds units");
         check_char(32, "P", "PLAY status");
 
-        active_game_cfg = 8'h9A;
+        active_game_cfg = 10'h12A;
         #1;
         check_char(6, "2", "stage-two number from active configuration");
-        check_char(8, "H", "hard label");
+        check_char(8, "M", "medium label");
 
         game_state = `ST_WIN;
         #1;
         check_char(32, "Y", "WIN status");
         check_char(21, "0", "final time retained on WIN");
 
-        active_game_cfg = 8'h9F;
+        active_game_cfg = 10'h12F;
         #1;
-        check_char(6, "3", "HUGE stage number in WIN");
-        check_char(8, "H", "HUGE stage label in WIN");
-        check_char(10, "G", "HUGE label is distinct from HARD");
-        check_char(25, "2", "HUGE preserves timer formatting");
+        check_char(6, "3", "HARD stage number in WIN");
+        check_char(8, "H", "HARD stage label in WIN");
+        check_char(10, "R", "HARD label is distinct from HUGE");
+        check_char(25, "2", "HARD preserves timer formatting");
         game_state = `ST_PLAY;
         #1;
-        check_char(6, "3", "HUGE stage number in PLAY");
-        check_char(32, "P", "HUGE PLAY status");
+        check_char(6, "3", "HARD stage number in PLAY");
+        check_char(32, "P", "HARD PLAY status");
 
         game_state = `ST_GENERATE;
         #1;
@@ -100,7 +100,7 @@ module tb_oled_status_text;
         // nonzero input time cannot leak stale remaining time into TIME UP.
         game_state = `ST_LOSE;
         #1;
-        check_char(6, "3", "HUGE retained in LOSE");
+        check_char(6, "3", "HARD retained in LOSE");
         check_char(21, "0", "LOSE zero minutes tens");
         check_char(22, "0", "LOSE zero minutes units");
         check_char(24, "0", "LOSE zero seconds tens");
@@ -109,10 +109,17 @@ module tb_oled_status_text;
         check_char(37, "U", "TIME UP word");
         check_char(38, "P", "TIME UP last letter");
         check_char(48, "B", "automatic menu return hint");
-        active_game_cfg = 8'h05; #1;
+        active_game_cfg = 10'h005; #1;
         check_char(6, "1", "EASY retained in LOSE");
-        active_game_cfg = 8'h1A; #1;
-        check_char(6, "2", "HARD retained in LOSE");
+        active_game_cfg = 10'h02A; #1;
+        check_char(6, "2", "MEDIUM retained in LOSE");
+        active_game_cfg = 10'h231; #1;   // CUSTOM N=17
+        check_char(0, "C", "custom stage label"); check_char(7, "N", "custom size label");
+        check_char(9, "1", "custom size tens"); check_char(10, "7", "custom size units");
+        active_game_cfg = 10'h20A; #1;   // CUSTOM N=10 is not MEDIUM
+        check_char(0, "C", "custom N=10 label"); check_char(9, "1", "custom N=10 tens"); check_char(10, "0", "custom N=10 units");
+        active_game_cfg = 10'h202; #1;   // CUSTOM N=2
+        check_char(9, "2", "custom one-digit size"); check_char(10, " ", "custom one-digit padding");
         game_state = `ST_MENU; #1;
         if (status_text !== menu_text) begin
             $display("FAIL tb_oled_status_text: leaving LOSE did not restore the menu");

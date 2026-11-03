@@ -10,9 +10,9 @@
 // Integration top: game_ctrl sequences generation/play, and the renderer is
 // held off while maze_gen writes the single map; rotation supports the SW0
 // snap fallback as well as the smooth mouse/button path.
-//   sw[5]   = debug seed (fixed seed, same maze every time)
-//   sw[4:1] = retained debug value; Story 4.2 stage configuration selects N
-//   sw[0]   = 90-degree snap fallback (off = smooth rotation)
+//   sw[15]  = 90-degree snap fallback (off = smooth rotation)
+//   sw[14]  = debug seed (fixed seed, same maze every time)
+//   sw[4:0] = CUSTOM stage maze size N (2..20; others show an OLED error)
 //   btnU/D  = stage navigation in MENU, rotation-rate selection in settings,
 //             and pause-menu navigation while paused; btnU pauses during PLAY
 //   btnL    = open the settings page from the stage menu
@@ -42,11 +42,11 @@ module My_Top_Module #(
     parameter integer ITEM_ROULETTE_HOLD_MS = 1000,
     parameter integer ITEM_BLOCK_ICON_MS = 1000,
     parameter integer FOG_RADIUS_PX = 48,    // fog of war clear radius (Story 9.4)
-    parameter integer XL_TIME_SECONDS = 240,            // N = 20 time limit
-    // Test build for N = 20 before it has a menu stage: a nonzero value
-    // replaces every game's maze size (the menu still picks rotation and
-    // bounce; the OLED keeps the menu stage's text and no HIGH score updates).
-    parameter integer TEST_N_CELLS = 0
+    // Time limits by N: EASY = N 5, HARD = N 10 (the MEDIUM stage), HUGE = N 15
+    // (the HARD stage), XL = N 20; any other custom N gets SECONDS_PER_CELL * N.
+    parameter integer XL_TIME_SECONDS = 240,
+    parameter integer SECONDS_PER_CELL = 12,
+    parameter integer MENU_ERROR_CYCLES = 200_000_000   // invalid CUSTOM size, 2 s
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -117,8 +117,16 @@ module My_Top_Module #(
     );
 
     wire start_game;
-    wire [7:0] game_cfg;
-    wire [7:0] active_game_cfg;
+    wire [9:0] game_cfg;
+    wire [9:0] active_game_cfg;
+    wire menu_error;
+    // CUSTOM maze size from SW4..SW0, synchronised like the snap switch.
+    (* ASYNC_REG = "TRUE" *) reg [4:0] size_sw_meta = 5'd0;
+    (* ASYNC_REG = "TRUE" *) reg [4:0] size_sw_sync = 5'd0;
+    always @(posedge clk) begin
+        size_sw_meta <= sw[4:0];
+        size_sw_sync <= size_sw_meta;
+    end
     wire [511:0] status_text;
     wire [511:0] menu_page_text;
     wire settings_page;
@@ -225,14 +233,14 @@ module My_Top_Module #(
                     instructions_scroll <= instructions_scroll - 1'b1;
                 else if (btnD_menu_press && !btnU_press && instructions_scroll < 3)
                     instructions_scroll <= instructions_scroll + 1'b1;
-            end else if (btnR_menu_press) begin
+            end else if (btnR_menu_press && !menu_error) begin
                 instructions_active <= 1'b1;
                 instructions_scroll <= 3'd0;
             end
         end
     end
 
-    menu_ctrl menu_ctrl_i (
+    menu_ctrl #(.ERROR_HOLD_CYCLES(MENU_ERROR_CYCLES)) menu_ctrl_i (
         .clk           (clk),
         .rst           (system_reset),
         .return_to_menu(game_reset_request),
@@ -241,12 +249,14 @@ module My_Top_Module #(
         .btn_down      (btnD_menu_press && !instructions_active),
         .btn_confirm   (btnC_press && !instructions_active),
         .btn_settings  (btnL_menu_press && !instructions_active),
+        .custom_n      (size_sw_sync),
         .stage_high_scores_bcd(stage_high_scores_bcd),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
         .status_text   (menu_page_text),
         .selected_stage(),
-        .settings_page(settings_page)
+        .settings_page(settings_page),
+        .error_active  (menu_error)
     );
     wire ce_pix;
     wire frame_tick;
@@ -410,7 +420,7 @@ module My_Top_Module #(
     assign angle_rot_cmd = (item_effect == `ITEM_INVERT) ? -rot_cmd_normal : rot_cmd_normal;
     always @(posedge clk) begin
         if (system_reset) snap_sw_sync <= 2'b00;
-        else snap_sw_sync <= {snap_sw_sync[0], sw[0]};
+        else snap_sw_sync <= {snap_sw_sync[0], sw[15]};
     end
 
     // Synchronize BTND and convert its rising edge into a one-cycle request.
@@ -421,10 +431,11 @@ module My_Top_Module #(
         else btnD_s <= {btnD_s[1:0], btnD};
     end
     wire regen_request = btnD_s[1] & ~btnD_s[2];
-    wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
-    wire [`N_CELLS_W-1:0] n_cells = (TEST_N_CELLS != 0) ? TEST_N_CELLS :
-                                    START_IN_MENU ? {1'b0, active_game_cfg[3:0]} :
-                                                    {1'b0, legacy_n_cells};
+    // Legacy auto-start builds (START_IN_MENU = 0) take N from SW4..SW0 too,
+    // falling back to N = 10 outside 2..20.
+    wire [`N_CELLS_W-1:0] legacy_n_cells =
+        ((size_sw_sync >= 5'd2) && (size_sw_sync <= 5'd20)) ? size_sw_sync : 5'd10;
+    wire [`N_CELLS_W-1:0] n_cells = START_IN_MENU ? active_game_cfg[4:0] : legacy_n_cells;
 
     // A normal in-game BTND regeneration reuses the latched seed and keeps
     // the current timer running through maze generation. Pause-menu Restart
@@ -507,20 +518,21 @@ module My_Top_Module #(
         end
     end
 
-    // Keep independent best completed-level counts for Easy (N=5), Hard
-    // (N=10), and Huge (N=15). Ordinary gameplay resets preserve these records.
+    // Keep independent best completed-level counts for Easy (N=5), Medium
+    // (N=10), and Hard (N=15); CUSTOM games (cfg bit 9) never update them.
+    // Ordinary gameplay resets preserve these records.
     always @(posedge clk) begin
         if (por_reset) begin
             stage_high_scores_bcd <= 36'h000000000;
-        end else if ((TEST_N_CELLS == 0) && !btnC_press && !btnD_menu_press &&
+        end else if (!active_game_cfg[9] && !btnC_press && !btnD_menu_press &&
                      !((game_state == `ST_PLAY) && (regen_request || time_up)) &&
                      (game_state == `ST_PLAY) && frame_tick && in_goal) begin
-            case (active_game_cfg[3:0])
-                4'd5: if (next_levels_completed_bcd > stage_high_scores_bcd[11:0])
+            case (active_game_cfg[4:0])
+                5'd5: if (next_levels_completed_bcd > stage_high_scores_bcd[11:0])
                     stage_high_scores_bcd[11:0] <= next_levels_completed_bcd;
-                4'd10: if (next_levels_completed_bcd > stage_high_scores_bcd[23:12])
+                5'd10: if (next_levels_completed_bcd > stage_high_scores_bcd[23:12])
                     stage_high_scores_bcd[23:12] <= next_levels_completed_bcd;
-                4'd15: if (next_levels_completed_bcd > stage_high_scores_bcd[35:24])
+                5'd15: if (next_levels_completed_bcd > stage_high_scores_bcd[35:24])
                     stage_high_scores_bcd[35:24] <= next_levels_completed_bcd;
                 default: begin end
             endcase
@@ -530,6 +542,7 @@ module My_Top_Module #(
     game_timer #(.CLK_HZ(TIMER_CLK_HZ),
         .EASY_SECONDS(EASY_TIME_SECONDS), .HARD_SECONDS(HARD_TIME_SECONDS),
         .HUGE_SECONDS(HUGE_TIME_SECONDS), .XL_SECONDS(XL_TIME_SECONDS),
+        .SECONDS_PER_CELL(SECONDS_PER_CELL),
         .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
@@ -608,7 +621,7 @@ module My_Top_Module #(
         .rst        (rst | (START_IN_MENU && phys_init)),
         .frame_tick (frame_tick),
         .rot_cmd    (angle_rot_cmd),
-        .rot_speed_sel (active_game_cfg[7:6]),
+        .rot_speed_sel (active_game_cfg[8:7]),
         // LOSE discards queued snap releases as well as smooth commands.
         .snap_mode  (snap_mode && (game_state != `ST_LOSE)),
         .rot_held   (rot_held),
@@ -625,7 +638,7 @@ module My_Top_Module #(
     seed_source seed_i (
         .clk         (clk),
         .rst         (rst),
-        .debug_fixed (menu_active ? 1'b0 : sw[5]),
+        .debug_fixed (menu_active ? 1'b0 : sw[14]),
         .latch_en    (seed_capture),
         .seed        (seed)
     );
@@ -691,7 +704,7 @@ module My_Top_Module #(
         .sin_q      (sin_q),
         .cos_q      (cos_q),
         .effect_code (item_effect),
-        .restitution_sel (active_game_cfg[5:4]),
+        .restitution_sel (active_game_cfg[6:5]),
         .maze_raddr (maze_raddr_p),
         .maze_rdata (maze_rdata_p),
         .ball_x     (ball_x),

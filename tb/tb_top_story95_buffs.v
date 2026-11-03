@@ -9,7 +9,7 @@ module tb_top_story95_buffs;
         .TIMER_CLK_HZ(256),.EASY_TIME_SECONDS(59),.ITEM_EFFECT_SECONDS(8),
         .ITEM_RESPAWN_SECONDS(1),.ITEM_TIME_BONUS_SECONDS(10),.ITEM_ROULETTE_ENABLE(1'b0)) dut (
         .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(1'b0),.btnL(1'b0),.btnR(1'b0),
-        .sw(16'h0020),.ps2_clk(ps2_clk),.ps2_data(ps2_data));
+        .sw(16'h4000),.ps2_clk(ps2_clk),.ps2_data(ps2_data));
     integer grants=0,blocked_events=0;
     always @(posedge clk)if(dut.item_time_bonus)grants=grants+1;
     always @(posedge clk)if(dut.item_debuff_blocked)blocked_events=blocked_events+1;

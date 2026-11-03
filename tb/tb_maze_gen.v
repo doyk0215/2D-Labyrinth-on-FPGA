@@ -92,11 +92,8 @@ module tb_maze_gen;
     function integer max_loop_count;
         input integer N;
         begin
-            case (N)
-                10: max_loop_count = 3;  // HARD
-                15: max_loop_count = 5;  // largest stage
-                default: max_loop_count = 0;
-            endcase
+            // One loop per 3-row band from N = 8 (3 at MEDIUM N = 10, 5 at HARD N = 15).
+            max_loop_count = (N < 8) ? 0 : N / 3;
         end
     endfunction
 

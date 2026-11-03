@@ -93,7 +93,7 @@ module maze_gen (
     reg [4:0]  scx, scy;          // loop-pass scan position (cell)
     reg        sdir;              // 0 = east wall, 1 = south wall
     reg [2:0]  box_k;             // box being placed
-    reg [2:0]  box_target;        // 0 EASY, 4 standard, 6 from N = 15 up
+    reg [2:0]  box_target;        // 0 up to N = 5, 4 standard, 6 from N = 15 up
     reg [1:0]  box_rot;           // quadrant of box 0
     reg        box_swap;          // swap the quadrants of boxes 1 and 2
 
@@ -238,12 +238,12 @@ module maze_gen (
                     start_row        <= {nm1, 1'b1};
                     goal_col         <= {{(`COORD_W-1){1'b0}}, 1'b1};
                     goal_row         <= {{(`COORD_W-1){1'b0}}, 1'b1};
-                    loop_cap         <= (n == 5'd10) ? 4'd3 :
-                                        (n == 5'd15) ? 4'd5 :
-                                        (n == 5'd20) ? 4'd6 : 4'd0;
-                    box_target       <= (n == 5'd5) ? 3'd0 :
-                                        (n >= 5'd15) ? 3'd6 :
-                                        (n >= 5'd4) ? 3'd4 : 3'd0;
+                    // One loop per 3-row band from N = 8 up (3/5/6 at
+                    // N = 10/15/20); below 8, rand_col could pass nm1.
+                    loop_cap         <= (n < 5'd8) ? 4'd0 : n / 5'd3;
+                    // No boxes up to N = 5 (EASY), 4 below N = 15, then 6.
+                    box_target       <= (n <= 5'd5) ? 3'd0 :
+                                        (n >= 5'd15) ? 3'd6 : 3'd4;
                     band_index       <= 4'd0;
                     state            <= S_STEP;
                 end

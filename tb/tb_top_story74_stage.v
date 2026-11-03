@@ -9,7 +9,7 @@ module tb_top_story74_stage;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(2),
         .WIN_HOLD_FRAMES(2)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(btnL), .btnR(1'b0),
-        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
+        .sw(16'h4000), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     task fail;
         input [767:0] msg;
@@ -38,7 +38,7 @@ module tb_top_story74_stage;
             while(!dut.gen_done && guard<200000) begin cycles(1); guard=guard+1; end
             if(guard==200000) fail("N=15 generation timeout");
             frame();
-            if(dut.game_state !== `ST_PLAY || dut.n_cells !== 15 || dut.active_game_cfg !== 8'h1F)
+            if(dut.game_state !== `ST_PLAY || dut.n_cells !== 15 || dut.active_game_cfg !== 10'h02F)
                 fail("HUGE was not captured as active configuration");
             if(dut.start_col !== 29 || dut.start_row !== 29 || dut.goal_col !== 1 || dut.goal_row !== 1)
                 fail("HUGE start/goal coordinates incorrect");
@@ -83,20 +83,20 @@ module tb_top_story74_stage;
     integer i;
     initial begin
         force dut.frame_tick=0; cycles(16);
-        // UP wraps to stage 3; DOWN traverses all three in forward order.
+        // UP wraps to CUSTOM (stage 3); DOWN then traverses EASY, MEDIUM, HARD.
         click(1);
-        if(dut.menu_ctrl_i.selected_stage !== 2 || dut.game_cfg !== 8'h1F ||
-           dut.status_text[8*48+:8] !== ">") fail("UP did not select visible HUGE entry");
-        click(2); if(dut.game_cfg !== 8'h05) fail("HUGE to EASY wrap failed");
-        click(2); if(dut.game_cfg !== 8'h1A) fail("EASY to HARD failed");
-        click(2); if(dut.game_cfg !== 8'h1F) fail("HARD to HUGE failed");
+        if(dut.menu_ctrl_i.selected_stage !== 3 || dut.game_cfg !== 10'h200 ||
+           dut.status_text[8*48+:8] !== ">") fail("UP did not select visible CUSTOM entry");
+        click(2); if(dut.game_cfg !== 10'h005) fail("CUSTOM to EASY wrap failed");
+        click(2); if(dut.game_cfg !== 10'h02A) fail("EASY to MEDIUM failed");
+        click(2); if(dut.game_cfg !== 10'h02F) fail("MEDIUM to HARD failed");
         click(0); frame();
-        if(dut.game_state !== `ST_GENERATE || dut.active_game_cfg !== 8'h1F)
+        if(dut.game_state !== `ST_GENERATE || dut.active_game_cfg !== 10'h02F)
             fail("confirm did not latch HUGE");
         // Inputs after start must not change the active stage.
         click(1); click(2);
         finish_generation(); check_reachable();
-        if(dut.status_text[8*6+:8] !== "3" || dut.status_text[8*10+:8] !== "G" ||
+        if(dut.status_text[8*6+:8] !== "3" || dut.status_text[8*10+:8] !== "R" ||
            dut.status_text[8*16+:8] !== "T" || dut.status_text[8*32+:8] !== "P")
             fail("HUGE PLAY name/time not formatted");
         for(i=0;i<2000;i=i+1) cycles(1);
@@ -120,7 +120,7 @@ module tb_top_story74_stage;
         frame(); if(dut.game_state !== `ST_GENERATE) fail("WIN did not replay");
         finish_generation(); check_reachable();
         click(0);
-        if(dut.game_state !== `ST_MENU || dut.game_cfg !== 8'h05) fail("CENTER did not restore EASY stage menu");
+        if(dut.game_state !== `ST_MENU || dut.game_cfg !== 10'h005) fail("CENTER did not restore EASY stage menu");
         $display("PASS: Story 7.4 HUGE menu, captured N=15, OLED, reachable goal, camera spawn, WIN and replay");
         $finish;
     end

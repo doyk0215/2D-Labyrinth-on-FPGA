@@ -2,7 +2,7 @@
 `include "labyrinth_pkg.vh"
 module tb_top_story82_countdown;
     reg clk=0, btnC=0, btnR=0;
-    reg [15:0] sw=16'h0020;
+    reg [15:0] sw=16'h4000;
     always #5 clk=~clk;
     tri1 ps2_clk,ps2_data;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(2),
@@ -94,7 +94,7 @@ module tb_top_story82_countdown;
     initial begin
         force dut.frame_tick=0; cycles(16);
         for(mode=0;mode<2;mode=mode+1) begin
-            sw[0]=mode; cycles(8); start();
+            sw[15]=mode; cycles(8); start();
             btnR=1; cycles(8); frame(); btnR=0; cycles(8); frame();
             expire();
             frozen_angle=dut.angle; frozen_x=dut.ball_x; frozen_y=dut.ball_y;

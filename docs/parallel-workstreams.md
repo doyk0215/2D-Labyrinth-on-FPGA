@@ -53,7 +53,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - Maze placement (Story 7.1, replacing the v1 centred 21×21 layout): an N-cell maze (N = 2..15) fills tiles 0..2N in each axis from the top-left; every other stored tile is wall. The map centre is tile N (pixel 16N + 8), so `render` and `ball_physics` take `n_cells` to centre the view and the ball position. `start_*`/`goal_*` are tile coordinates from the top-left: start = `(2N-1, 2N-1)` (bottom-right cell, drawn red, the ball spawns here), goal = `(1, 1)` (top-left cell, drawn green).
 
 **Maze generation (A)**
-- Inputs: `gen_start` (pulse), `n_cells[3:0]` (from `game_cfg`), `seed[31:0]`
+- Inputs: `gen_start` (pulse), `n_cells[4:0]` (from `game_cfg`), `seed[31:0]`
 - Outputs: `gen_busy`, `gen_done` (pulse)
 
 **Ball physics (A)**
@@ -72,10 +72,11 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 - In LOSE physics is disabled and both smooth and queued snap rotation are frozen. A short or full CENTER reset still returns to MENU. Story 8.3 shows a dedicated OLED TIME UP / TIME 00:00 page with the active stage and automatic-menu hint; the existing OLED mailbox still switches text only at its own frame boundary.
 - Inputs: `gen_done`, `in_goal`, reset, `game_cfg` (from `menu_ctrl`)
 
-**Board switches (Story 9.2 control remap)**
-- `SW0` selects snap rotation (1 = 90-degree press/release steps, 0 = smooth).
-- `SW5` selects fixed-seed maze generation (1 = repeatable map, 0 = fresh seed).
-- `SW[4:1]` keeps its legacy debug size meaning; menu-selected stages are unchanged.
+**Board switches (Story 9.2 control remap, moved for the CUSTOM stage)**
+- `SW15` selects snap rotation (1 = 90-degree press/release steps, 0 = smooth).
+- `SW14` selects fixed-seed maze generation (1 = repeatable map, 0 = fresh seed).
+- `SW[4:0]` is the CUSTOM stage's maze size N (2..20; any other value shows an OLED error when CUSTOM is confirmed). Legacy auto-start builds also take N from it (N = 10 outside 2..20).
+- The menu stages are EASY (N = 5), MEDIUM (N = 10), HARD (N = 15) and CUSTOM.
 - The independent OLED bring-up top keeps its own SW0 text/test-pattern selector.
 
 **CENTER and reset (Story 6.2)**
@@ -100,6 +101,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Menu and OLED (B and A)**
 - `game_cfg[7:0]` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start). Story 6.1 keeps this width and packing unchanged.
 - Story 7.4 widens `menu_ctrl.selected_stage` to two bits (0 EASY, 1 HARD, 2 HUGE). UP/DOWN cycle through the three entries in opposite directions with wrap; both together do nothing. HUGE packs N=15 and restitution=1 (the HARD bounce preset), while the 8-bit `game_cfg` format is unchanged. All three entries occupy rows 1..3; row 0 keeps the LEFT/settings and CENTER/start hints. PLAY/WIN identify N=15 as `STAGE 3 HUGE`.
+- CUSTOM stage: `game_cfg` widens to 10 bits, `{custom, rot_speed_sel[1:0], restitution_sel[1:0], n_cells[4:0]}`. The menu shows four rows, EASY (N=5), MEDIUM (N=10), HARD (N=15) and CUSTOM (N from SW4..SW0, shown live), and drops the hint row. Confirming CUSTOM outside 2..20 shows an OLED error page for `MENU_ERROR_CYCLES` (2 s) and starts nothing. CUSTOM games never update a HIGH score. PLAY/WIN show `STAGE 2 MEDIUM`, `STAGE 3 HARD` or `CUSTOM N=17`. Per-size parameters follow N alone: time 12 s × N (preset parameters at N = 5/10/15/20), boxes 0 up to N = 5, 4 below 15, 6 from 15, loops N/3 from N = 8.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
@@ -178,7 +180,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   sits in front of the OLED text mailbox's 512-bit compare.
 
 **Camera (C, Story 7.2)**
-- Inputs: `phys_init`, `phys_done`, `n_cells[3:0]`, `ball_x`, `ball_y`
+- Inputs: `phys_init`, `phys_done`, `n_cells[4:0]`, `ball_x`, `ball_y`
 - Outputs: `cam_x[17:0]`, `cam_y[17:0]` (signed Q9.8, maze pixels from the map centre, the ball's format) and `cam_done` (pulse with every new value, two clocks after `phys_done`, so inside vertical blanking)
 - `camera` is the only writer of the camera position. It follows the ball with a dead zone (about ±48 px per axis around its target) and `cam += (target - cam) >>> 3`, snaps to the ball one clock after `phys_init`, and is the map centre (0, 0) when `n_cells` < 11, so N = 5 and N = 10 keep the fixed view. Story 7.3: `render` centres the view on the map centre plus the camera, and `ball_overlay` starts on `cam_done` and draws `ball - cam`, so the maze and the ball always use the same camera value.
 

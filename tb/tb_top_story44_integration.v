@@ -27,7 +27,7 @@ module tb_top_story44_integration;
         .WIN_HOLD_FRAMES(2), .TIMER_CLK_HZ(TIMER_CLK_HZ)
     ) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR),
-        .btnD(btnD), .sw(16'h0020), .led(led),
+        .btnD(btnD), .sw(16'h4000), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data),
@@ -158,7 +158,7 @@ module tb_top_story44_integration;
         press_confirm;
         pulse_frame;
         wait_state(`ST_GENERATE);
-        if (dut.active_game_cfg !== 8'h05) begin
+        if (dut.active_game_cfg !== 10'h005) begin
             $display("FAIL Story 4.4 integration: EASY stage not captured at start");
             errors = errors + 1;
         end

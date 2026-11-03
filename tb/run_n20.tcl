@@ -10,7 +10,7 @@ if {[catch {exec xvhdl -work work [file join $rtl Ps2Interface.vhd] [file join $
 }
 set cmd [list xvlog -work work -i $rtl -i $tb]
 foreach source [glob [file join $rtl *.v]] { lappend cmd $source }
-foreach bench {tb_maze_gen_golden tb_n20_maze tb_n20_play tb_n20_render tb_top_n20} {
+foreach bench {tb_maze_gen_golden tb_n20_maze tb_n20_play tb_n20_render tb_top_n20 tb_custom_stage tb_menu_ctrl} {
     lappend cmd [file join $tb ${bench}.v]
 }
 if {[catch {exec {*}$cmd 2>@1} output]} { puts $output; error "Verilog compilation failed" }
@@ -20,6 +20,8 @@ foreach {bench marker} {
     tb_n20_play "PASS: N=20 play"
     tb_n20_render "PASS: N=20 render"
     tb_top_n20 "PASS: N=20 top"
+    tb_custom_stage "PASS: custom stage"
+    tb_menu_ctrl "PASS: menu_ctrl"
 } {
     if {[catch {exec xelab -debug typical -L unisims_ver -top $bench -snapshot ${bench}_snapshot 2>@1} output]} {
         puts $output; error "Elaboration failed for $bench"

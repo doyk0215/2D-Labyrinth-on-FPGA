@@ -17,3 +17,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-n20-stage.md`
   summary: `maze_gen`'s DFS stack is built from flip-flops (about 4,000 FF at 400 x 10 bits) because it has two write sites (`stack[0]` in S_INIT and `stack[sp]` in S_WCELL); one shared write port would let Vivado map it to LUT RAM.
   evidence: Routed hierarchy on feature/n20-stage shows `gen_i` at 4,180 FF (2,225 on main 3fdc74d); total 6,882 FF is 16.5%, inside the 30% cap, so this is headroom, not a failure. Re-run the golden checksums after any change.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-custom-stage.md`
+  summary: The OLED instruction pages do not mention SW4..SW0 (CUSTOM maze size) or SW14 (fixed seed); players learn the size switches only from the invalid-size error page.
+  evidence: rtl/oled_status_text.v instruction lines list only the mouse/buttons, SW15 snap, BTNU pause, BTND and BTNC; not part of DY's 2026-11-04 request.

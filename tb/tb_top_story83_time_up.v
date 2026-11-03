@@ -11,7 +11,7 @@ module tb_top_story83_time_up;
         .TIMER_CLK_HZ(1024), .EASY_TIME_SECONDS(2), .HARD_TIME_SECONDS(3),
         .LOSE_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnD(btnD), .btnL(1'b0),
-        .btnR(btnR), .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
+        .btnR(btnR), .sw(16'h4000), .ps2_clk(ps2_clk), .ps2_data(ps2_data)
     );
     task fail;
         input [767:0] message;
@@ -77,7 +77,7 @@ module tb_top_story83_time_up;
             while(!dut.gen_done && guard<200000) begin cycles(1); guard=guard+1; end
             if(guard==200000) fail("real generation timed out");
             frame();
-            if(dut.game_state !== `ST_PLAY || dut.active_game_cfg[3:0] !== (hard ? 4'd10 : 4'd5))
+            if(dut.game_state !== `ST_PLAY || dut.active_game_cfg[4:0] !== (hard ? 5'd10 : 5'd5))
                 fail("selected stage not captured into PLAY");
             oled_snapshot();
         end

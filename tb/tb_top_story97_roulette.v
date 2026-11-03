@@ -8,7 +8,7 @@ module tb_top_story97_roulette;
         .TIMER_CLK_HZ(1000),.EASY_TIME_SECONDS(600),.ITEM_EFFECT_SECONDS(8),
         .ITEM_ROULETTE_SPIN_MS(64),.ITEM_ROULETTE_HOLD_MS(16),.ITEM_BLOCK_ICON_MS(16)) dut (
         .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(1'b0),.btnL(1'b0),.btnR(btnR),
-        .sw(16'h0020),.ps2_clk(ps2_clk),.ps2_data(ps2_data));
+        .sw(16'h4000),.ps2_clk(ps2_clk),.ps2_data(ps2_data));
     task fail;input [767:0] msg;
         begin $display("FAIL Story 9.7 top: %0s state=%0d roll=%0d visual=%h pending=%b effect=%0d",msg,dut.game_state,dut.roulette_i.state,dut.visual_active,dut.item_pending_valid,dut.item_effect);$fatal(1);end endtask
     task cycles;input integer n;begin repeat(n)@(negedge clk);#1;end endtask

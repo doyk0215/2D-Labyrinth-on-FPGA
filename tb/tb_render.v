@@ -30,7 +30,7 @@ module tb_render;
         .btnL       (1'b0),
         .btnR       (1'b0),
         .btnD       (1'b0),
-        .sw         (16'h0020),
+        .sw         (16'h4000),
         .led        (led),
         .vga_r      (vga_r),
         .vga_g      (vga_g),
@@ -70,7 +70,7 @@ module tb_render;
     integer r, c, floors, b, box_at, boxes_seen;
     reg [11:0] exp_rgb;
 
-    // The fixed debug seed (sw[5]) makes the generated maze repeatable. The
+    // The fixed debug seed (sw[14]) makes the generated maze repeatable. The
     // maze is read back from maze_ram and every tile of the displayed map is
     // checked against it, so the test does not depend on which maze is made.
     initial begin

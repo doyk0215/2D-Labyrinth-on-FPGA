@@ -6,6 +6,9 @@
 // six box slots must equal the value captured on main 3fdc74d (before the
 // widening). The bench uses only the package macros, so it ran unchanged on
 // both versions. CAPTURE=1 prints the table instead of checking it.
+// The CUSTOM stage gave N = 4 (no boxes) and N = 8, 9, 11..14 (loops) new
+// rules on purpose; those sizes are not compared here (tb_custom_stage checks
+// their structure), every other N must still match main.
 module tb_maze_gen_golden #(parameter CAPTURE = 0);
     reg clk = 1'b0, rst = 1'b1, gen_start = 1'b0;
     reg [`N_CELLS_W-1:0] n_cells = 0;
@@ -38,6 +41,10 @@ module tb_maze_gen_golden #(parameter CAPTURE = 0);
 
     `include "tb_maze_gen_golden.vh"   // expected[0:223]: index (n-2)*16 + s
 
+    function new_rule; input integer n;
+        begin new_rule = (n == 4) || (n == 8) || (n == 9) || (n >= 11 && n <= 14); end
+    endfunction
+
     integer n, s, r, c, k, guard, failures;
     initial begin
         failures = 0;
@@ -64,14 +71,14 @@ module tb_maze_gen_golden #(parameter CAPTURE = 0);
                 end
                 if (CAPTURE)
                     $display("    expected[%0d] = 32'h%08h;", (n - 2) * 16 + s, crc);
-                else if (crc !== expected[(n - 2) * 16 + s]) begin
+                else if (!new_rule(n) && crc !== expected[(n - 2) * 16 + s]) begin
                     $display("FAIL maze_gen golden: N=%0d seed %0d crc %08h expected %08h",
                              n, s, crc, expected[(n - 2) * 16 + s]);
                     failures = failures + 1;
                 end
             end
         if (!CAPTURE && failures == 0)
-            $display("PASS: maze_gen golden N=2..15, 16 seeds each, map/start/goal/boxes identical to main 3fdc74d");
+            $display("PASS: maze_gen golden N=2,3,5,6,7,10,15, 16 seeds each, map/start/goal/boxes identical to main 3fdc74d");
         $finish;
     end
 endmodule

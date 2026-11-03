@@ -9,7 +9,7 @@ module tb_top_story62_reset;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
         .LONG_PRESS_CYCLES(64), .TIMER_CLK_HZ(32), .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnD(btnD), .btnL(btnL), .btnR(1'b0),
-        .sw(16'h0020), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
+        .sw(16'h4000), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
         .oled_res(oled_res), .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)
     );
     // Only this integration bench scales the supplied driver's delay/frame
@@ -20,7 +20,7 @@ module tb_top_story62_reset;
     // MENU without starting a stage. Keep ordinary rst's legacy behavior.
     game_ctrl #(.START_IN_MENU(1'b0)) legacy_ctrl_i (
         .clk(clk), .rst(dut.rst), .full_reset(dut.full_reset), .frame_tick(1'b1),
-        .start_game(1'b0), .game_cfg(8'h05), .regen_button(1'b0),
+        .start_game(1'b0), .game_cfg(10'h005), .regen_button(1'b0),
         .pause_button(1'b0), .pause_resume(1'b0), .pause_restart(1'b0),
         .gen_busy(1'b0), .gen_done(1'b0), .time_up(1'b0), .in_goal(1'b0), .game_state()
     );
@@ -69,7 +69,7 @@ module tb_top_story62_reset;
             if (guard == 500000 || !oled_vddc || !oled_vbatc) fail("OLED did not complete startup");
             force dut.oled_frame_begin = 1'b1;
             cycles(80); release dut.oled_frame_begin;
-            if (dut.text_active[7:0] !== "L") fail("OLED mailbox retained a pre-reset page");
+            if (dut.text_active[15:0] !== "E>") fail("OLED mailbox retained a pre-reset page");
         end
     endtask
     task menu_ready;
@@ -161,7 +161,7 @@ module tb_top_story62_reset;
         $display("Story 6.2: long reset from GENERATE passed");
 
         click(3); click(1); click(0); // FAST, then leave settings
-        if (dut.game_cfg[7:6] !== 2'b10) fail("rotation preference precondition missing");
+        if (dut.game_cfg[8:7] !== 2'b10) fail("rotation preference precondition missing");
         start_play();
         // Countdown now arms only after a visible maze and player input.
         // Shorten scanout and inject the same left-click action used by the timer.
@@ -173,7 +173,7 @@ module tb_top_story62_reset;
         if (dut.elapsed_seconds_bcd === 0) fail("PLAY timer reset precondition missing");
         // Short return preserves the configured speed, unlike a full reset.
         click(0);
-        if (dut.game_state !== `ST_MENU || dut.game_cfg[7:6] !== 2'b10)
+        if (dut.game_state !== `ST_MENU || dut.game_cfg[8:7] !== 2'b10)
             fail("short return lost the rotation preference");
         start_play();
         btnL = 1; cycles(6); frame(); btnL = 0; cycles(6);

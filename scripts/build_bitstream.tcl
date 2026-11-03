@@ -20,12 +20,6 @@ set_property target_language Verilog [current_project]
 set_property top My_Top_Module [get_filesets sources_1]
 add_files -fileset constrs_1 -norecurse [file join $repo constraints basys3.xdc]
 
-# Optional N = 20 test build: set TEST_N_CELLS=20 in the environment.
-if {[info exists ::env(TEST_N_CELLS)] && $::env(TEST_N_CELLS) ne ""} {
-    set_property generic "TEST_N_CELLS=$::env(TEST_N_CELLS)" [get_filesets sources_1]
-    puts "Test build: TEST_N_CELLS=$::env(TEST_N_CELLS)"
-}
-
 launch_runs synth_1 -jobs 4
 wait_on_run synth_1
 set synth_status [get_property STATUS [get_runs synth_1]]
