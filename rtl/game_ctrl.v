@@ -3,7 +3,7 @@
 
 // Game-flow controller for generation, play, pause, and result states.
 // State values follow docs/parallel-workstreams.md. game_cfg is packed as
-// {rot_speed_sel[1:0], restitution_sel[1:0], n_cells[3:0]} and is captured
+// {custom, rot_speed_sel[1:0], restitution_sel[1:0], n_cells[4:0]} and is captured
 // when a MENU start request is accepted at a frame boundary.
 module game_ctrl #(
     parameter START_IN_MENU = 1'b0,
@@ -15,7 +15,7 @@ module game_ctrl #(
     input  wire       full_reset, // override legacy auto-start; always recover to MENU
     input  wire       frame_tick,
     input  wire       start_game,
-    input  wire [7:0] game_cfg,
+    input  wire [9:0] game_cfg,
     input  wire       regen_button,
     input  wire       pause_button,
     input  wire       pause_resume,
@@ -28,7 +28,7 @@ module game_ctrl #(
     output reg        gen_start,
     output reg        seed_capture,
     output reg        phys_init,
-    output reg  [7:0] active_game_cfg,
+    output reg  [9:0] active_game_cfg,
     output wire       phys_en
 );
 
@@ -44,7 +44,7 @@ module game_ctrl #(
     reg       reuse_seed_pending;
     reg       gen_done_pending;
     reg       start_pending;
-    reg [7:0] start_cfg_pending;
+    reg [9:0] start_cfg_pending;
     reg [15:0] win_frames_elapsed;
     localparam integer LOSE_COUNT_W = (LOSE_HOLD_FRAMES > 1) ? $clog2(LOSE_HOLD_FRAMES) : 1;
     reg [LOSE_COUNT_W-1:0] lose_frames_elapsed;
@@ -63,8 +63,8 @@ module game_ctrl #(
             reuse_seed_pending <= 1'b0;
             gen_done_pending <= 1'b0;
             start_pending  <= 1'b0;
-            start_cfg_pending <= {2'b00, 2'b00, 4'd5};
-            active_game_cfg <= {2'b00, 2'b00, 4'd5};
+            start_cfg_pending <= {1'b0, 2'b00, 2'b00, 5'd5};
+            active_game_cfg <= {1'b0, 2'b00, 2'b00, 5'd5};
             win_frames_elapsed <= 16'd0;
             lose_frames_elapsed <= {LOSE_COUNT_W{1'b0}};
         end else begin

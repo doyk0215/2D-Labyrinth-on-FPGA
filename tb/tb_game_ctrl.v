@@ -16,7 +16,7 @@ module tb_game_ctrl;
     wire seed_capture;
     wire phys_init;
     wire phys_en;
-    wire [7:0] active_game_cfg;
+    wire [9:0] active_game_cfg;
 
     integer errors = 0;
     integer start_count = 0;
@@ -31,7 +31,7 @@ module tb_game_ctrl;
         .full_reset   (1'b0),
         .frame_tick   (frame_tick),
         .start_game   (start_game),
-        .game_cfg     (8'hA5),
+        .game_cfg     (10'h2A5),
         .regen_button (regen_button),
         .pause_button (1'b0),
         .pause_resume (1'b0),
@@ -112,7 +112,7 @@ module tb_game_ctrl;
         pulse_frame();
         @(negedge clk); start_game = 1'b0;
         wait_state(`ST_GENERATE);
-        if (active_game_cfg !== 8'hA5) begin
+        if (active_game_cfg !== 10'h2A5) begin
             $display("FAIL: start configuration was not captured at frame handoff");
             errors = errors + 1;
         end
@@ -172,7 +172,7 @@ module tb_game_ctrl;
         wait (gen_start === 1'b1);
         repeat (2) @(posedge clk);
 
-        if (active_game_cfg !== 8'hA5) begin
+        if (active_game_cfg !== 10'h2A5) begin
             $display("FAIL: automatic replay changed the active game configuration");
             errors = errors + 1;
         end

@@ -5,9 +5,9 @@
 module tb_goal_detection;
     reg clk = 1'b0;
     reg rst = 1'b1;
-    reg [4:0] goal_col = 5'd1;
-    reg [4:0] goal_row = 5'd1;
-    reg [3:0] n_cells = 4'd10;
+    reg [`COORD_W-1:0] goal_col = 5'd1;
+    reg [`COORD_W-1:0] goal_row = 5'd1;
+    reg [`N_CELLS_W-1:0] n_cells = 4'd10;
     wire signed [17:0] ball_x, ball_y;
     wire in_goal;
     integer errors = 0;
@@ -18,7 +18,7 @@ module tb_goal_detection;
     ball_physics dut (
         .effect_code(`ITEM_NONE),
         .clk(clk), .rst(rst), .frame_tick(1'b0), .phys_init(1'b0), .phys_en(1'b0),
-        .spawn_col(5'd19), .spawn_row(5'd19), .goal_col(goal_col), .goal_row(goal_row), .n_cells(n_cells),
+        .spawn_col(6'd19), .spawn_row(6'd19), .goal_col(goal_col), .goal_row(goal_row), .n_cells(n_cells),
         .sin_q(16'sd0), .cos_q(16'sd16384), .restitution_sel(2'd0),
         .maze_raddr(), .maze_rdata(1'b0), .ball_x(ball_x), .ball_y(ball_y),
         .vel_x(), .vel_y(), .phys_done(), .in_goal(in_goal)

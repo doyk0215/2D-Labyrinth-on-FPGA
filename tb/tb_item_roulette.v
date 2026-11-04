@@ -6,7 +6,7 @@ module tb_item_roulette;
     always #5 clk=~clk;
     reg [`GAME_STATE_W-1:0] game_state=`ST_PLAY;
     reg signed [17:0] bx=-16384,by=-16384;
-    wire [19:0] cols={5'd5,5'd3,5'd5,5'd3},rows={5'd5,5'd5,5'd3,5'd3};
+    wire [4*`COORD_W-1:0] cols={6'd5,6'd3,6'd5,6'd3}, rows={6'd5,6'd5,6'd3,6'd3};
     wire [3:0] visible,effect,picked,pending;
     wire [6:0] seconds;
     wire pulse,blocked,bonus,pending_valid,busy,commit,returning;
@@ -20,7 +20,7 @@ module tb_item_roulette;
     wire [7:0] near_minutes,near_seconds;
     wire near_deadline;
     item_ctrl #(.CLK_HZ(1000),.EFFECT_SECONDS(1),.RESPAWN_SECONDS(1),.DEFER_EFFECT(1)) item_i (
-        .clk(clk),.rst(rst),.phys_init(init),.phys_done(done),.game_state(game_state),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.phys_init(init),.phys_done(done),.game_state(game_state),.n_cells(5'd5),
         .ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(4'b1111),.seed(32'h12345678),
         .roulette_busy(busy),.roulette_commit(commit),.box_visible(visible),.active_effect(effect),.effect_seconds(seconds),
         .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),
@@ -30,11 +30,11 @@ module tb_item_roulette;
         .pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),.display_frame(display_frame),
         .display_visual(display_visual),.busy(busy),.visual(visual),.commit(commit),.returning(returning));
     game_timer #(.CLK_HZ(1000),.EASY_SECONDS(59)) timer_i (
-        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(game_state),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(game_state),.n_cells(5'd5),
         .maze_pixel_visible(1'b1),.player_action(1'b0),.time_bonus_pulse(bonus),
         .elapsed_minutes_bcd(timer_minutes),.elapsed_seconds_bcd(timer_seconds),.time_up());
     game_timer #(.CLK_HZ(1000),.EASY_SECONDS(1)) near_timer_i (
-        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(game_state),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(game_state),.n_cells(5'd5),
         .maze_pixel_visible(1'b1),.player_action(near_action),.time_bonus_pulse(bonus),
         .elapsed_minutes_bcd(near_minutes),.elapsed_seconds_bcd(near_seconds),.time_up(near_deadline));
     always @(negedge clk)begin
@@ -48,7 +48,7 @@ module tb_item_roulette;
     task cycles;input integer n;begin repeat(n)@(negedge clk);#1;end endtask
     task position;input integer slot;
         begin if(slot<0)begin bx=-16384;by=-16384;end
-            else begin bx=(cols[slot*5+:5]-5)*4096;by=(rows[slot*5+:5]-5)*4096;end end endtask
+            else begin bx=(cols[slot*`COORD_W+:`COORD_W]-5)*4096;by=(rows[slot*`COORD_W+:`COORD_W]-5)*4096;end end endtask
     task fresh;
         begin game_state=`ST_PLAY;position(-1);init=1;done=0;cycles(1);init=0;cycles(2);
             if(pending_valid || busy || effect!==`ITEM_NONE || visible!==15)fail("new maze not clean");end endtask

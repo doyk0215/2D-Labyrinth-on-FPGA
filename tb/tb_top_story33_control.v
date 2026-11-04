@@ -18,7 +18,7 @@ module tb_top_story33_control;
     integer goal_left, goal_top;
     reg map_changed = 1'b0;
     reg [31:0] first_seed;
-    reg [7:0] first_cfg;
+    reg [9:0] first_cfg;
     reg [`MAP_TILES-1:0] first_map;
     reg signed [17:0] stopped_x, stopped_y;
     reg [11:0] stopped_angle;
@@ -37,8 +37,9 @@ module tb_top_story33_control;
 
     always @(posedge clk) begin
         if (!dut.rst) begin
-            if (dut.gen_start) gen_start_count = gen_start_count + 1;
-            if (dut.seed_capture) seed_capture_count = seed_capture_count + 1;
+            // Game generations only; the menu backdrop has its own requests.
+            if (dut.game_gen_start) gen_start_count = gen_start_count + 1;
+            if (dut.game_seed_capture) seed_capture_count = seed_capture_count + 1;
             if (dut.phys_init) phys_init_count = phys_init_count + 1;
         end
     end
@@ -85,6 +86,18 @@ module tb_top_story33_control;
         end
     endtask
 
+    // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+    task wait_backdrop;
+        begin
+            guard = 0;
+            while (!dut.menu_bg_visible && guard < 400000) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            if (!dut.menu_bg_visible) fail("menu backdrop did not finish");
+        end
+    endtask
+
     task press_start;
         begin
             @(negedge clk); btnC = 1'b1;
@@ -98,6 +111,7 @@ module tb_top_story33_control;
         force dut.frame_tick = 1'b0;
         repeat (10) @(negedge clk);
         wait_state(`ST_MENU);
+        wait_backdrop();
 
         press_start();
         pulse_frame();

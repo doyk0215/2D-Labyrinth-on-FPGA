@@ -14,8 +14,8 @@ module tb_ball_physics;
     reg frame_tick = 1'b0;
     reg phys_init = 1'b0;
     reg phys_en = 1'b1;
-    reg [4:0] spawn_col = 5'd11, spawn_row = 5'd11;
-    reg [4:0] goal_col = 5'd1, goal_row = 5'd1;
+    reg [`COORD_W-1:0] spawn_col = 5'd11, spawn_row = 5'd11;
+    reg [`COORD_W-1:0] goal_col = 5'd1, goal_row = 5'd1;
     reg signed [15:0] sin_q = 16'sd0, cos_q = 16'sd16384;
     reg [1:0] restit = 2'd0;
     wire signed [17:0] ball_x, ball_y;
@@ -34,7 +34,7 @@ module tb_ball_physics;
     maze_ram ram_i (
         .clk(clk), .we(map_we), .waddr(map_waddr), .wdata(map_wdata),
         .raddr_p(raddr_p), .rdata_p(rdata_p),
-        .ren_r(1'b0), .raddr_r(10'd0), .rdata_r()
+        .ren_r(1'b0), .raddr_r({`MAP_ADDR_W{1'b0}}), .rdata_r()
     );
 
     ball_physics dut (
@@ -42,7 +42,7 @@ module tb_ball_physics;
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init), .phys_en(phys_en),
         .spawn_col(spawn_col), .spawn_row(spawn_row),
         .goal_col(goal_col), .goal_row(goal_row), .sin_q(sin_q), .cos_q(cos_q),
-        .n_cells(4'd10),
+        .n_cells(5'd10),
         .restitution_sel(restit), .maze_raddr(raddr_p), .maze_rdata(rdata_p),
         .ball_x(ball_x), .ball_y(ball_y), .vel_x(vel_x), .vel_y(vel_y),
         .phys_done(phys_done), .in_goal(in_goal)
@@ -64,8 +64,8 @@ module tb_ball_physics;
     task map_open_room;                           // 21x21 room: border walls, floor inside
         integer r, c;
         begin
-            for (r = 0; r < 32; r = r + 1)
-                for (c = 0; c < 32; c = c + 1)
+            for (r = 0; r < `MAP_STRIDE; r = r + 1)
+                for (c = 0; c < `MAP_STRIDE; c = c + 1)
                     map_t[r * `MAP_STRIDE + c] = (r == 0 || r >= 20 || c == 0 || c >= 20);
         end
     endtask
@@ -155,7 +155,7 @@ module tb_ball_physics;
     endtask
 
     task do_init;
-        input [4:0] c, r;
+        input [`COORD_W-1:0] c, r;
         begin
             spawn_col = c; spawn_row = r;
             @(negedge clk); phys_init = 1'b1;

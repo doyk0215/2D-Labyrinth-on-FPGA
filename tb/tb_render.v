@@ -30,7 +30,7 @@ module tb_render;
         .btnL       (1'b0),
         .btnR       (1'b0),
         .btnD       (1'b0),
-        .sw         (16'h0020),
+        .sw         (16'h4000),
         .led        (led),
         .vga_r      (vga_r),
         .vga_g      (vga_g),
@@ -70,7 +70,7 @@ module tb_render;
     integer r, c, floors, b, box_at, boxes_seen;
     reg [11:0] exp_rgb;
 
-    // The fixed debug seed (sw[5]) makes the generated maze repeatable. The
+    // The fixed debug seed (sw[14]) makes the generated maze repeatable. The
     // maze is read back from maze_ram and every tile of the displayed map is
     // checked against it, so the test does not depend on which maze is made.
     initial begin
@@ -119,7 +119,7 @@ module tb_render;
             for (c = 0; c < 21; c = c + 1) begin
                 box_at = -1;
                 for (b = 0; b < 4; b = b + 1)
-                    if (c == dut.box_cols[5*b +: 5] && r == dut.box_rows[5*b +: 5]) box_at = b;
+                    if (c == dut.box_cols[`COORD_W*b +: `COORD_W] && r == dut.box_rows[`COORD_W*b +: `COORD_W]) box_at = b;
                 if (box_at >= 0) begin
                     boxes_seen = boxes_seen + 1;
                     check_pixel(10'd152 + 16 * c, 10'd80 + 16 * r, 12'h346);               // margin

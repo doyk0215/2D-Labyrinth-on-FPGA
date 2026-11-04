@@ -13,20 +13,20 @@ module tb_story95_items;
     wire pulse,blocked,bonus;
     wire [1:0] index;
     reg signed [17:0] bx,by;
-    wire [19:0] cols={5'd5,5'd3,5'd5,5'd3},rows={5'd5,5'd5,5'd3,5'd3};
+    wire [4*`COORD_W-1:0] cols={6'd5,6'd3,6'd5,6'd3}, rows={6'd5,6'd5,6'd3,6'd3};
     game_ctrl #(.START_IN_MENU(0),.WIN_HOLD_FRAMES(2),.LOSE_HOLD_FRAMES(2)) ctrl_i (
-        .clk(clk),.rst(rst),.full_reset(1'b0),.frame_tick(frame),.start_game(1'b0),.game_cfg(8'h05),
+        .clk(clk),.rst(rst),.full_reset(1'b0),.frame_tick(frame),.start_game(1'b0),.game_cfg(10'h005),
         .regen_button(1'b0),.pause_button(1'b0),.pause_resume(1'b0),.pause_restart(1'b0),
         .gen_busy(1'b0),.gen_done(generated),.in_goal(goal),.time_up(expired),
         .game_state(state),.phys_init(init));
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(4),.RESPAWN_SECONDS(1)) item_i (
-        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.n_cells(5'd5),
         .roulette_busy(1'b0),.roulette_commit(1'b0),
         .ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(4'b1111),.seed(32'h12345678),
         .box_visible(visible),.active_effect(effect),.effect_seconds(effect_seconds),
         .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),.time_bonus_pulse(bonus));
     game_timer #(.CLK_HZ(HZ),.EASY_SECONDS(1),.BONUS_SECONDS(10)) timer_i (
-        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(state),.n_cells(4'd5),
+        .clk(clk),.rst(rst),.preserve_time(1'b0),.phys_init(init),.game_state(state),.n_cells(5'd5),
         .maze_pixel_visible(1'b1),.player_action(action),.time_bonus_pulse(bonus),
         .elapsed_minutes_bcd(minutes),.elapsed_seconds_bcd(seconds),.time_up(expired));
     integer bonuses=0,blocks=0;
@@ -37,7 +37,7 @@ module tb_story95_items;
         begin $display("FAIL Story 9.5 items: %0s state=%0d effect=%0d seconds=%0d time=%02h:%02h",msg,state,effect,effect_seconds,minutes,seconds);$fatal(1);end endtask
     task position;input integer slot;
         begin if(slot<0)begin bx=-16384;by=-16384;end
-            else begin bx=(cols[slot*5+:5]-5)*4096;by=(rows[slot*5+:5]-5)*4096;end end endtask
+            else begin bx=(cols[slot*`COORD_W+:`COORD_W]-5)*4096;by=(rows[slot*`COORD_W+:`COORD_W]-5)*4096;end end endtask
     task start;
         begin rst=1;frame=0;generated=0;done=0;goal=0;action=0;position(-1);cycles(2);rst=0;cycles(4);
             generated=1;frame=1;cycles(1);frame=0;generated=0;cycles(2);

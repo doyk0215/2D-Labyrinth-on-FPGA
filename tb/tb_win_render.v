@@ -17,11 +17,11 @@ module tb_win_render;
     wire vga_hs, vga_vs;
     render #(.BLINK_FRAMES(BLINK)) dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(game_state), .n_cells(4'd10), .cam_x(18'sd0), .cam_y(18'sd0), .time_min_bcd(tmin), .time_sec_bcd(tsec), .angle(12'd0), .sin_q(16'sd0), .cos_q(16'sd16384),
+        .game_state(game_state), .n_cells(5'd10), .cam_x(18'sd0), .cam_y(18'sd0), .time_min_bcd(tmin), .time_sec_bcd(tsec), .angle(12'd0), .sin_q(16'sd0), .cos_q(16'sd16384),
         .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
         .hsync_in(hs), .vsync_in(vs), .maze_raddr(), .maze_rdata(1'b1),
-        .start_col(5'd19), .start_row(5'd19), .goal_col(5'd1), .goal_row(5'd1),
-        .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
+        .start_col(6'd19), .start_row(6'd19), .goal_col(6'd1), .goal_row(6'd1),
+        .box_cols(36'd0), .box_rows(36'd0), .box_valid(4'b0000), .box_visible(4'b1111),
         .ball_on(ball_on), .fog_en(1'b0), .fog_clear(1'b0), .vga_r(r), .vga_g(g), .vga_b(b),
         .vga_hs(vga_hs), .vga_vs(vga_vs), .sin_snap(), .cos_snap()
     );

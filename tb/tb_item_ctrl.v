@@ -5,9 +5,10 @@ module tb_item_ctrl;
     reg clk=0,rst=1,init=0,done=0;
     always #5 clk=~clk;
     reg [`GAME_STATE_W-1:0] state=`ST_PLAY;
-    reg [3:0] n=5,valid=15;
+    reg [`N_CELLS_W-1:0] n=5;
+    reg [3:0] valid=15;
     reg signed [17:0] bx=0,by=0;
-    reg [19:0] cols={5'd5,5'd3,5'd5,5'd3}, rows={5'd5,5'd5,5'd3,5'd3};
+    reg [4*`COORD_W-1:0] cols={6'd5,6'd3,6'd5,6'd3}, rows={6'd5,6'd5,6'd3,6'd3};
     reg [31:0] seed=32'h12345678;
     wire [3:0] visible,effect,picked;
     wire [6:0] seconds;
@@ -44,7 +45,7 @@ module tb_item_ctrl;
         reg [3:0] previous_effect;
         begin
             previous_effect=effect;
-            position(cols[slot*5+:5],rows[slot*5+:5]);done=1;cycles(1);done=0;
+            position(cols[slot*`COORD_W+:`COORD_W],rows[slot*`COORD_W+:`COORD_W]);done=1;cycles(1);done=0;
             if(!pulse || index !== slot || visible[slot] !== 0)fail("centre pickup failed");
             if(blocked)begin
                 if(previous_effect!==`ITEM_INVINCIBLE || slot<2 || picked!==`ITEM_NONE)fail("invalid blocked pickup");
@@ -100,7 +101,7 @@ module tb_item_ctrl;
         state=`ST_PLAY;n=15;new_maze();
         // Absolute tile 35 aliases low five bits of tile 3; in_map must reject it.
         position(35,3);sample_no_pickup();
-        cols[4:0]=29;rows[4:0]=29;new_maze();pickup(0);
+        cols[`COORD_W-1:0]=29;rows[`COORD_W-1:0]=29;new_maze();pickup(0);
         rst=1;cycles(1);rst=0;
         if(visible!==0 || effect!==`ITEM_NONE || seconds!==0 || pulse)fail("reset did not clear all item state");
         $display("PASS: item_ctrl pools, exact duration, replacement, per-box respawn/occupancy, signed boundaries, state clear and deterministic re-rolls");

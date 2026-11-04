@@ -11,7 +11,7 @@ module tb_top_win_indication;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
                     .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnD(1'b0), .btnL(1'b0), .btnR(1'b0),
-        .sw(16'h0020), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
+        .sw(16'h4000), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data), .oled_cs(), .oled_mosi(), .oled_sclk(),
         .oled_dc(), .oled_res(), .oled_vbatc(), .oled_vddc()
     );
@@ -64,6 +64,8 @@ module tb_top_win_indication;
         repeat (20) @(negedge clk);
         wait_state(`ST_MENU);
         check_pixel(156,212,12'h002); // MENU masks even a forced ball
+        // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+        wait (dut.menu_bg_visible === 1'b1);
         press_centre();
         wait_state(`ST_PLAY);
         force dut.frame_tick = 1'b0;
@@ -116,5 +118,5 @@ module tb_top_win_indication;
         $display("PASS: top win indication, WIN render reads, frozen physics, regeneration clearing, and menu reset");
         $finish;
     end
-    initial begin #1000000; fail("timeout"); end
+    initial begin #20000000; fail("timeout"); end
 endmodule

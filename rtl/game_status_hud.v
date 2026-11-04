@@ -12,7 +12,7 @@ module game_status_hud (
     input  wire [9:0] pixel_y,
     input  wire       active_video,
     input  wire [`GAME_STATE_W-1:0] game_state,
-    input  wire [3:0] n_cells,
+    input  wire [`N_CELLS_W-1:0] n_cells,
     input  wire [7:0] minutes_bcd,
     input  wire [7:0] seconds_bcd,
     input  wire [`ITEM_EFFECT_W-1:0] active_effect,
@@ -78,10 +78,10 @@ module game_status_hud (
 
     // Panel: x=380..627, y=12..59. Each 20-character row uses a 12-pixel
     // cell (10x14 glyph plus a 2-pixel gap) with four-pixel side margins.
-    // Easy maps still show the timer, but omit the item row because they have
-    // no buff/debuff boxes.
+    // Maps up to N = 5 (EASY and small custom sizes) still show the timer, but
+    // omit the item row because they have no buff/debuff boxes.
     wire play_active = (game_state == `ST_PLAY);
-    wire item_row_active = (n_cells != 4'd5);
+    wire item_row_active = (n_cells > 5'd5);
     wire panel_now = pixel_x >= 10'd380 && pixel_x < 10'd628 &&
                      pixel_y >= 10'd12 && pixel_y < 10'd60;
     wire accent_now = panel_now && (pixel_x < 10'd384 || pixel_x >= 10'd624 ||

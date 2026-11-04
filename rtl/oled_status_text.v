@@ -8,7 +8,7 @@ module oled_status_text (
     input  wire         instructions_active,
     input  wire [2:0]   instructions_scroll,
     input  wire [`GAME_STATE_W-1:0]   game_state,
-    input  wire [7:0]   active_game_cfg,
+    input  wire [9:0]   active_game_cfg,
     input  wire [7:0]   elapsed_minutes_bcd,
     input  wire [7:0]   elapsed_seconds_bcd,
     input wire [`ITEM_EFFECT_W-1:0] active_effect,
@@ -46,11 +46,18 @@ module oled_status_text (
     reg [127:0] pause_resume_line, pause_restart_line, pause_menu_line;
     reg [127:0] instruction_line_0, instruction_line_1, instruction_line_2;
     reg [127:0] instruction_header;
+    wire [4:0] cfg_n = active_game_cfg[4:0];
+    wire [3:0] cfg_n_tens = (cfg_n >= 5'd20) ? 4'd2 : (cfg_n >= 5'd10) ? 4'd1 : 4'd0;
+    wire [3:0] cfg_n_ones = cfg_n - 5'd10 * cfg_n_tens;
     always @* begin
-        case (active_game_cfg[3:0])
-            4'd5:    stage_text = "STAGE 1 EASY    ";
-            4'd10:   stage_text = "STAGE 2 HARD    ";
-            4'd15:   stage_text = "STAGE 3 HUGE    ";
+        if (active_game_cfg[9])                      // CUSTOM, N = 2..20
+            stage_text = (cfg_n_tens != 0) ?
+                {"CUSTOM N=", digit_ascii(cfg_n_tens), digit_ascii(cfg_n_ones), "     "} :
+                {"CUSTOM N=", digit_ascii(cfg_n_ones), "      "};
+        else case (cfg_n)
+            5'd5:    stage_text = "STAGE 1 EASY    ";
+            5'd10:   stage_text = "STAGE 2 MEDIUM  ";
+            5'd15:   stage_text = "STAGE 3 HARD    ";
             default: stage_text = "STAGE ?         ";
         endcase
         completed_count_line = {"N: ",
@@ -69,10 +76,10 @@ module oled_status_text (
             default: instruction_header = "INSTRUCTIONS 1/4";
         endcase
         case (instructions_scroll)
-            3'd1: begin instruction_line_0="RMB/BTN R: CW   "; instruction_line_1="SW0: 90 DEG SNAP"; instruction_line_2="BTNU: PAUSE     "; end
-            3'd2: begin instruction_line_0="SW0: 90 DEG SNAP"; instruction_line_1="BTNU: PAUSE     "; instruction_line_2="BTND: RESET POS "; end
+            3'd1: begin instruction_line_0="RMB/BTN R: CW   "; instruction_line_1="SW15: 90DEG SNAP"; instruction_line_2="BTNU: PAUSE     "; end
+            3'd2: begin instruction_line_0="SW15: 90DEG SNAP"; instruction_line_1="BTNU: PAUSE     "; instruction_line_2="BTND: RESET POS "; end
             3'd3: begin instruction_line_0="BTNU: PAUSE     "; instruction_line_1="BTND: RESET POS "; instruction_line_2="BTNC: MAIN MENU "; end
-            default: begin instruction_line_0="LMB/BTN L: CCW  "; instruction_line_1="RMB/BTN R: CW   "; instruction_line_2="SW0: 90 DEG SNAP"; end
+            default: begin instruction_line_0="LMB/BTN L: CCW  "; instruction_line_1="RMB/BTN R: CW   "; instruction_line_2="SW15: 90DEG SNAP"; end
         endcase
 
         case (game_state)

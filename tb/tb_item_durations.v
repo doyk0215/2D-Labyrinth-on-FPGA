@@ -8,10 +8,10 @@ module tb_item_durations;
     reg clk=0,rst=1,init=0,done_i=0,done_d=0,commit=0;
     always #5 clk=~clk;
     reg [`GAME_STATE_W-1:0] state=`ST_PLAY;
-    reg [3:0] n=5;
+    reg [`N_CELLS_W-1:0] n=5;
     reg [5:0] valid=6'b001111;
     reg signed [17:0] bx=0,by=0;
-    reg [29:0] cols={10'd0,5'd5,5'd3,5'd5,5'd3}, rows={10'd0,5'd5,5'd5,5'd3,5'd3};
+    reg [6*`COORD_W-1:0] cols={{2*`COORD_W{1'b0}},6'd5,6'd3,6'd5,6'd3}, rows={{2*`COORD_W{1'b0}},6'd5,6'd5,6'd3,6'd3};
     reg [31:0] seed=32'h12345678;
     wire [3:0] effect_i,picked_i,effect_d,picked_d;
     wire [6:0] seconds_i,seconds_d;
@@ -71,7 +71,7 @@ module tb_item_durations;
             position(1,1);cycles(HZ+2);
             if(deferred)begin done_d=1;cycles(1);done_d=0;end else begin done_i=1;cycles(1);done_i=0;end
             cycles((slot*3)%5+1);   // vary the roll
-            position(cols[slot*5+:5],rows[slot*5+:5]);
+            position(cols[slot*`COORD_W+:`COORD_W],rows[slot*`COORD_W+:`COORD_W]);
             if(deferred)begin
                 done_d=1;cycles(1);done_d=0;
                 if(!pulse_d || !pending_d)fail("deferred pickup not held");

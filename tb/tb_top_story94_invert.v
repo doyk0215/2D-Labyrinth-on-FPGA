@@ -68,8 +68,8 @@ module tb_top_story94_invert;
         effect(`ITEM_NONE);
         if (dut.angle !== 0) fail("angle not at zero");
 
-        // Snap (SW0 = 1).
-        sw[0] = 1; cycles(8);
+        // Snap (SW15 = 1).
+        sw[15] = 1; cycles(8);
         snap_click(1, 12'd1024, "normal board right did not step clockwise");
         effect(`ITEM_INVERT);
         snap_click(1, 12'd0, "inverted board right did not step counter-clockwise");
@@ -114,8 +114,8 @@ module tb_top_story94_invert;
         effect(`ITEM_NONE); frame();
         if (dut.render_i.fog_frame !== 1'b0) fail("fog stayed latched after the effect ended");
 
-        // Smooth (SW0 = 0).
-        sw[0] = 0; cycles(8);
+        // Smooth (SW15 = 0).
+        sw[15] = 0; cycles(8);
         smooth_frame(1, 1, "normal smooth right did not turn clockwise");
         effect(`ITEM_INVERT);
         smooth_frame(1, -1, "inverted smooth right did not turn counter-clockwise");
