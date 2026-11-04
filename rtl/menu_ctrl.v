@@ -44,7 +44,7 @@ module menu_ctrl #(
     reg [ERROR_W-1:0] error_count;
     reg error_flag;
     reg [4:0] error_n;
-    reg [15:0] custom_digits = "5 ";
+    wire [4:0] custom_offset = (custom_n >= 5'd5) ? custom_n - 5'd5 : 5'd0;
     assign error_active = error_flag;
     wire custom_valid = (custom_n >= 5'd5) && (custom_n <= 5'd20);
 
@@ -143,8 +143,13 @@ module menu_ctrl #(
                                            stage_high_scores_bcd[35:24]);
         epic_high_line = format_stage_high((selected_stage == 3'd3) ? ">EPIC   HIGH=" : " EPIC   HIGH=",
                                            stage_high_scores_bcd[47:36]);
-        custom_line = {(selected_stage == 3'd4) ? ">CUSTOM 5+X=" : " CUSTOM 5+X=",
-                       custom_digits, "  "};
+        if (custom_offset >= 5'd10)
+            custom_line = {(selected_stage == 3'd4) ? ">CUSTOM 5+" : " CUSTOM 5+",
+                           digit_ascii(4'd1), digit_ascii(custom_offset[3:0] - 4'd10),
+                           "=", size_ascii(custom_n), " "};
+        else
+            custom_line = {(selected_stage == 3'd4) ? ">CUSTOM 5+" : " CUSTOM 5+",
+                           digit_ascii(custom_offset[3:0]), "=", size_ascii(custom_n), "  "};
         if (error_active) begin
             status_text = pack_text("CUSTOM SIZE     ",
                                     {"INVALID: N=", size_ascii(error_n), "   "},
@@ -178,8 +183,6 @@ module menu_ctrl #(
                                         epic_high_line, custom_line);
         end
     end
-
-    always @(posedge clk) custom_digits <= size_ascii(custom_n);
 
     always @(posedge clk) begin
         if (rst) begin
