@@ -28,13 +28,13 @@ module item_ctrl #(
     input wire [`N_CELLS_W-1:0] n_cells,
     input wire signed [`POS_W-1:0] ball_x,
     input wire signed [`POS_W-1:0] ball_y,
-    input wire [6*`COORD_W-1:0] box_cols,
-    input wire [6*`COORD_W-1:0] box_rows,
-    input wire [5:0] box_valid,
+    input wire [8*`COORD_W-1:0] box_cols,
+    input wire [8*`COORD_W-1:0] box_rows,
+    input wire [7:0] box_valid,
     input wire [31:0] seed,
     input wire roulette_busy,
     input wire roulette_commit,
-    output reg [5:0] box_visible,
+    output reg [7:0] box_visible,
     output reg [`ITEM_EFFECT_W-1:0] active_effect,
     output reg [6:0] effect_seconds,
     output reg pickup_pulse,
@@ -68,7 +68,7 @@ module item_ctrl #(
                                      ((RESPAWN_SECONDS > 0) ? RESPAWN_SECONDS : 0);
     localparam integer RESPAWN_W = (RESPAWN_CYCLES > 1) ? $clog2(RESPAWN_CYCLES+1) : 1;
     reg [SECOND_W-1:0] effect_subsecond;
-    reg [RESPAWN_W-1:0] respawn_left [0:5];
+    reg [RESPAWN_W-1:0] respawn_left [0:7];
 
     reg [31:0] rng;
     reg [1:0] buff_roll;
@@ -92,13 +92,14 @@ module item_ctrl #(
     wire [`COORD_W-1:0] max_tile_coord = {n_cells, 1'b0};
     wire in_map = !absolute_x[18] && !absolute_y[18] &&
                   ball_col <= max_tile_coord && ball_row <= max_tile_coord;
-    reg [5:0] on_box;
+    reg [7:0] on_box;
     reg hit_valid;
     reg [2:0] hit_index;
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
     wire [6:0] pending_duration = duration_of(pending_effect);
     wire [6:0] rolled_duration = duration_of(rolled_effect);
-    wire [2:0] buff_count = (n_cells >= 15) ? 3'd3 : 3'd2;   // six boxes from N = 15 up
+    wire [2:0] buff_count = (n_cells == 20) ? 3'd4 :
+                            (n_cells >= 15) ? 3'd3 : 3'd2;
     wire pickup_allowed = !DEFER_EFFECT || (!roulette_busy && !pending_valid);
     wire pickup_now = !rst && !phys_init && game_state == `ST_PLAY && phys_done && hit_valid && pickup_allowed;
     wire block_debuff = active_effect == `ITEM_INVINCIBLE && effect_seconds != 0 && hit_index >= buff_count;
@@ -111,13 +112,13 @@ module item_ctrl #(
                              (pickup_now && !block_debuff && rolled_effect == `ITEM_TIME_BONUS);
     integer k;
     always @* begin
-        for(k=0;k<6;k=k+1)
+        for(k=0;k<8;k=k+1)
             on_box[k] = in_map && box_valid[k] &&
                         ball_col == box_cols[k*`COORD_W+:`COORD_W] && ball_row == box_rows[k*`COORD_W+:`COORD_W];
         hit_valid=0; hit_index=0;
         // Lowest slot wins if a malformed map overlaps boxes. At most one
         // pickup is published per completed physics frame.
-        for(k=5;k>=0;k=k-1) begin
+        for(k=7;k>=0;k=k-1) begin
             if(on_box[k] && box_visible[k]) begin hit_valid=1; hit_index=k; end
         end
         if(STUB_LOW_ONLY) rolled_effect=`ITEM_LOW_GRAV;
@@ -132,13 +133,13 @@ module item_ctrl #(
             effect_subsecond<=0; pickup_index<=0; pickup_effect<=`ITEM_NONE;
             rng<=32'h1; buff_roll<=0; debuff_roll<=0;
             pending_valid<=0; pending_effect<=`ITEM_NONE;
-            for(i=0;i<6;i=i+1) respawn_left[i]<=0;
+            for(i=0;i<8;i=i+1) respawn_left[i]<=0;
         end else if(phys_init) begin
             box_visible<=box_valid; active_effect<=`ITEM_NONE; effect_seconds<=0;
             effect_subsecond<=0; pickup_index<=0; pickup_effect<=`ITEM_NONE;
             rng<=initial_rng; buff_roll<=0; debuff_roll<=0;
             pending_valid<=0; pending_effect<=`ITEM_NONE;
-            for(i=0;i<6;i=i+1) respawn_left[i]<=0;
+            for(i=0;i<8;i=i+1) respawn_left[i]<=0;
         end else if(game_state == `ST_PAUSED) begin
             // Preserve effects, respawn timers, and box visibility for Resume.
         end else if(game_state != `ST_PLAY) begin
@@ -162,7 +163,7 @@ module item_ctrl #(
                     if(effect_seconds == 1) active_effect<=`ITEM_NONE;
                 end else effect_subsecond<=effect_subsecond+1'b1;
             end else effect_subsecond<=0;
-            for(i=0;i<6;i=i+1) begin
+            for(i=0;i<8;i=i+1) begin
                 if(respawn_left[i] != 0) respawn_left[i]<=respawn_left[i]-1'b1;
                 if(phys_done && !box_visible[i] && box_valid[i] &&
                    respawn_left[i] == 0 && !on_box[i]) box_visible[i]<=1;

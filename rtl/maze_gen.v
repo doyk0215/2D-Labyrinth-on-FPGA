@@ -6,12 +6,13 @@
 // Iterative recursive-backtracker (depth-first search) with an explicit stack.
 // After the search, a loop pass may open up to K more interior walls, at most
 // one per band of cell rows, so any loops spread from the goal side to the
-// start side. The cap follows N, not the stage: N=10 gets 3, N=15 gets 5 and
-// N=20 gets 6. Every other N, including EASY, stays a perfect maze.
+// start side. N=10 is capped at 3, N=15 at 5, and N=20 at 7; each band is
+// independently skipped or selected by the seed. Other N values below 20
+// retain floor(N/3) from N=8, while EASY stays a perfect maze.
 //
 // Loop pass: band k covers cell rows 3k..3k+2, and the last band also takes
-// any rows left over (N=10: 0-2, 3-5, 6-9; N=15: five bands of 3; N=20: five
-// bands of 3 and 15-19). From a
+// any rows left over (N=10: 0-2, 3-5, 6-9; N=15: five bands of 3; N=20:
+// six bands of 3 and 18-19). From a
 // seeded starting wall, it scans the band's interior walls (east, then south,
 // row by row, wrapping) and opens the first one that is still closed. A band
 // of R rows always has one: it has R(N-1)+(R-1)N interior walls, and the tree
@@ -23,10 +24,11 @@
 // Cell (cx,cy) is tile (2*cx+1,2*cy+1); passages occupy the intervening tiles.
 // Start is (2N-1,2N-1), goal is (1,1), and N is clamped to 2..20.
 //
-// Item boxes: EASY (N=5) has none, HARD keeps two buffs and two debuffs, and
-// N >= 15 has three of each. Other eligible sizes retain four boxes.
+// Item boxes: EASY (N=5) has none, N=10..14 has two buffs and two debuffs,
+// N=15..19 has three of each, and EPIC (N=20) has four of each. Other
+// eligible sizes retain four boxes.
 // Positions are seeded within quadrants and avoid the start, goal, and all
-// previously placed boxes. With six boxes the last two slots reuse quadrants 0/1.
+// previously placed boxes. N=20 places two boxes in each quadrant.
 //
 // N > 15 draws its loop column and box cells from wider random fields (a
 // 10-cell quadrant needs offsets up to 9). N <= 15 keeps the original fields,
@@ -56,9 +58,9 @@ module maze_gen (
     output reg  [`COORD_W-1:0]       start_row,
     output reg  [`COORD_W-1:0]       goal_col,
     output reg  [`COORD_W-1:0]       goal_row,
-    output reg  [6*`COORD_W-1:0]     box_cols,
-    output reg  [6*`COORD_W-1:0]     box_rows,
-    output reg  [5:0]                box_valid
+    output reg  [8*`COORD_W-1:0]     box_cols,
+    output reg  [8*`COORD_W-1:0]     box_rows,
+    output reg  [7:0]                box_valid
 );
 
     localparam [3:0] S_IDLE   = 4'd0,
@@ -93,7 +95,7 @@ module maze_gen (
     reg [4:0]  scx, scy;          // loop-pass scan position (cell)
     reg        sdir;              // 0 = east wall, 1 = south wall
     reg [2:0]  box_k;             // box being placed
-    reg [2:0]  box_target;        // 0 up to N = 5, 4 standard, 6 from N = 15 up
+    reg [3:0]  box_target;        // 0 up to N = 5, then 4/6/8 at N=10/15/20
     reg [1:0]  box_rot;           // quadrant of box 0
     reg        box_swap;          // swap the quadrants of boxes 1 and 2
 
@@ -157,7 +159,7 @@ module maze_gen (
     integer    box_check_index;
     always @* begin
         box_duplicate = 1'b0;
-        for (box_check_index = 0; box_check_index < 6; box_check_index = box_check_index + 1)
+        for (box_check_index = 0; box_check_index < 8; box_check_index = box_check_index + 1)
             if (box_valid[box_check_index] &&
                 box_cols[box_check_index * `COORD_W +: `COORD_W] == {box_cx, 1'b1} &&
                 box_rows[box_check_index * `COORD_W +: `COORD_W] == {box_cy, 1'b1})
@@ -203,10 +205,10 @@ module maze_gen (
             gen_busy <= 1'b0;
             gen_done <= 1'b0;
             sp       <= 9'd0;
-            box_valid <= 6'b000000;
-            box_cols  <= {6*`COORD_W{1'b0}};
-            box_rows  <= {6*`COORD_W{1'b0}};
-            box_target <= 3'd0;
+            box_valid <= 8'b00000000;
+            box_cols  <= {8*`COORD_W{1'b0}};
+            box_rows  <= {8*`COORD_W{1'b0}};
+            box_target <= 4'd0;
         end else begin
             case (state)
                 S_IDLE: begin
@@ -216,9 +218,9 @@ module maze_gen (
                         rng      <= (seed == 32'd0) ? 32'd1 : seed;
                         clr_addr <= {`MAP_ADDR_W{1'b0}};
                         gen_busy <= 1'b1;
-                        box_valid <= 6'b000000;
-                        box_cols  <= {6*`COORD_W{1'b0}};
-                        box_rows  <= {6*`COORD_W{1'b0}};
+                        box_valid <= 8'b00000000;
+                        box_cols  <= {8*`COORD_W{1'b0}};
+                        box_rows  <= {8*`COORD_W{1'b0}};
                         state    <= S_CLEAR;
                     end
                 end
@@ -238,12 +240,14 @@ module maze_gen (
                     start_row        <= {nm1, 1'b1};
                     goal_col         <= {{(`COORD_W-1){1'b0}}, 1'b1};
                     goal_row         <= {{(`COORD_W-1){1'b0}}, 1'b1};
-                    // One loop per 3-row band from N = 8 up (3/5/6 at
-                    // N = 10/15/20); below 8, rand_col could pass nm1.
-                    loop_cap         <= (n < 5'd8) ? 4'd0 : n / 5'd3;
-                    // No boxes up to N = 5 (EASY), 4 below N = 15, then 6.
-                    box_target       <= (n <= 5'd5) ? 3'd0 :
-                                        (n >= 5'd15) ? 3'd6 : 3'd4;
+                    // One candidate per 3-row band. N=20 adds a seventh,
+                    // shorter final band; other sizes retain their old cap.
+                    loop_cap         <= (n < 5'd8) ? 4'd0 :
+                                        (n == 5'd20) ? 4'd7 : n / 5'd3;
+                    // Only N=20 gets four buffs plus four debuffs.
+                    box_target       <= (n <= 5'd5) ? 4'd0 :
+                                        (n == 5'd20) ? 4'd8 :
+                                        (n >= 5'd15) ? 4'd6 : 4'd4;
                     band_index       <= 4'd0;
                     state            <= S_STEP;
                 end

@@ -12,7 +12,8 @@
 // snap fallback as well as the smooth mouse/button path.
 //   sw[15]  = 90-degree snap fallback (off = smooth rotation)
 //   sw[14]  = debug seed (fixed seed, same maze every time)
-//   sw[4:0] = CUSTOM stage maze size N (2..20; others show an OLED error)
+//   sw[3:0] = CUSTOM size offset X; CUSTOM N is 5 + unsigned X (5..20)
+//   sw[4]   = unused
 //   btnU/D  = stage navigation in MENU, rotation-rate selection in settings,
 //             and pause-menu navigation while paused; btnU pauses during PLAY
 //   btnL    = open the settings page from the stage menu
@@ -127,13 +128,14 @@ module My_Top_Module #(
     wire [9:0] game_cfg;
     wire [9:0] active_game_cfg;
     wire menu_error;
-    // CUSTOM maze size from SW4..SW0, synchronised like the snap switch.
-    (* ASYNC_REG = "TRUE" *) reg [4:0] size_sw_meta = 5'd0;
-    (* ASYNC_REG = "TRUE" *) reg [4:0] size_sw_sync = 5'd0;
+    // CUSTOM size offset X from SW3..SW0, synchronised like the snap switch.
+    (* ASYNC_REG = "TRUE" *) reg [3:0] size_sw_meta = 4'd0;
+    (* ASYNC_REG = "TRUE" *) reg [3:0] size_sw_sync = 4'd0;
     always @(posedge clk) begin
-        size_sw_meta <= sw[4:0];
+        size_sw_meta <= sw[3:0];
         size_sw_sync <= size_sw_meta;
     end
+    wire [4:0] custom_n = 5'd5 + {1'b0, size_sw_sync};
     wire [511:0] status_text;
     wire [511:0] menu_page_text;
     wire settings_page;
@@ -152,8 +154,9 @@ module My_Top_Module #(
     wire [7:0] elapsed_minutes_bcd;
     wire [7:0] elapsed_seconds_bcd;
     reg [11:0] levels_completed_bcd = 12'h000;
-    reg [35:0] stage_high_scores_bcd = 36'h000000000;
+    reg [47:0] stage_high_scores_bcd = 48'h000000000000;
     wire time_up;
+    wire time_up_game_ctrl;
     wire menu_active = (game_state == `ST_MENU);
     reg [1:0] pause_selection = 2'd0;
     wire pause_active = (game_state == `ST_PAUSED);
@@ -256,7 +259,7 @@ module My_Top_Module #(
         .btn_down      (btnD_menu_press && !instructions_active),
         .btn_confirm   (btnC_press && !instructions_active),
         .btn_settings  (btnL_menu_press && !instructions_active),
-        .custom_n      (size_sw_sync),
+        .custom_n      (custom_n),
         .stage_high_scores_bcd(stage_high_scores_bcd),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
@@ -285,10 +288,10 @@ module My_Top_Module #(
     wire [`COORD_W-1:0] start_row;
     wire [`COORD_W-1:0] goal_col;
     wire [`COORD_W-1:0] goal_row;
-    wire [6*`COORD_W-1:0] box_cols;     // up to six item boxes
-    wire [6*`COORD_W-1:0] box_rows;
-    wire [5:0]  box_valid;
-    wire [5:0] box_visible;
+    wire [8*`COORD_W-1:0] box_cols;    // up to eight item boxes (N=20)
+    wire [8*`COORD_W-1:0] box_rows;
+    wire [7:0]  box_valid;
+    wire [7:0] box_visible;
     wire [`ITEM_EFFECT_W-1:0] item_effect;
     wire [6:0] item_seconds;
     wire item_pickup;
@@ -438,10 +441,8 @@ module My_Top_Module #(
         else btnD_s <= {btnD_s[1:0], btnD};
     end
     wire regen_request = btnD_s[1] & ~btnD_s[2];
-    // Legacy auto-start builds (START_IN_MENU = 0) take N from SW4..SW0 too,
-    // falling back to N = 10 outside 2..20.
-    wire [`N_CELLS_W-1:0] legacy_n_cells =
-        ((size_sw_sync >= 5'd2) && (size_sw_sync <= 5'd20)) ? size_sw_sync : 5'd10;
+    // Legacy auto-start builds use the same CUSTOM mapping: N = 5 + SW3..SW0.
+    wire [`N_CELLS_W-1:0] legacy_n_cells = custom_n;
     wire [`N_CELLS_W-1:0] n_cells = START_IN_MENU ? active_game_cfg[4:0] : legacy_n_cells;
 
     // A normal in-game BTND regeneration reuses the latched seed and keeps
@@ -489,7 +490,7 @@ module My_Top_Module #(
         .gen_busy     (gen_busy),
         .gen_done     (gen_done),
         .in_goal      (in_goal),
-        .time_up      (time_up),
+        .time_up      (time_up_game_ctrl),
         .game_state   (game_state),
         .gen_start    (game_gen_start),
         .seed_capture (game_seed_capture),
@@ -525,12 +526,12 @@ module My_Top_Module #(
         end
     end
 
-    // Keep independent best completed-level counts for Easy (N=5), Medium
-    // (N=10), and Hard (N=15); CUSTOM games (cfg bit 9) never update them.
+    // Keep independent best completed-level counts for Easy, Medium, Hard,
+    // and EPIC; CUSTOM games (cfg bit 9) never update them.
     // Ordinary gameplay resets preserve these records.
     always @(posedge clk) begin
         if (por_reset) begin
-            stage_high_scores_bcd <= 36'h000000000;
+            stage_high_scores_bcd <= 48'h000000000000;
         end else if (!active_game_cfg[9] && !btnC_press && !btnD_menu_press &&
                      !((game_state == `ST_PLAY) && (regen_request || time_up)) &&
                      (game_state == `ST_PLAY) && frame_tick && in_goal) begin
@@ -541,6 +542,8 @@ module My_Top_Module #(
                     stage_high_scores_bcd[23:12] <= next_levels_completed_bcd;
                 5'd15: if (next_levels_completed_bcd > stage_high_scores_bcd[35:24])
                     stage_high_scores_bcd[35:24] <= next_levels_completed_bcd;
+                5'd20: if (next_levels_completed_bcd > stage_high_scores_bcd[47:36])
+                    stage_high_scores_bcd[47:36] <= next_levels_completed_bcd;
                 default: begin end
             endcase
         end
@@ -561,6 +564,7 @@ module My_Top_Module #(
         .phys_init(phys_init),
         .n_cells(n_cells),
         .time_up(time_up),
+        .time_up_game_ctrl(time_up_game_ctrl),
         .elapsed_minutes_bcd(elapsed_minutes_bcd),
         .elapsed_seconds_bcd(elapsed_seconds_bcd)
     );
@@ -830,8 +834,8 @@ module My_Top_Module #(
         .goal_row     (render_goal_row),
         .box_cols     (box_cols),
         .box_rows     (box_rows),
-        .box_valid    (menu_bg_visible ? 6'd0 : box_valid),
-        .box_visible  (menu_bg_visible ? 6'd0 : box_visible), // Story 9.2 pickup/respawn visibility
+        .box_valid    (menu_bg_visible ? 8'd0 : box_valid),
+        .box_visible  (menu_bg_visible ? 8'd0 : box_visible), // Story 9.2 pickup/respawn visibility
         .ball_on      (menu_bg_visible ? 1'b0 : ball_on),
         .fog_en       (menu_bg_visible ? 1'b0 : (item_effect == `ITEM_FOG)),
         .fog_clear    (fog_clear),
@@ -942,8 +946,11 @@ module My_Top_Module #(
             text_req_toggle <= 1'b1;
         end else begin
             text_ack_sync <= {text_ack_sync[0], text_ack_toggle};
-            if ((text_req_toggle == text_ack_sync[1]) &&
-                ((status_text != text_mailbox) || (roulette_visual != visual_mailbox))) begin
+            // Sample one complete OLED snapshot per VGA frame while the
+            // mailbox is idle. Avoid a 512-bit change comparator on the
+            // mailbox enable path; the OLED-side handshake still prevents
+            // tearing and naturally skips a frame if the receiver is busy.
+            if (frame_tick && (text_req_toggle == text_ack_sync[1])) begin
                 text_mailbox <= status_text;
                 visual_mailbox <= roulette_visual;
                 text_req_toggle <= ~text_req_toggle;
