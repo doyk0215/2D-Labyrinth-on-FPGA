@@ -19,7 +19,7 @@ foreach {bench marker} {
     tb_top_story95_buffs "PASS: Story 9.5 top"
     tb_game_timer "PASS: game_timer"
     tb_item_ctrl "PASS: item_ctrl"
-    tb_top_story92_items "PASS: Story 9.2 generated-box pickup"
+    tb_top_story92_items "PASS: Story 9.2 MEDIUM generated-box pickup"
     tb_top_story82_countdown "PASS: Story 8.2 top countdown"
 } {
     if {[catch {exec xelab -debug typical -L unisims_ver -top $bench -snapshot ${bench}_snapshot 2>@1} output]} {

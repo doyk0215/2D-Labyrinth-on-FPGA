@@ -84,12 +84,14 @@ module item_ctrl #(
     wire signed [18:0] centre = ($signed({{(19-`N_CELLS_W){1'b0}},n_cells}) <<< `TILE_SHIFT) + 19'sd2048;
     wire signed [18:0] absolute_x = $signed({ball_x[17],ball_x}) + centre;
     wire signed [18:0] absolute_y = $signed({ball_y[17],ball_y}) + centre;
-    wire signed [18:0] map_limit = $signed({{(18-`N_CELLS_W){1'b0}},n_cells,1'b0}) + 19'sd1;
-    wire in_map = absolute_x >= 0 && absolute_y >= 0 &&
-                  (absolute_x >>> `TILE_SHIFT) < map_limit &&
-                  (absolute_y >>> `TILE_SHIFT) < map_limit;
     wire [`COORD_W-1:0] ball_col = absolute_x[`TILE_SHIFT+`COORD_W-1:`TILE_SHIFT];
     wire [`COORD_W-1:0] ball_row = absolute_y[`TILE_SHIFT+`COORD_W-1:`TILE_SHIFT];
+    // A valid tile is 0..2*N inclusive. Checking the signed high bit and the
+    // already-extracted tile coordinates avoids a second wide arithmetic
+    // shift/compare path in the pickup and respawn countdown enables.
+    wire [`COORD_W-1:0] max_tile_coord = {n_cells, 1'b0};
+    wire in_map = !absolute_x[18] && !absolute_y[18] &&
+                  ball_col <= max_tile_coord && ball_row <= max_tile_coord;
     reg [5:0] on_box;
     reg hit_valid;
     reg [2:0] hit_index;
