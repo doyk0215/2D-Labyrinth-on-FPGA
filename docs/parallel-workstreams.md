@@ -75,8 +75,8 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Board switches (Story 9.2 control remap, moved for the CUSTOM stage)**
 - `SW15` selects snap rotation (1 = 90-degree press/release steps, 0 = smooth).
 - `SW14` selects fixed-seed maze generation (1 = repeatable map, 0 = fresh seed).
-- `SW[4:0]` is the CUSTOM stage's maze size N (2..20; any other value shows an OLED error when CUSTOM is confirmed). Legacy auto-start builds also take N from it (N = 10 outside 2..20).
-- The menu stages are EASY (N = 5), MEDIUM (N = 10), HARD (N = 15) and CUSTOM.
+- `SW[3:0]` is the CUSTOM stage offset X; its maze size is N = 5 + X (5..20). `SW4` is unused. Legacy auto-start builds use the same mapping.
+- The menu stages are EASY (N = 5), MEDIUM (N = 10), HARD (N = 15), EPIC (N = 20), and CUSTOM (N = 5 + SW[3:0]).
 - The independent OLED bring-up top keeps its own SW0 text/test-pattern selector.
 
 **CENTER and reset (Story 6.2)**
@@ -99,16 +99,16 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   The supplied `Oled_Display` and PS/2 VHDL sources remain unchanged.
 
 **Menu and OLED (B and A)**
-- `game_cfg[7:0]` — `n_cells[3:0]`, `restitution_sel[1:0]`, `rot_speed_sel[1:0]` — `menu_ctrl` → `game_ctrl` (latched at game start). Story 6.1 keeps this width and packing unchanged.
-- Story 7.4 widens `menu_ctrl.selected_stage` to two bits (0 EASY, 1 HARD, 2 HUGE). UP/DOWN cycle through the three entries in opposite directions with wrap; both together do nothing. HUGE packs N=15 and restitution=1 (the HARD bounce preset), while the 8-bit `game_cfg` format is unchanged. All three entries occupy rows 1..3; row 0 keeps the LEFT/settings and CENTER/start hints. PLAY/WIN identify N=15 as `STAGE 3 HUGE`.
-- CUSTOM stage: `game_cfg` widens to 10 bits, `{custom, rot_speed_sel[1:0], restitution_sel[1:0], n_cells[4:0]}`. The menu shows four rows, EASY (N=5), MEDIUM (N=10), HARD (N=15) and CUSTOM (N from SW4..SW0, shown live), and drops the hint row. Confirming CUSTOM outside 2..20 shows an OLED error page for `MENU_ERROR_CYCLES` (2 s) and starts nothing. CUSTOM games never update a HIGH score. PLAY/WIN show `STAGE 2 MEDIUM`, `STAGE 3 HARD` or `CUSTOM N=17`. Per-size parameters follow N alone: time 12 s × N (preset parameters at N = 5/10/15/20), boxes 0 up to N = 5, 4 below 15, 6 from 15, loops N/3 from N = 8.
+- `game_cfg[9:0]` — `{custom, rot_speed_sel[1:0], restitution_sel[1:0], n_cells[4:0]}` — `menu_ctrl` → `game_ctrl` (latched at game start).
+- `menu_ctrl.selected_stage` is three bits for EASY (N=5), MEDIUM (N=10), HARD (N=15), EPIC (N=20), and CUSTOM. UP/DOWN move through this order with wrap; both together do nothing. The four-row OLED stage list scrolls its visible window as needed. EPIC has its own HIGH score; CUSTOM does not. PLAY/WIN identify the four presets as `STAGE 1 EASY` through `STAGE 4 EPIC`.
+- CUSTOM computes N = 5 + unsigned SW[3:0] and displays the current result as `CUSTOM 5+X=N`; SW4 is unused. Its supported range is 5..20. Time is 12 s × N for custom sizes, with preset limits at N=5/10/15/20. Loop caps remain 3 at N=10 and 5 at N=15; only N=20 increases to a maximum of 7, with each band still seed-skippable. Only N=20 increases to eight boxes (four buffs and four debuffs); N=15..19 retain six, and smaller eligible mazes retain four.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
 **Item pickup/effects (B, Story 9.2)**
-- `maze_gen` holds four packed tile positions (`box_cols[19:0]`, `box_rows[19:0]`,
-  five bits per slot) and `box_valid[3:0]`. Slots 0/1 are buffs; 2/3 debuffs.
-- `item_ctrl` owns `box_visible[3:0]`, `active_effect[3:0]`, remaining whole
+- `maze_gen` holds eight packed tile positions (`box_cols[47:0]`, `box_rows[47:0]`,
+  six bits per slot) and `box_valid[7:0]`. The first half are buffs; the second half debuffs. N=20 has four of each; lower sizes keep their existing counts.
+- `item_ctrl` owns `box_visible[7:0]`, `active_effect[3:0]`, remaining whole
   seconds `[6:0]`, and per-box respawn counters. It samples the full signed
   Q9.8 ball centre on `phys_done`; no radius/edge contact pickup is used.
 - Visibility changes on `phys_init`/`phys_done` in blanking (plus reset/menu

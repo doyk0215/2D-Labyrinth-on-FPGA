@@ -8,9 +8,10 @@
 // Stage table:
 //   0 EASY:   N=5 cells,  restitution_sel=0
 //   1 MEDIUM: N=10 cells, restitution_sel=1
-//   2 HARD:   N=15 cells, restitution_sel=1 (same bounce preset as MEDIUM)
-//   3 CUSTOM: N=custom_n (SW4..SW0, 2..20), restitution_sel=0 up to N=5, else 1
-// Confirming CUSTOM with a size outside 2..20 starts nothing and shows an
+//   2 HARD:   N=15 cells, restitution_sel=1
+//   3 EPIC:   N=20 cells, restitution_sel=1
+//   4 CUSTOM: N=5+SW[3:0] (5..20), restitution_sel=0 at N=5, else 1
+// Confirming CUSTOM with a size outside 5..20 starts nothing and shows an
 // error page for ERROR_HOLD_CYCLES; the buttons are ignored meanwhile.
 // Rotation presets are NORMAL=00, SLOW=01, FAST=10, TURBO=11.
 module menu_ctrl #(
@@ -25,11 +26,11 @@ module menu_ctrl #(
     input  wire         btn_confirm,
     input  wire         btn_settings,
     input  wire [4:0]   custom_n,
-    input  wire [35:0]  stage_high_scores_bcd,
+    input  wire [47:0]  stage_high_scores_bcd,
     output reg          start_game,
     output reg  [9:0]   game_cfg,
     output reg  [511:0] status_text,
-    output reg  [1:0]   selected_stage,
+    output reg  [2:0]   selected_stage,
     output reg          settings_page,
     output wire         error_active
 );
@@ -43,9 +44,9 @@ module menu_ctrl #(
     reg [ERROR_W-1:0] error_count;
     reg error_flag;
     reg [4:0] error_n;
-    reg [15:0] custom_digits = "2 ";
+    reg [15:0] custom_digits = "5 ";
     assign error_active = error_flag;
-    wire custom_valid = (custom_n >= 5'd2) && (custom_n <= 5'd20);
+    wire custom_valid = (custom_n >= 5'd5) && (custom_n <= 5'd20);
 
     function [1:0] speed_up;
         input [1:0] speed;
@@ -123,29 +124,32 @@ module menu_ctrl #(
         end
     endfunction
 
-    reg [127:0] easy_high_line, medium_high_line, hard_high_line, custom_line;
+    reg [127:0] easy_high_line, medium_high_line, hard_high_line, epic_high_line, custom_line;
     always @* begin
         case (selected_stage)
-            2'd1: stage_cfg = {1'b0, 2'b01, 5'd10};
-            2'd2: stage_cfg = {1'b0, 2'b01, 5'd15};
-            2'd3: stage_cfg = {1'b1, (custom_n <= 5'd5) ? 2'b00 : 2'b01, custom_n};
+            3'd1: stage_cfg = {1'b0, 2'b01, 5'd10};
+            3'd2: stage_cfg = {1'b0, 2'b01, 5'd15};
+            3'd3: stage_cfg = {1'b0, 2'b01, 5'd20};
+            3'd4: stage_cfg = {1'b1, (custom_n <= 5'd5) ? 2'b00 : 2'b01, custom_n};
             default: stage_cfg = {1'b0, 2'b00, 5'd5};
         endcase
 
         game_cfg = {stage_cfg[7], rot_speed_sel, stage_cfg[6:0]};
-        easy_high_line = format_stage_high((selected_stage == 2'd0) ? ">EASY   HIGH=" : " EASY   HIGH=",
+        easy_high_line = format_stage_high((selected_stage == 3'd0) ? ">EASY   HIGH=" : " EASY   HIGH=",
                                            stage_high_scores_bcd[11:0]);
-        medium_high_line = format_stage_high((selected_stage == 2'd1) ? ">MEDIUM HIGH=" : " MEDIUM HIGH=",
+        medium_high_line = format_stage_high((selected_stage == 3'd1) ? ">MEDIUM HIGH=" : " MEDIUM HIGH=",
                                              stage_high_scores_bcd[23:12]);
-        hard_high_line = format_stage_high((selected_stage == 2'd2) ? ">HARD   HIGH=" : " HARD   HIGH=",
+        hard_high_line = format_stage_high((selected_stage == 3'd2) ? ">HARD   HIGH=" : " HARD   HIGH=",
                                            stage_high_scores_bcd[35:24]);
-        custom_line = {(selected_stage == 2'd3) ? ">CUSTOM N=" : " CUSTOM N=",
-                       custom_digits, "    "};
+        epic_high_line = format_stage_high((selected_stage == 3'd3) ? ">EPIC   HIGH=" : " EPIC   HIGH=",
+                                           stage_high_scores_bcd[47:36]);
+        custom_line = {(selected_stage == 3'd4) ? ">CUSTOM 5+X=" : " CUSTOM 5+X=",
+                       custom_digits, "  "};
         if (error_active) begin
             status_text = pack_text("CUSTOM SIZE     ",
                                     {"INVALID: N=", size_ascii(error_n), "   "},
-                                    "USE 2-20 ON     ",
-                                    "SW4-SW0         ");
+                                    "USE 5-20 ON     ",
+                                    "SW3-SW0         ");
         end else if (settings_page) begin
             case (rot_speed_sel)
                 2'b01: status_text = pack_text("ROTATION SPEED  ",
@@ -166,10 +170,12 @@ module menu_ctrl #(
                                                  "BTNC BACK       ");
             endcase
         end else begin
-            status_text = pack_text(easy_high_line,
-                                    medium_high_line,
-                                    hard_high_line,
-                                    custom_line);
+            if (selected_stage <= 3'd2)
+                status_text = pack_text(easy_high_line, medium_high_line,
+                                        hard_high_line, epic_high_line);
+            else
+                status_text = pack_text(medium_high_line, hard_high_line,
+                                        epic_high_line, custom_line);
         end
     end
 
@@ -177,7 +183,7 @@ module menu_ctrl #(
 
     always @(posedge clk) begin
         if (rst) begin
-            selected_stage <= 2'd0;
+            selected_stage <= 3'd0;
             rot_speed_sel <= 2'b00;
             settings_page <= 1'b0;
             start_game <= 1'b0;
@@ -187,7 +193,7 @@ module menu_ctrl #(
         end else if (return_to_menu) begin
             // A gameplay reset returns to the stage list but keeps the
             // player's rotation preference for the next game.
-            selected_stage <= 2'd0;
+            selected_stage <= 3'd0;
             settings_page <= 1'b0;
             start_game <= 1'b0;
             error_count <= {ERROR_W{1'b0}};
@@ -210,11 +216,11 @@ module menu_ctrl #(
                 end else if (btn_settings) begin
                     settings_page <= 1'b1;
                 end else if (btn_up && !btn_down) begin
-                    selected_stage <= selected_stage - 1'b1;   // wraps 0 -> 3
+                    selected_stage <= (selected_stage == 3'd0) ? 3'd4 : selected_stage - 1'b1;
                 end else if (btn_down && !btn_up) begin
-                    selected_stage <= selected_stage + 1'b1;   // wraps 3 -> 0
+                    selected_stage <= (selected_stage == 3'd4) ? 3'd0 : selected_stage + 1'b1;
                 end else if (btn_confirm) begin
-                    if ((selected_stage == 2'd3) && !custom_valid) begin
+                    if ((selected_stage == 3'd4) && !custom_valid) begin
                         error_count <= ERROR_HOLD_CYCLES - 1;
                         error_flag <= 1'b1;
                         error_n <= custom_n;

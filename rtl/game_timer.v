@@ -24,7 +24,8 @@ module game_timer #(
     input wire [`N_CELLS_W-1:0] n_cells,
     output reg [7:0] elapsed_minutes_bcd = 8'h00,
     output reg [7:0] elapsed_seconds_bcd = 8'h00,
-    output wire time_up
+    output wire time_up,
+    output wire time_up_game_ctrl
 );
     localparam integer COUNT_WIDTH = (CLK_HZ > 1) ? $clog2(CLK_HZ) : 1;
     reg [COUNT_WIDTH-1:0] subsecond_count = {COUNT_WIDTH{1'b0}};
@@ -115,9 +116,16 @@ module game_timer #(
         {elapsed_minutes_bcd,elapsed_seconds_bcd};
     // Include the edge that decrements 00:01 to zero. If frame_tick/in_goal
     // coincides with that edge, the deadline wins rather than a zero-time WIN.
-    assign time_up = !rst && !phys_init && !bonus_now && (empty ||
-                     (timer_running && second_tick &&
-                      ({elapsed_minutes_bcd, elapsed_seconds_bcd} == 16'h0001)));
+    // Keep the legacy, externally observed output masked during reset/load.
+    // The game controller receives the raw deadline condition separately:
+    // its synchronous reset and state qualification already dominate those
+    // cycles. Removing reset/load from this feedback path avoids a long path
+    // from game_state through the shared reset fanout and back into the FSM.
+    wire deadline_condition = !bonus_now && (empty ||
+                            (play_started && second_tick &&
+                             ({elapsed_minutes_bcd, elapsed_seconds_bcd} == 16'h0001)));
+    assign time_up = !rst && !phys_init && deadline_condition;
+    assign time_up_game_ctrl = !phys_init && deadline_condition;
 
     always @(posedge clk) begin
         if (rst) begin

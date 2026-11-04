@@ -58,6 +58,7 @@ module oled_status_text (
             5'd5:    stage_text = "STAGE 1 EASY    ";
             5'd10:   stage_text = "STAGE 2 MEDIUM  ";
             5'd15:   stage_text = "STAGE 3 HARD    ";
+            5'd20:   stage_text = "STAGE 4 EPIC    ";
             default: stage_text = "STAGE ?         ";
         endcase
         completed_count_line = {"N: ",

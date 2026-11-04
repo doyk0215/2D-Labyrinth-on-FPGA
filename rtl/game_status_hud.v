@@ -32,7 +32,9 @@ module game_status_hud (
         begin digit_ascii = (digit <= 4'd9) ? (8'h30 + digit) : 8'h3f; end
     endfunction
 
-    function [7:0] seconds_digits;
+    // Return two ASCII digits. Keeping both bytes is important for durations
+    // above nine seconds (for example, 12 must not truncate to just "2").
+    function [15:0] seconds_digits;
         input [6:0] value;
         reg [6:0] tens;
         reg [6:0] ones;
@@ -52,7 +54,7 @@ module game_status_hud (
     reg [63:0] item_name;
     reg [159:0] time_line;
     reg [159:0] item_status_line;
-    wire [7:0] effect_digits = seconds_digits(effect_seconds);
+    wire [15:0] effect_digits = seconds_digits(effect_seconds);
 
     always @* begin
         case (active_effect)

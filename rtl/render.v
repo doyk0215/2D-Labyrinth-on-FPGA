@@ -36,10 +36,10 @@ module render #(
     input  wire [`COORD_W-1:0] start_row,
     input  wire [`COORD_W-1:0] goal_col,
     input  wire [`COORD_W-1:0] goal_row,
-    input  wire [6*`COORD_W-1:0] box_cols,  // item box k at bits [COORD_W*k +: COORD_W]
-    input  wire [6*`COORD_W-1:0] box_rows,
-    input  wire [5:0]        box_valid,     // from maze_gen
-    input  wire [5:0]        box_visible,   // picked-up boxes are hidden
+    input  wire [8*`COORD_W-1:0] box_cols,  // item box k at bits [COORD_W*k +: COORD_W]
+    input  wire [8*`COORD_W-1:0] box_rows,
+    input  wire [7:0]        box_valid,     // from maze_gen
+    input  wire [7:0]        box_visible,   // picked-up boxes are hidden
     input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
     input  wire              fog_en,        // fog of war effect active (Story 9.4); latched per frame
     input  wire              fog_clear,     // from ball_overlay: pixel inside the fog circle, aligned with ball_on
@@ -218,11 +218,11 @@ module render #(
     // Every stage is stored with a fixed 64-tile row: addr = {row, col}.
     assign maze_raddr = in_map_now ? {tile_row_now, tile_col_now} : {`MAP_ADDR_W{1'b0}};
 
-    wire [5:0] box_shown = box_valid & box_visible;
-    wire [5:0] is_box_now;
+    wire [7:0] box_shown = box_valid & box_visible;
+    wire [7:0] is_box_now;
     genvar bi;
     generate
-        for (bi = 0; bi < 6; bi = bi + 1) begin : box_hit
+        for (bi = 0; bi < 8; bi = bi + 1) begin : box_hit
             assign is_box_now[bi] = in_map_now && box_shown[bi] &&
                 (tile_col_now == box_cols[`COORD_W*bi +: `COORD_W]) &&
                 (tile_row_now == box_rows[`COORD_W*bi +: `COORD_W]);
@@ -252,9 +252,18 @@ module render #(
                 (tile_col_now == start_col) && (tile_row_now == start_row);
             is_goal_d <= in_map_now &&
                 (tile_col_now == goal_col) && (tile_row_now == goal_row);
-            // Six boxes (three of each) from N = 15 up, else two of each.
-            is_buff_d <= (n_cells >= 15) ? |is_box_now[2:0] : |is_box_now[1:0];
-            is_debuff_d <= (n_cells >= 15) ? |is_box_now[5:3] : |is_box_now[3:2];
+            // N=20 has four of each; N=15..19 has three, and smaller eligible
+            // maps retain two of each.
+            if (n_cells == 20) begin
+                is_buff_d <= |is_box_now[3:0];
+                is_debuff_d <= |is_box_now[7:4];
+            end else if (n_cells >= 15) begin
+                is_buff_d <= |is_box_now[2:0];
+                is_debuff_d <= |is_box_now[5:3];
+            end else begin
+                is_buff_d <= |is_box_now[1:0];
+                is_debuff_d <= |is_box_now[3:2];
+            end
             tile_px_d <= walk_x_q[17:14];
             tile_py_d <= walk_y_q[17:14];
             active_video_d <= active_video;
