@@ -16,7 +16,7 @@ module tb_rotated_render;
     reg hsync_in = 1'b1;
     reg vsync_in = 1'b1;
     wire signed [15:0] sin_q, cos_q;
-    wire [9:0] maze_raddr;
+    wire [`MAP_ADDR_W-1:0] maze_raddr;
     wire maze_rdata;
     wire [3:0] vga_r, vga_g, vga_b;
     wire vga_hs, vga_vs;
@@ -26,22 +26,22 @@ module tb_rotated_render;
     sincos_rom trig_i (.clk(clk), .angle(angle), .sin_q(sin_q), .cos_q(cos_q));
     maze_ram ram_i (
         .clk(clk), .we(1'b0), .waddr(10'd0), .wdata(1'b0),
-        .raddr_p(10'd0), .rdata_p(), .ren_r(1'b1), .raddr_r(maze_raddr),
+        .raddr_p({`MAP_ADDR_W{1'b0}}), .rdata_p(), .ren_r(1'b1), .raddr_r(maze_raddr),
         .rdata_r(maze_rdata)
     );
     render dut (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(`ST_PLAY), .n_cells(4'd10), .cam_x(18'sd0), .cam_y(18'sd0), .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
+        .game_state(`ST_PLAY), .n_cells(5'd10), .cam_x(18'sd0), .cam_y(18'sd0), .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .hsync_in(hsync_in), .vsync_in(vsync_in),
         .maze_raddr(maze_raddr), .maze_rdata(maze_rdata),
-        .start_col(5'd1), .start_row(5'd1),
-        .goal_col(5'd1), .goal_row(5'd19),
+        .start_col(6'd1), .start_row(6'd1),
+        .goal_col(6'd1), .goal_row(6'd19),
         // Item boxes (Story 9.1): buff 0 at tile (5,5), buff 1 at (9,13) but
         // hidden by box_visible, debuff 2 at (15,9), debuff 3 at (13,15) but
         // not valid. Only boxes 0 and 2 may be drawn.
-        .box_cols({5'd13, 5'd15, 5'd9, 5'd5}), .box_rows({5'd15, 5'd9, 5'd13, 5'd5}),
+        .box_cols({6'd13, 6'd15, 6'd9, 6'd5}), .box_rows({6'd15, 6'd9, 6'd13, 6'd5}),
         .box_valid(4'b0111), .box_visible(4'b1101),
         .ball_on(1'b0), .fog_en(1'b0), .fog_clear(1'b0),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),

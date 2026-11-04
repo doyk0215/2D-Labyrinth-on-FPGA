@@ -11,12 +11,12 @@ module tb_maze_gen;
     reg         clk = 1'b0;
     reg         rst = 1'b1;
     reg         gen_start = 1'b0;
-    reg  [3:0]  n_cells = 4'd10;
+    reg [`N_CELLS_W-1:0] n_cells = 4'd10;
     reg  [31:0] seed = 32'd1;
     wire        gen_busy, gen_done, we, wdata;
     wire [`MAP_ADDR_W-1:0] waddr;
-    wire [4:0]  start_col, start_row, goal_col, goal_row;
-    wire [29:0] box_cols, box_rows;
+    wire [`COORD_W-1:0] start_col, start_row, goal_col, goal_row;
+    wire [6*`COORD_W-1:0] box_cols, box_rows;
     wire [5:0]  box_valid;
 
     always #5 clk = ~clk;
@@ -92,11 +92,16 @@ module tb_maze_gen;
     function integer max_loop_count;
         input integer N;
         begin
-            case (N)
-                10: max_loop_count = 3;  // HARD
-                15: max_loop_count = 5;  // largest stage
-                default: max_loop_count = 0;
-            endcase
+            // One loop per 3-row band from N = 8 (3 at MEDIUM N = 10, 5 at HARD N = 15).
+            max_loop_count = (N < 8) ? 0 : N / 3;
+        end
+    endfunction
+
+    function integer box_count;
+        input integer N;
+        begin
+            // None on EASY (N <= 5), four up to N = 14, six from HARD N = 15.
+            box_count = (N <= 5) ? 0 : (N >= 15) ? 6 : 4;
         end
     endfunction
 
@@ -109,7 +114,7 @@ module tb_maze_gen;
             h = 64'hCBF29CE484222325;
             for (k = 0; k < `MAP_TILES; k = k + 1)
                 h = (h ^ {63'd0, mem[k]}) * 64'h100000001B3;
-            h = (h ^ {20'd0, box_valid, box_rows, box_cols}) * 64'h100000001B3;   // boxes too
+            h = (h ^ {box_valid, box_rows, box_cols}) * 64'h100000001B3;   // boxes too
             mem_hash = h;
         end
     endfunction
@@ -132,9 +137,10 @@ module tb_maze_gen;
         integer edge_openings, edge_row, edge_col;
         integer K, cap, band, band_first, band_last, loop_addr, loop_row, loop_col;
         integer band_found, band_seen;
-        integer bx, bcol, brow, bcx, bcy, bq, quad_mask, buff_mask, box_count;
+        integer bx, by, bcol, brow, bcx, bcy, bq, quad_mask, buff_mask, nbox;
+        integer box_quad [0:5];
         begin
-            n_cells = drive[3:0]; seed = s; floor_writes = 0;
+            n_cells = drive[`N_CELLS_W-1:0]; seed = s; floor_writes = 0;
             @(negedge clk); gen_start = 1'b1;
             @(negedge clk); gen_start = 1'b0;
             if (box_valid !== 6'b000000) begin
@@ -226,20 +232,30 @@ module tb_maze_gen;
                     end
                 end
 
-                // Easy N=5 has no boxes, ordinary stages have four, and HUGE
-                // N=15 has three buffs plus three debuffs.
-                box_count = (N == 5 || N < 4) ? 0 : (N == 15 ? 6 : 4);
-                if (box_valid !== ((box_count == 0) ? 6'b000000 :
-                                   (box_count == 6) ? 6'b111111 : 6'b001111)) begin
+                // Item boxes: boxes 0..3 take one quadrant each (split at
+                // N/2); with six, boxes 4 and 5 reuse the quadrants of boxes
+                // 0 and 1. Each sits on its own floor cell, not start or goal.
+                nbox = box_count(N);
+                if (box_valid !== (6'b111111 >> (6 - nbox))) begin
                     errors = errors + 1; $display("FAIL N=%0d seed=%h: box_valid=%b", N, s, box_valid);
-                end else if (box_count != 0) begin
+                end else if (nbox != 0) begin
                     quad_mask = 0; buff_mask = 0;
-                    for (bx = 0; bx < box_count; bx = bx + 1) begin
-                        bcol = box_cols[5*bx +: 5]; brow = box_rows[5*bx +: 5];
+                    for (bx = 0; bx < nbox; bx = bx + 1) begin
+                        bcol = box_cols[`COORD_W*bx +: `COORD_W]; brow = box_rows[`COORD_W*bx +: `COORD_W];
                         bcx = (bcol - 1) / 2; bcy = (brow - 1) / 2;
                         bq = (bcy < N / 2) ? ((bcx < N / 2) ? 0 : 1) : ((bcx < N / 2) ? 3 : 2);
-                        quad_mask = quad_mask | (1 << bq);
-                        if (bx < ((N == 15) ? 3 : 2)) buff_mask = buff_mask | (1 << bq);
+                        box_quad[bx] = bq;
+                        if (bx < 4) quad_mask = quad_mask | (1 << bq);
+                        if (bx < 2) buff_mask = buff_mask | (1 << bq);
+                        if (bx >= 4 && bq != box_quad[bx - 4]) begin
+                            errors = errors + 1;
+                            $display("FAIL N=%0d seed=%h: box %0d is not in the quadrant of box %0d", N, s, bx, bx - 4);
+                        end
+                        for (by = 0; by < bx; by = by + 1)
+                            if (box_cols[`COORD_W*by +: `COORD_W] == bcol && box_rows[`COORD_W*by +: `COORD_W] == brow) begin
+                                errors = errors + 1;
+                                $display("FAIL N=%0d seed=%h: boxes %0d and %0d share a cell", N, s, by, bx);
+                            end
                         if ((bcol % 2) != 1 || (brow % 2) != 1 || bcol > 2 * N - 1 || brow > 2 * N - 1 ||
                             mem[brow * `MAP_STRIDE + bcol] ||
                             (bcol == start_col && brow == start_row) || (bcol == goal_col && brow == goal_row)) begin
@@ -250,7 +266,7 @@ module tb_maze_gen;
                     if (quad_mask != 15) begin
                         errors = errors + 1; $display("FAIL N=%0d seed=%h: boxes do not cover all four quadrants (%b)", N, s, quad_mask[3:0]);
                     end
-                    if (N != 15) buff_pairs_seen[buff_mask[3:0]] = 1'b1;
+                    buff_pairs_seen[buff_mask[3:0]] = 1'b1;
                 end
 
                 // BFS: every floor tile is connected and the goal is reachable.
@@ -332,7 +348,8 @@ module tb_maze_gen;
             $display("FAIL: N=15 did not exercise both below-cap and at-cap loop counts");
         end
 
-        // 5) seed 0 and out-of-range sizes are handled (0/1 -> 2; 15 is max).
+        // 5) seed 0 and low sizes are handled (0/1 -> 2). The N=20 bench
+        // separately checks the new upper limit and out-of-range clamping.
         run_gen(15, 32'd0);
         run_gen2(15, 15, 32'h1234_5678);
         run_gen2(2, 0, 32'h0000_0042);
@@ -362,7 +379,7 @@ module tb_maze_gen;
 
         $display("runs checked: %0d, longest generation: %0d cycles (%0d us at 100 MHz), max DFS stack depth: %0d/225, done pulses: %0d",
                  runs, max_cycles, max_cycles / 100, max_stack_depth, done_pulses);
-        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok; item counts match stage sizes");
+        if (errors == 0) $display("PASS: maze_gen - EASY perfect, HARD/N=15 loop counts within caps, connected, solvable and deterministic; seed_source ok; item boxes 0/4/6 by size, one per quadrant plus two reused");
         else             $display("FAIL: %0d errors", errors);
         $finish;
     end

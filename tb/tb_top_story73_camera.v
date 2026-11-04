@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 
-// Story 7.3 on the real top at N = 15 (legacy start, sw[4:1] = 15): the ball
+// Story 7.3 on the real top at N = 15 (legacy start, sw[4:0] = 15): the ball
 // is searched for in the VGA stream of whole frames and must sit at the
 // rotation of (ball - camera) about the screen centre; the maze coordinate
 // the renderer uses under the drawn ball must be the ball's position; the
@@ -23,7 +23,7 @@ module tb_top_story73_camera;
 
     My_Top_Module #(.START_IN_MENU(1'b0)) dut (
         .clk(clk), .btnC(1'b0), .btnU(1'b0), .btnL(btnL), .btnR(1'b0), .btnD(1'b0),
-        .sw(16'h003E), .led(led), .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
+        .sw(16'h400F), .led(led), .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
         .oled_cs(oled_cs), .oled_mosi(oled_mosi), .oled_sclk(oled_sclk), .oled_dc(oled_dc),
         .oled_res(oled_res), .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)

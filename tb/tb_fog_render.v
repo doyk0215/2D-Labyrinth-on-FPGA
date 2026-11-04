@@ -21,7 +21,7 @@ module tb_fog_render;
     reg signed [17:0] ball_x = 0, ball_y = 0;
     wire signed [15:0] sin_q, cos_q;
     wire signed [15:0] sin_snap, cos_snap;
-    wire [9:0] addr_f, addr_n;
+    wire [`MAP_ADDR_W-1:0] addr_f, addr_n;
     wire data_f, data_n;
     wire [3:0] r_f, g_f, b_f, r_n, g_n, b_n;
     wire signed [10:0] ball_sx, ball_sy;
@@ -32,11 +32,11 @@ module tb_fog_render;
     sincos_rom trig_i (.clk(clk), .angle(angle), .sin_q(sin_q), .cos_q(cos_q));
     maze_ram ram_f (
         .clk(clk), .we(1'b0), .waddr(10'd0), .wdata(1'b0),
-        .raddr_p(10'd0), .rdata_p(), .ren_r(1'b1), .raddr_r(addr_f), .rdata_r(data_f)
+        .raddr_p({`MAP_ADDR_W{1'b0}}), .rdata_p(), .ren_r(1'b1), .raddr_r(addr_f), .rdata_r(data_f)
     );
     maze_ram ram_n (
         .clk(clk), .we(1'b0), .waddr(10'd0), .wdata(1'b0),
-        .raddr_p(10'd0), .rdata_p(), .ren_r(1'b1), .raddr_r(addr_n), .rdata_r(data_n)
+        .raddr_p({`MAP_ADDR_W{1'b0}}), .rdata_p(), .ren_r(1'b1), .raddr_r(addr_n), .rdata_r(data_n)
     );
     ball_overlay #(.FOG_RADIUS(R)) ball_i (
         .clk(clk), .rst(rst), .start(start), .ball_x(ball_x), .ball_y(ball_y),
@@ -47,13 +47,13 @@ module tb_fog_render;
     // Same boxes as tb_rotated_render, so fog must hide boxes too.
     render fog_i (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(`ST_PLAY), .n_cells(4'd10), .cam_x(18'sd0), .cam_y(18'sd0),
+        .game_state(`ST_PLAY), .n_cells(5'd10), .cam_x(18'sd0), .cam_y(18'sd0),
         .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(addr_f), .maze_rdata(data_f),
-        .start_col(5'd1), .start_row(5'd1), .goal_col(5'd1), .goal_row(5'd19),
-        .box_cols({5'd13, 5'd15, 5'd9, 5'd5}), .box_rows({5'd15, 5'd9, 5'd13, 5'd5}),
+        .start_col(6'd1), .start_row(6'd1), .goal_col(6'd1), .goal_row(6'd19),
+        .box_cols({6'd13, 6'd15, 6'd9, 6'd5}), .box_rows({6'd15, 6'd9, 6'd13, 6'd5}),
         .box_valid(4'b1111), .box_visible(4'b1111),
         .ball_on(ball_on), .fog_en(fog_en), .fog_clear(fog_clear),
         .vga_r(r_f), .vga_g(g_f), .vga_b(b_f), .vga_hs(), .vga_vs(),
@@ -61,13 +61,13 @@ module tb_fog_render;
     );
     render ref_i (
         .clk(clk), .rst(rst), .ce_pix(ce_pix), .frame_tick(frame_tick),
-        .game_state(`ST_PLAY), .n_cells(4'd10), .cam_x(18'sd0), .cam_y(18'sd0),
+        .game_state(`ST_PLAY), .n_cells(5'd10), .cam_x(18'sd0), .cam_y(18'sd0),
         .time_min_bcd(8'h00), .time_sec_bcd(8'h00),
         .angle(angle), .sin_q(sin_q), .cos_q(cos_q),
         .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(addr_n), .maze_rdata(data_n),
-        .start_col(5'd1), .start_row(5'd1), .goal_col(5'd1), .goal_row(5'd19),
-        .box_cols({5'd13, 5'd15, 5'd9, 5'd5}), .box_rows({5'd15, 5'd9, 5'd13, 5'd5}),
+        .start_col(6'd1), .start_row(6'd1), .goal_col(6'd1), .goal_row(6'd19),
+        .box_cols({6'd13, 6'd15, 6'd9, 6'd5}), .box_rows({6'd15, 6'd9, 6'd13, 6'd5}),
         .box_valid(4'b1111), .box_visible(4'b1111),
         .ball_on(ball_on), .fog_en(1'b0), .fog_clear(fog_clear),
         .vga_r(r_n), .vga_g(g_n), .vga_b(b_n), .vga_hs(), .vga_vs(),

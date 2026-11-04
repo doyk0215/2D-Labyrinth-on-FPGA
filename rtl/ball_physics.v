@@ -65,7 +65,7 @@ module ball_physics (
     localparam signed [AW-1:0] HALF_TILE_Q = 1 <<< (`TILE_SHIFT - 1);
     wire signed [AW-1:0] OFF = (n_ext <<< `TILE_SHIFT) + HALF_TILE_Q;
     localparam signed [AW-1:0] R   = `BALL_RADIUS << `POS_FRAC;
-    wire [4:0] active_dim = {n_cells, 1'b0} + 5'd1;
+    wire [`COORD_W-1:0] active_dim = {n_cells, 1'b0} + 1'b1;
 
     // Convert an absolute active-map tile edge to stage-centred Q9.8.
     function signed [`POS_W-1:0] tile_min_q;
@@ -154,11 +154,11 @@ module ball_physics (
     function in_map;
         input signed [AW-`TILE_SHIFT-1:0] t;
         begin
-            in_map = (t >= 0) && (t < $signed({3'b0, active_dim}));
+            in_map = (t >= 0) && (t < $signed({1'b0, active_dim}));
         end
     endfunction
 
-    // addr = {row, col}: a fixed 32-tile row, so no multiply. A tile outside
+    // addr = {row, col}: a fixed 64-tile row, so no multiply. A tile outside
     // the active map gives some address, but oob0/oob1 already block it.
     wire [`COORD_W-1:0] lead_t = lead[`COORD_W-1:0];
     wire [`COORD_W-1:0] o0_t   = o0[`COORD_W-1:0];

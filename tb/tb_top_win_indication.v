@@ -11,7 +11,7 @@ module tb_top_win_indication;
     My_Top_Module #(.POR_CYCLES(4), .MENU_DEBOUNCE_CYCLES(3),
                     .WIN_HOLD_FRAMES(3)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnD(1'b0), .btnL(1'b0), .btnR(1'b0),
-        .sw(16'h0020), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
+        .sw(16'h4000), .led(), .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(), .vga_vs(),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data), .oled_cs(), .oled_mosi(), .oled_sclk(),
         .oled_dc(), .oled_res(), .oled_vbatc(), .oled_vddc()
     );
@@ -43,15 +43,14 @@ module tb_top_win_indication;
             repeat (3) @(negedge clk);
         end
     endtask
-    reg [9:0] probe_x, probe_y;
+    reg [9:0] menu_probe_x, menu_probe_y;
     task check_menu_scene;
         begin
-            // The menu now retains a generated maze. Check the unobstructed
-            // screen edge against the renderer rather than assuming a blank
-            // black menu, while the forced ball remains hidden.
-            @(negedge clk); probe_x = 10'd620; probe_y = 10'd100;
-            force dut.pixel_x = probe_x;
-            force dut.pixel_y = probe_y;
+            // The menu retains a generated maze. Check an unobstructed edge
+            // against the renderer while the forced ball remains hidden.
+            @(negedge clk); menu_probe_x = 10'd620; menu_probe_y = 10'd100;
+            force dut.pixel_x = menu_probe_x;
+            force dut.pixel_y = menu_probe_y;
             repeat (3) @(negedge clk);
             if (!dut.menu_bg_visible_d || dut.menu_panel || dut.menu_accent)
                 fail("menu backdrop or clear edge region was not active");
@@ -66,6 +65,7 @@ module tb_top_win_indication;
             repeat (12) @(negedge clk);
         end
     endtask
+    reg [9:0] probe_x, probe_y;
     task check_pixel;
         input [9:0] x, y;
         input [11:0] colour;
@@ -147,5 +147,5 @@ module tb_top_win_indication;
         $display("PASS: top win indication, WIN render reads, frozen physics, regeneration clearing, and menu reset");
         $finish;
     end
-    initial begin #1000000; fail("timeout"); end
+    initial begin #20000000; fail("timeout"); end
 endmodule

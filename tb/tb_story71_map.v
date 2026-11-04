@@ -6,11 +6,11 @@ module tb_story71_map;
     reg rst = 1'b1;
     reg ce_pix = 1'b0;
     reg frame_tick = 1'b0;
-    reg [3:0] n_cells = 4'd15;
+    reg [`N_CELLS_W-1:0] n_cells = 4'd15;
     reg [9:0] pixel_x = 10'd320;
     reg [9:0] pixel_y = 10'd240;
     reg active_video = 1'b1;
-    wire [9:0] maze_raddr;
+    wire [`MAP_ADDR_W-1:0] maze_raddr;
     wire [3:0] r, g, b;
     wire hs, vs;
     wire signed [15:0] sin_snap, cos_snap;
@@ -24,8 +24,8 @@ module tb_story71_map;
         .sin_q(16'sd0), .cos_q(16'sd16384),
         .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
         .hsync_in(1'b1), .vsync_in(1'b1), .maze_raddr(maze_raddr),
-        .maze_rdata(1'b0), .start_col(5'd29), .start_row(5'd29),
-        .goal_col(5'd1), .goal_row(5'd1), .box_cols(20'd0), .box_rows(20'd0), .box_valid(4'b0000), .box_visible(4'b1111),
+        .maze_rdata(1'b0), .start_col(6'd29), .start_row(6'd29),
+        .goal_col(6'd1), .goal_row(6'd1), .box_cols(36'd0), .box_rows(36'd0), .box_valid(4'b0000), .box_visible(4'b1111),
         .ball_on(1'b0), .fog_en(1'b0), .fog_clear(1'b0),
         .vga_r(r), .vga_g(g), .vga_b(b), .vga_hs(hs), .vga_vs(vs),
         .sin_snap(sin_snap), .cos_snap(cos_snap)
@@ -40,7 +40,7 @@ module tb_story71_map;
         force dut.walk_x_q = (30 * 16 + 8) <<< 14;
         force dut.walk_y_q = (30 * 16 + 8) <<< 14;
         #1;
-        if (!dut.in_map_now || maze_raddr !== {5'd30, 5'd30}) begin
+        if (!dut.in_map_now || maze_raddr !== {6'd30, 6'd30}) begin
             $display("FAIL: N=15 last tile not addressed (in_map=%b addr=%0d)", dut.in_map_now, maze_raddr);
             errors = errors + 1;
         end
@@ -52,7 +52,7 @@ module tb_story71_map;
         force dut.walk_x_q = (10 * 16 + 8) <<< 14;
         force dut.walk_y_q = (10 * 16 + 8) <<< 14;
         #1;
-        if (!dut.in_map_now || maze_raddr !== {5'd10, 5'd10}) begin
+        if (!dut.in_map_now || maze_raddr !== {6'd10, 6'd10}) begin
             $display("FAIL: N=5 last tile address wrong (in_map=%b addr=%0d)", dut.in_map_now, maze_raddr);
             errors = errors + 1;
         end

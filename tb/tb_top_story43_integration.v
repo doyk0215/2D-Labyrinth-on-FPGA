@@ -27,7 +27,7 @@ module tb_top_story43_integration;
         .SNAP_DEBOUNCE_CYCLES(3), .MENU_DEBOUNCE_CYCLES(3), .POR_CYCLES(4)
     ) dut (
         .clk(clk), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR),
-        .btnD(btnD), .sw(16'h0020), .led(led),
+        .btnD(btnD), .sw(16'h4000), .led(led),
         .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs),
         .ps2_clk(ps2_clk), .ps2_data(ps2_data),
@@ -36,10 +36,26 @@ module tb_top_story43_integration;
         .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)
     );
 
+    // Game generations only; the menu backdrop has its own requests.
     always @(posedge clk) begin
-        if (dut.gen_start)
+        if (dut.game_gen_start)
             gen_start_count = gen_start_count + 1;
     end
+
+    // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+    task wait_backdrop;
+        begin
+            timeout = 0;
+            while (!dut.menu_bg_visible && (timeout < 400000)) begin
+                @(negedge clk);
+                timeout = timeout + 1;
+            end
+            if (!dut.menu_bg_visible) begin
+                $display("FAIL: menu backdrop did not finish");
+                errors = errors + 1;
+            end
+        end
+    endtask
 
     task press_button;
         input [2:0] button_id;
@@ -125,21 +141,22 @@ module tb_top_story43_integration;
         force dut.frame_tick = 1'b1;
         repeat (12) @(posedge clk);
         #1;
-        if (dut.game_state !== `ST_MENU || dut.game_cfg !== 8'h05 ||
-            dut.gen_start !== 1'b0 || gen_start_count != 0) begin
+        if (dut.game_state !== `ST_MENU || dut.game_cfg !== 10'h005 ||
+            dut.game_gen_start !== 1'b0 || gen_start_count != 0) begin
             $display("FAIL: startup was not in stage-selection MENU");
             errors = errors + 1;
         end
 
-        press_button(3'd3); // choose HARD
-        if (dut.game_cfg !== 8'h1A) begin
+        wait_backdrop();
+        press_button(3'd3); // choose MEDIUM
+        if (dut.game_cfg !== 10'h02A) begin
             $display("FAIL: stage selection did not retain HARD configuration");
             errors = errors + 1;
         end
 
         angle_before_settings = dut.angle;
         check_oled_update(3'd0); // BTNL opens settings page
-        if (!dut.menu_ctrl_i.settings_page || dut.game_cfg !== 8'h1A ||
+        if (!dut.menu_ctrl_i.settings_page || dut.game_cfg !== 10'h02A ||
             dut.game_state !== `ST_MENU || gen_start_count != 0 ||
             dut.angle !== angle_before_settings) begin
             $display("FAIL: BTNL did not open settings without starting a game");
@@ -147,21 +164,22 @@ module tb_top_story43_integration;
         end
 
         check_oled_update(3'd1); // BTNU: NORMAL -> FAST
-        if (dut.game_cfg !== 8'h9A || !dut.menu_ctrl_i.settings_page) begin
+        if (dut.game_cfg !== 10'h12A || !dut.menu_ctrl_i.settings_page) begin
             $display("FAIL: settings speed did not reach game_cfg or OLED frame");
             errors = errors + 1;
         end
 
         press_button(3'd2); // BTNC returns to the stage page
         if (dut.menu_ctrl_i.settings_page || dut.start_game ||
-            dut.game_cfg !== 8'h9A || dut.menu_ctrl_i.selected_stage !== 1'b1) begin
+            dut.game_cfg !== 10'h12A || dut.menu_ctrl_i.selected_stage !== 1'b1) begin
             $display("FAIL: BTNC in settings did not return while keeping choices");
             errors = errors + 1;
         end
 
+        wait_backdrop(); // leaving settings regenerates the backdrop
         press_button(3'd2); // BTNC on stage page starts
         wait_state(`ST_GENERATE);
-        if (dut.active_game_cfg !== 8'h9A ||
+        if (dut.active_game_cfg !== 10'h12A ||
             dut.angle_i.rot_speed_sel !== 2'b10) begin
             $display("FAIL: selected FAST configuration was not latched for the game");
             errors = errors + 1;
@@ -173,9 +191,9 @@ module tb_top_story43_integration;
         end
 
         // A later menu value cannot retune the already-running game.
-        force dut.game_cfg = 8'h5A;
+        force dut.game_cfg = 10'h0AA;
         #1;
-        if (dut.active_game_cfg !== 8'h9A || dut.angle_i.rot_speed_sel !== 2'b10) begin
+        if (dut.active_game_cfg !== 10'h12A || dut.angle_i.rot_speed_sel !== 2'b10) begin
             $display("FAIL: a later game_cfg change retuned the active game");
             errors = errors + 1;
         end
@@ -204,7 +222,7 @@ module tb_top_story43_integration;
         // Reset from PLAY returns to MENU, clears the stage but retains FAST.
         press_button(3'd2);
         wait_state(`ST_MENU);
-        if (dut.game_cfg !== 8'h85 || dut.menu_ctrl_i.settings_page ||
+        if (dut.game_cfg !== 10'h105 || dut.menu_ctrl_i.settings_page ||
             dut.menu_ctrl_i.selected_stage !== 1'b0) begin
             $display("FAIL: game reset did not preserve speed and reset the stage page");
             errors = errors + 1;

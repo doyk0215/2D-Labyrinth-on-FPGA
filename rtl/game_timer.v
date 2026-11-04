@@ -9,6 +9,8 @@ module game_timer #(
     parameter integer EASY_SECONDS = 60,
     parameter integer HARD_SECONDS = 120,
     parameter integer HUGE_SECONDS = 180,
+    parameter integer XL_SECONDS = 240,          // N = 20
+    parameter integer SECONDS_PER_CELL = 12,     // any other (custom) N
     parameter integer BONUS_SECONDS = 10
 ) (
     input wire clk,
@@ -19,7 +21,7 @@ module game_timer #(
     input wire time_bonus_pulse,
     input wire [`GAME_STATE_W-1:0] game_state,
     input wire phys_init,
-    input wire [3:0] n_cells,
+    input wire [`N_CELLS_W-1:0] n_cells,
     output reg [7:0] elapsed_minutes_bcd = 8'h00,
     output reg [7:0] elapsed_seconds_bcd = 8'h00,
     output wire time_up
@@ -42,10 +44,24 @@ module game_timer #(
             limit_bcd[3:0] = remainder % 10;
         end
     endfunction
-    localparam [15:0] EASY_LIMIT = limit_bcd(EASY_SECONDS);
-    localparam [15:0] HARD_LIMIT = limit_bcd(HARD_SECONDS);
-    localparam [15:0] HUGE_LIMIT = limit_bcd(HUGE_SECONDS);
     localparam [15:0] BONUS_BCD = limit_bcd(BONUS_SECONDS);
+    // Stage limit for every N, as a constant table built at elaboration.
+    function integer stage_seconds;
+        input integer n;
+        begin
+            stage_seconds = (n == 5)  ? EASY_SECONDS :
+                            (n == 10) ? HARD_SECONDS :
+                            (n == 15) ? HUGE_SECONDS :
+                            (n == 20) ? XL_SECONDS : SECONDS_PER_CELL * n;
+        end
+    endfunction
+    wire [15:0] stage_limit [0:31];
+    genvar limit_n;
+    generate
+        for (limit_n = 0; limit_n < 32; limit_n = limit_n + 1) begin : limit_table
+            assign stage_limit[limit_n] = limit_bcd(stage_seconds(limit_n));
+        end
+    endgenerate
     function [15:0] decrement_bcd;
         input [15:0] value;
         begin
@@ -112,11 +128,7 @@ module game_timer #(
         end else if (phys_init && !preserve_time) begin
             subsecond_count <= {COUNT_WIDTH{1'b0}};
             play_started <= 1'b0;
-            case (n_cells)
-                4'd5: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= EASY_LIMIT;
-                4'd15: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HUGE_LIMIT;
-                default: {elapsed_minutes_bcd, elapsed_seconds_bcd} <= HARD_LIMIT;
-            endcase
+            {elapsed_minutes_bcd, elapsed_seconds_bcd} <= stage_limit[n_cells];
         end else if (timer_state_active) begin
             // Arm only when a PLAY pixel is actually being sent to the
             // display. Generation completion and the renderer's frame

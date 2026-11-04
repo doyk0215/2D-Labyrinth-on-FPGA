@@ -10,9 +10,9 @@
 // Integration top: game_ctrl sequences generation/play, and the renderer is
 // held off while maze_gen writes the single map; rotation supports the SW0
 // snap fallback as well as the smooth mouse/button path.
-//   sw[5]   = debug seed (fixed seed, same maze every time)
-//   sw[4:1] = retained debug value; Story 4.2 stage configuration selects N
-//   sw[0]   = 90-degree snap fallback (off = smooth rotation)
+//   sw[15]  = 90-degree snap fallback (off = smooth rotation)
+//   sw[14]  = debug seed (fixed seed, same maze every time)
+//   sw[4:0] = CUSTOM stage maze size N (2..20; others show an OLED error)
 //   btnU/D  = stage navigation in MENU, rotation-rate selection in settings,
 //             and pause-menu navigation while paused; btnU pauses during PLAY
 //   btnL    = open the settings page from the stage menu
@@ -33,7 +33,14 @@ module My_Top_Module #(
     parameter integer EASY_TIME_SECONDS = 60,
     parameter integer HARD_TIME_SECONDS = 120,
     parameter integer HUGE_TIME_SECONDS = 180,
-    parameter integer ITEM_EFFECT_SECONDS = 10,         // playtested in Story 9.8
+    // Item effect durations, per effect (the time bonus is instant).
+    parameter integer ITEM_LOW_GRAV_SECONDS = 12,
+    parameter integer ITEM_HIGH_GRAV_SECONDS = 12,
+    parameter integer ITEM_INVINCIBLE_SECONDS = 12,
+    parameter integer ITEM_REVERSE_GRAV_SECONDS = 10,
+    parameter integer ITEM_ZERO_GRAV_SECONDS = 10,
+    parameter integer ITEM_INVERT_SECONDS = 10,
+    parameter integer ITEM_FOG_SECONDS = 10,
     parameter integer ITEM_RESPAWN_SECONDS = 15,
     parameter integer ITEM_TIME_BONUS_SECONDS = 10,
     parameter ITEM_STUB_LOW_ONLY = 1'b0,
@@ -41,7 +48,12 @@ module My_Top_Module #(
     parameter integer ITEM_ROULETTE_SPIN_MS = 1500,
     parameter integer ITEM_ROULETTE_HOLD_MS = 1000,
     parameter integer ITEM_BLOCK_ICON_MS = 1000,
-    parameter integer FOG_RADIUS_PX = 48     // fog of war clear radius (Story 9.4)
+    parameter integer FOG_RADIUS_PX = 48,    // fog of war clear radius (Story 9.4)
+    // Time limits by N: EASY = N 5, HARD = N 10 (the MEDIUM stage), HUGE = N 15
+    // (the HARD stage), XL = N 20; any other custom N gets SECONDS_PER_CELL * N.
+    parameter integer XL_TIME_SECONDS = 240,
+    parameter integer SECONDS_PER_CELL = 12,
+    parameter integer MENU_ERROR_CYCLES = 200_000_000   // invalid CUSTOM size, 2 s
 ) (
     input  wire       clk,
     input  wire       btnC,
@@ -112,8 +124,16 @@ module My_Top_Module #(
     );
 
     wire start_game;
-    wire [7:0] game_cfg;
-    wire [7:0] active_game_cfg;
+    wire [9:0] game_cfg;
+    wire [9:0] active_game_cfg;
+    wire menu_error;
+    // CUSTOM maze size from SW4..SW0, synchronised like the snap switch.
+    (* ASYNC_REG = "TRUE" *) reg [4:0] size_sw_meta = 5'd0;
+    (* ASYNC_REG = "TRUE" *) reg [4:0] size_sw_sync = 5'd0;
+    always @(posedge clk) begin
+        size_sw_meta <= sw[4:0];
+        size_sw_sync <= size_sw_meta;
+    end
     wire [511:0] status_text;
     wire [511:0] menu_page_text;
     wire settings_page;
@@ -220,14 +240,14 @@ module My_Top_Module #(
                     instructions_scroll <= instructions_scroll - 1'b1;
                 else if (btnD_menu_press && !btnU_press && instructions_scroll < 3)
                     instructions_scroll <= instructions_scroll + 1'b1;
-            end else if (btnR_menu_press) begin
+            end else if (btnR_menu_press && !menu_error) begin
                 instructions_active <= 1'b1;
                 instructions_scroll <= 3'd0;
             end
         end
     end
 
-    menu_ctrl menu_ctrl_i (
+    menu_ctrl #(.ERROR_HOLD_CYCLES(MENU_ERROR_CYCLES)) menu_ctrl_i (
         .clk           (clk),
         .rst           (system_reset),
         .return_to_menu(game_reset_request),
@@ -236,12 +256,14 @@ module My_Top_Module #(
         .btn_down      (btnD_menu_press && !instructions_active),
         .btn_confirm   (btnC_press && !instructions_active),
         .btn_settings  (btnL_menu_press && !instructions_active),
+        .custom_n      (size_sw_sync),
         .stage_high_scores_bcd(stage_high_scores_bcd),
         .start_game    (start_game),
         .game_cfg      (game_cfg),
         .status_text   (menu_page_text),
         .selected_stage(),
-        .settings_page(settings_page)
+        .settings_page(settings_page),
+        .error_active  (menu_error)
     );
     wire ce_pix;
     wire frame_tick;
@@ -259,12 +281,12 @@ module My_Top_Module #(
     wire        maze_we;
     wire [`MAP_ADDR_W-1:0] maze_waddr;
     wire        maze_wdata;
-    wire [4:0]  start_col;
-    wire [4:0]  start_row;
-    wire [4:0]  goal_col;
-    wire [4:0]  goal_row;
-    wire [29:0] box_cols;               // up to six item boxes
-    wire [29:0] box_rows;
+    wire [`COORD_W-1:0] start_col;
+    wire [`COORD_W-1:0] start_row;
+    wire [`COORD_W-1:0] goal_col;
+    wire [`COORD_W-1:0] goal_row;
+    wire [6*`COORD_W-1:0] box_cols;     // up to six item boxes
+    wire [6*`COORD_W-1:0] box_rows;
     wire [5:0]  box_valid;
     wire [5:0] box_visible;
     wire [`ITEM_EFFECT_W-1:0] item_effect;
@@ -285,7 +307,7 @@ module My_Top_Module #(
     wire        seed_capture;
     wire        game_gen_start;
     wire        game_seed_capture;
-    wire [3:0]  gen_n_cells;
+    wire [`N_CELLS_W-1:0] gen_n_cells;
     wire        phys_init;
     wire        phys_en;
     wire        in_goal;
@@ -405,7 +427,7 @@ module My_Top_Module #(
     assign angle_rot_cmd = (item_effect == `ITEM_INVERT) ? -rot_cmd_normal : rot_cmd_normal;
     always @(posedge clk) begin
         if (system_reset) snap_sw_sync <= 2'b00;
-        else snap_sw_sync <= {snap_sw_sync[0], sw[0]};
+        else snap_sw_sync <= {snap_sw_sync[0], sw[15]};
     end
 
     // Synchronize BTND and convert its rising edge into a one-cycle request.
@@ -416,8 +438,11 @@ module My_Top_Module #(
         else btnD_s <= {btnD_s[1:0], btnD};
     end
     wire regen_request = btnD_s[1] & ~btnD_s[2];
-    wire [3:0] legacy_n_cells = (sw[4:1] == 4'd0) ? 4'd10 : sw[4:1];
-    wire [3:0] n_cells = START_IN_MENU ? active_game_cfg[3:0] : legacy_n_cells;
+    // Legacy auto-start builds (START_IN_MENU = 0) take N from SW4..SW0 too,
+    // falling back to N = 10 outside 2..20.
+    wire [`N_CELLS_W-1:0] legacy_n_cells =
+        ((size_sw_sync >= 5'd2) && (size_sw_sync <= 5'd20)) ? size_sw_sync : 5'd10;
+    wire [`N_CELLS_W-1:0] n_cells = START_IN_MENU ? active_game_cfg[4:0] : legacy_n_cells;
 
     // A normal in-game BTND regeneration reuses the latched seed and keeps
     // the current timer running through maze generation. Pause-menu Restart
@@ -441,7 +466,7 @@ module My_Top_Module #(
     assign gen_start = game_gen_start | menu_bg_gen_start;
     assign seed_capture = game_seed_capture | menu_bg_seed_capture;
     assign gen_n_cells = menu_bg_gen_start || (menu_bg_gen_state != MENU_BG_IDLE && menu_active)
-                       ? 4'd15 : n_cells;
+                       ? 5'd15 : n_cells;
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE) || pause_active || menu_bg_visible;
     wire timer_display_active = render_enable_d && maze_pixel_visible;
@@ -500,20 +525,21 @@ module My_Top_Module #(
         end
     end
 
-    // Keep independent best completed-level counts for Easy (N=5), Hard
-    // (N=10), and Huge (N=15). Ordinary gameplay resets preserve these records.
+    // Keep independent best completed-level counts for Easy (N=5), Medium
+    // (N=10), and Hard (N=15); CUSTOM games (cfg bit 9) never update them.
+    // Ordinary gameplay resets preserve these records.
     always @(posedge clk) begin
         if (por_reset) begin
             stage_high_scores_bcd <= 36'h000000000;
-        end else if (!btnC_press && !btnD_menu_press &&
+        end else if (!active_game_cfg[9] && !btnC_press && !btnD_menu_press &&
                      !((game_state == `ST_PLAY) && (regen_request || time_up)) &&
                      (game_state == `ST_PLAY) && frame_tick && in_goal) begin
-            case (active_game_cfg[3:0])
-                4'd5: if (next_levels_completed_bcd > stage_high_scores_bcd[11:0])
+            case (active_game_cfg[4:0])
+                5'd5: if (next_levels_completed_bcd > stage_high_scores_bcd[11:0])
                     stage_high_scores_bcd[11:0] <= next_levels_completed_bcd;
-                4'd10: if (next_levels_completed_bcd > stage_high_scores_bcd[23:12])
+                5'd10: if (next_levels_completed_bcd > stage_high_scores_bcd[23:12])
                     stage_high_scores_bcd[23:12] <= next_levels_completed_bcd;
-                4'd15: if (next_levels_completed_bcd > stage_high_scores_bcd[35:24])
+                5'd15: if (next_levels_completed_bcd > stage_high_scores_bcd[35:24])
                     stage_high_scores_bcd[35:24] <= next_levels_completed_bcd;
                 default: begin end
             endcase
@@ -522,7 +548,9 @@ module My_Top_Module #(
 
     game_timer #(.CLK_HZ(TIMER_CLK_HZ),
         .EASY_SECONDS(EASY_TIME_SECONDS), .HARD_SECONDS(HARD_TIME_SECONDS),
-        .HUGE_SECONDS(HUGE_TIME_SECONDS), .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
+        .HUGE_SECONDS(HUGE_TIME_SECONDS), .XL_SECONDS(XL_TIME_SECONDS),
+        .SECONDS_PER_CELL(SECONDS_PER_CELL),
+        .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) elapsed_timer_i (
         .clk(clk),
         .rst(rst),
         .preserve_time(preserve_timer),
@@ -600,7 +628,7 @@ module My_Top_Module #(
         .rst        (rst | (START_IN_MENU && phys_init)),
         .frame_tick (frame_tick),
         .rot_cmd    (angle_rot_cmd),
-        .rot_speed_sel (active_game_cfg[7:6]),
+        .rot_speed_sel (active_game_cfg[8:7]),
         // LOSE discards queued snap releases as well as smooth commands.
         .snap_mode  (snap_mode && (game_state != `ST_LOSE)),
         .rot_held   (rot_held),
@@ -617,7 +645,7 @@ module My_Top_Module #(
     seed_source seed_i (
         .clk         (clk),
         .rst         (rst),
-        .debug_fixed (menu_active ? 1'b0 : sw[5]),
+        .debug_fixed (menu_active ? 1'b0 : sw[14]),
         .latch_en    (seed_capture),
         .seed        (seed)
     );
@@ -683,7 +711,7 @@ module My_Top_Module #(
         .sin_q      (sin_q),
         .cos_q      (cos_q),
         .effect_code (item_effect),
-        .restitution_sel (active_game_cfg[5:4]),
+        .restitution_sel (active_game_cfg[6:5]),
         .maze_raddr (maze_raddr_p),
         .maze_rdata (maze_rdata_p),
         .ball_x     (ball_x),
@@ -696,7 +724,12 @@ module My_Top_Module #(
 
     // Item coordinates share physics' stage-centred Q9.8 frame. The pickup
     // commits after physics and is visible to gravity on the following frame.
-    item_ctrl #(.CLK_HZ(TIMER_CLK_HZ), .EFFECT_SECONDS(ITEM_EFFECT_SECONDS),
+    item_ctrl #(.CLK_HZ(TIMER_CLK_HZ),
+        .LOW_GRAV_SECONDS(ITEM_LOW_GRAV_SECONDS), .HIGH_GRAV_SECONDS(ITEM_HIGH_GRAV_SECONDS),
+        .INVINCIBLE_SECONDS(ITEM_INVINCIBLE_SECONDS),
+        .REVERSE_GRAV_SECONDS(ITEM_REVERSE_GRAV_SECONDS),
+        .ZERO_GRAV_SECONDS(ITEM_ZERO_GRAV_SECONDS), .INVERT_SECONDS(ITEM_INVERT_SECONDS),
+        .FOG_SECONDS(ITEM_FOG_SECONDS),
         .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY),
         .DEFER_EFFECT(ITEM_ROULETTE_ENABLE)) item_i (
         .clk(clk), .rst(rst), .game_state(game_state), .phys_init(phys_init),
@@ -759,15 +792,16 @@ module My_Top_Module #(
     wire [3:0] render_r;
     wire [3:0] render_g;
     wire [3:0] render_b;
-    wire [3:0] render_n_cells = menu_bg_visible ? 4'd15 : n_cells;
+    wire [`N_CELLS_W-1:0] render_n_cells = menu_bg_visible ? 5'd15 : n_cells;
     wire signed [17:0] render_cam_x = menu_bg_visible ? 18'sd0 : cam_x;
     wire signed [17:0] render_cam_y = menu_bg_visible ? 18'sd0 : cam_y;
     wire signed [15:0] render_sin_q = menu_bg_visible ? 16'sd0 : sin_q;
     wire signed [15:0] render_cos_q = menu_bg_visible ? 16'sd16923 : cos_q;
-    wire [4:0] render_start_col = menu_bg_visible ? 5'd31 : start_col;
-    wire [4:0] render_start_row = menu_bg_visible ? 5'd31 : start_row;
-    wire [4:0] render_goal_col = menu_bg_visible ? 5'd31 : goal_col;
-    wire [4:0] render_goal_row = menu_bg_visible ? 5'd31 : goal_row;
+    // Tile 31 is just off the N = 15 backdrop, so it hides start and goal.
+    wire [`COORD_W-1:0] render_start_col = menu_bg_visible ? 6'd31 : start_col;
+    wire [`COORD_W-1:0] render_start_row = menu_bg_visible ? 6'd31 : start_row;
+    wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd31 : goal_col;
+    wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd31 : goal_row;
 
     render render_i (
         .clk          (clk),

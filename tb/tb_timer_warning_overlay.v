@@ -17,6 +17,7 @@ module tb_timer_warning_overlay;
     wire timer_flash_red;
     wire edge_glow;
     wire [3:0] edge_strength;
+    reg [4:0] hud_n_cells = 5'd5;
 
     timer_warning_overlay #(.FRAMES_PER_HALF_SECOND(2)) dut (
         .clk(clk), .rst(rst), .frame_tick(frame_tick),
@@ -31,7 +32,7 @@ module tb_timer_warning_overlay;
     wire hud_item_line, hud_debuff_line;
     game_status_hud hud_i (
         .clk(clk), .rst(rst), .pixel_x(10'd385), .pixel_y(10'd20),
-        .active_video(1'b1), .game_state(game_state), .n_cells(4'd5),
+        .active_video(1'b1), .game_state(game_state), .n_cells(hud_n_cells),
         .minutes_bcd(minutes_bcd), .seconds_bcd(seconds_bcd),
         .warning_active(warning_active), .timer_flash_red(timer_flash_red),
         .active_effect(`ITEM_NONE), .effect_seconds(7'd0),
@@ -58,7 +59,7 @@ module tb_timer_warning_overlay;
         end
     endtask
 
-    integer i;
+    integer i, stage_n;
     initial begin
         repeat (3) @(negedge clk);
         rst = 1'b0;
@@ -66,10 +67,18 @@ module tb_timer_warning_overlay;
         check(!warning_active, "warning started above 30 seconds");
         check(!edge_glow, "edge glow appeared above 30 seconds");
 
-        seconds_bcd = 8'h30;
-        @(negedge clk);
-        check(warning_active, "warning did not start at 30 seconds");
-        check(hud_timer_line && !hud_timer_red, "timer was not white at warning start");
+        // The threshold is the same for every supported stage size.
+        for (stage_n = 5; stage_n <= 20; stage_n = stage_n + 5) begin
+            hud_n_cells = stage_n;
+            seconds_bcd = 8'h31;
+            @(negedge clk);
+            check(!warning_active, "warning started above 30 seconds for a stage size");
+            seconds_bcd = 8'h30;
+            @(negedge clk);
+            check(warning_active, "warning did not start at 30 seconds for a stage size");
+            check(hud_timer_line && !hud_timer_red,
+                  "timer was not white at the 30-second warning start");
+        end
         tick_frame(); tick_frame();
         @(negedge clk);
         check(edge_glow && edge_strength == 4'd1,

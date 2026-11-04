@@ -25,7 +25,7 @@ module tb_top_ball;
 
     My_Top_Module #(.START_IN_MENU(1'b0)) dut (
         .clk(clk), .btnC(btnC), .btnU(1'b0), .btnL(btnL), .btnR(1'b0), .btnD(1'b0),
-        .sw(16'h0020), .led(led), .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
+        .sw(16'h4000), .led(led), .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
         .vga_hs(vga_hs), .vga_vs(vga_vs), .ps2_clk(ps2_clk), .ps2_data(ps2_data),
         .oled_cs(oled_cs), .oled_mosi(oled_mosi), .oled_sclk(oled_sclk), .oled_dc(oled_dc),
         .oled_res(oled_res), .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)

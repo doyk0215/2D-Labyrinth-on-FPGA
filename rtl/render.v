@@ -19,7 +19,7 @@ module render #(
     input  wire [`GAME_STATE_W-1:0] game_state,
     input  wire [7:0]        time_min_bcd,
     input  wire [7:0]        time_sec_bcd,
-    input  wire [3:0]        n_cells,
+    input  wire [`N_CELLS_W-1:0] n_cells,
     input  wire signed [`POS_W-1:0] cam_x,  // camera, Q9.8 from the map centre (Story 7.2)
     input  wire signed [`POS_W-1:0] cam_y,
     input  wire [11:0]       angle,
@@ -30,14 +30,14 @@ module render #(
     input  wire              active_video,
     input  wire              hsync_in,
     input  wire              vsync_in,
-    output wire [9:0]       maze_raddr,
+    output wire [`MAP_ADDR_W-1:0] maze_raddr,
     input  wire              maze_rdata,
-    input  wire [4:0]        start_col,
-    input  wire [4:0]        start_row,
-    input  wire [4:0]        goal_col,
-    input  wire [4:0]        goal_row,
-    input  wire [29:0]       box_cols,      // item box k at bits 5k+4:5k
-    input  wire [29:0]       box_rows,
+    input  wire [`COORD_W-1:0] start_col,
+    input  wire [`COORD_W-1:0] start_row,
+    input  wire [`COORD_W-1:0] goal_col,
+    input  wire [`COORD_W-1:0] goal_row,
+    input  wire [6*`COORD_W-1:0] box_cols,  // item box k at bits [COORD_W*k +: COORD_W]
+    input  wire [6*`COORD_W-1:0] box_rows,
     input  wire [5:0]        box_valid,     // from maze_gen
     input  wire [5:0]        box_visible,   // picked-up boxes are hidden
     input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
@@ -53,10 +53,10 @@ module render #(
     output reg  signed [15:0] cos_snap
 );
 
-    wire [4:0] active_dim = {n_cells, 1'b0} + 5'd1;
-    wire signed [26:0] n_ext = $signed({23'd0, n_cells});
+    wire [`COORD_W-1:0] active_dim = {n_cells, 1'b0} + 1'b1;
+    wire signed [26:0] n_ext = $signed({{(27-`N_CELLS_W){1'b0}}, n_cells});
     wire signed [26:0] active_centre_q = (n_ext <<< 18) + (27'sd8 <<< 14);
-    wire signed [26:0] active_size_q = $signed({22'd0, active_dim}) <<< 18;
+    wire signed [26:0] active_size_q = $signed({{(27-`COORD_W){1'b0}}, active_dim}) <<< 18;
     localparam [3:0] WALL_R = 4'hf, WALL_G = 4'hf, WALL_B = 4'hf;
     localparam [3:0] FLOOR_R = 4'h3, FLOOR_G = 4'h4, FLOOR_B = 4'h6;
     localparam [3:0] START_R = 4'hf, START_G = 4'h0, START_B = 4'h0;
@@ -213,10 +213,10 @@ module render #(
     wire in_map_now = active_video &&
         (walk_x_q >= 0) && (walk_x_q < active_size_q) &&
         (walk_y_q >= 0) && (walk_y_q < active_size_q);
-    wire [4:0] tile_col_now = walk_x_q[22:18];
-    wire [4:0] tile_row_now = walk_y_q[22:18];
-    // Every stage is stored with a fixed 32-tile row: addr = {row, col}.
-    assign maze_raddr = in_map_now ? {tile_row_now, tile_col_now} : 10'd0;
+    wire [`COORD_W-1:0] tile_col_now = walk_x_q[18+`COORD_W-1:18];
+    wire [`COORD_W-1:0] tile_row_now = walk_y_q[18+`COORD_W-1:18];
+    // Every stage is stored with a fixed 64-tile row: addr = {row, col}.
+    assign maze_raddr = in_map_now ? {tile_row_now, tile_col_now} : {`MAP_ADDR_W{1'b0}};
 
     wire [5:0] box_shown = box_valid & box_visible;
     wire [5:0] is_box_now;
@@ -224,8 +224,8 @@ module render #(
     generate
         for (bi = 0; bi < 6; bi = bi + 1) begin : box_hit
             assign is_box_now[bi] = in_map_now && box_shown[bi] &&
-                (tile_col_now == box_cols[5*bi +: 5]) &&
-                (tile_row_now == box_rows[5*bi +: 5]);
+                (tile_col_now == box_cols[`COORD_W*bi +: `COORD_W]) &&
+                (tile_row_now == box_rows[`COORD_W*bi +: `COORD_W]);
         end
     endgenerate
 
@@ -252,8 +252,9 @@ module render #(
                 (tile_col_now == start_col) && (tile_row_now == start_row);
             is_goal_d <= in_map_now &&
                 (tile_col_now == goal_col) && (tile_row_now == goal_row);
-            is_buff_d <= (n_cells == 4'd15) ? |is_box_now[2:0] : |is_box_now[1:0];
-            is_debuff_d <= (n_cells == 4'd15) ? |is_box_now[5:3] : |is_box_now[3:2];
+            // Six boxes (three of each) from N = 15 up, else two of each.
+            is_buff_d <= (n_cells >= 15) ? |is_box_now[2:0] : |is_box_now[1:0];
+            is_debuff_d <= (n_cells >= 15) ? |is_box_now[5:3] : |is_box_now[3:2];
             tile_px_d <= walk_x_q[17:14];
             tile_py_d <= walk_y_q[17:14];
             active_video_d <= active_video;
