@@ -185,7 +185,7 @@ module My_Top_Module #(
 
     assign menu_controls_active = menu_active && menu_bg_ready && !instructions_active;
 
-    // Generate a random N=15 backdrop on menu entry and when returning from a
+    // Generate a random N=20 backdrop on menu entry and when returning from a
     // submenu. The maze remains centered and fixed while each page is shown.
     localparam [1:0] MENU_BG_IDLE = 2'd0, MENU_BG_CAPTURE = 2'd1,
                      MENU_BG_START = 2'd2, MENU_BG_WAIT = 2'd3;
@@ -466,7 +466,7 @@ module My_Top_Module #(
     assign gen_start = game_gen_start | menu_bg_gen_start;
     assign seed_capture = game_seed_capture | menu_bg_seed_capture;
     assign gen_n_cells = menu_bg_gen_start || (menu_bg_gen_state != MENU_BG_IDLE && menu_active)
-                       ? 5'd15 : n_cells;
+                       ? 5'd20 : n_cells;
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE) || pause_active || menu_bg_visible;
     wire timer_display_active = render_enable_d && maze_pixel_visible;
@@ -792,16 +792,16 @@ module My_Top_Module #(
     wire [3:0] render_r;
     wire [3:0] render_g;
     wire [3:0] render_b;
-    wire [`N_CELLS_W-1:0] render_n_cells = menu_bg_visible ? 5'd15 : n_cells;
+    wire [`N_CELLS_W-1:0] render_n_cells = menu_bg_visible ? 5'd20 : n_cells;
     wire signed [17:0] render_cam_x = menu_bg_visible ? 18'sd0 : cam_x;
     wire signed [17:0] render_cam_y = menu_bg_visible ? 18'sd0 : cam_y;
     wire signed [15:0] render_sin_q = menu_bg_visible ? 16'sd0 : sin_q;
     wire signed [15:0] render_cos_q = menu_bg_visible ? 16'sd16923 : cos_q;
-    // Tile 31 is just off the N = 15 backdrop, so it hides start and goal.
-    wire [`COORD_W-1:0] render_start_col = menu_bg_visible ? 6'd31 : start_col;
-    wire [`COORD_W-1:0] render_start_row = menu_bg_visible ? 6'd31 : start_row;
-    wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd31 : goal_col;
-    wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd31 : goal_row;
+    // Tile 41 is just off the N = 20 backdrop, so it hides start and goal.
+    wire [`COORD_W-1:0] render_start_col = menu_bg_visible ? 6'd41 : start_col;
+    wire [`COORD_W-1:0] render_start_row = menu_bg_visible ? 6'd41 : start_row;
+    wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd41 : goal_col;
+    wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd41 : goal_row;
 
     render render_i (
         .clk          (clk),
@@ -890,7 +890,7 @@ module My_Top_Module #(
                                 (menu_panel || menu_accent ? menu_rgb : render_rgb) :
                                 (hud_panel ? hud_rgb : render_rgb);
 
-    // Blend a narrow red vignette over the outer 12 pixels. Red is raised and
+    // Blend a narrow red vignette over the outer 16 pixels. Red is raised and
     // green/blue are only reduced slightly, preserving maze detail at maximum.
     wire [3:0] edge_red_add = {1'b0, warning_edge_strength[3:1]} +
                               warning_edge_strength[0];

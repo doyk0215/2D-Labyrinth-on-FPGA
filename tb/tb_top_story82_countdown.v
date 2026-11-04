@@ -71,7 +71,7 @@ module tb_top_story82_countdown;
     task start;
         integer guard;
         begin
-            // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+            // Menu buttons are ignored until the N = 20 backdrop maze is ready.
             guard=0;
             while(!dut.menu_bg_visible && guard<400000) begin cycles(1); guard=guard+1; end
             if(!dut.menu_bg_visible) fail("menu backdrop did not finish");

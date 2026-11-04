@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 // N = 20 through the CUSTOM menu stage on the real top (SW4..SW0 = 20, SW14
-// fixed seed): the menu backdrop stays an N = 15 maze and the CUSTOM row
+// fixed seed): the menu backdrop stays a centered N = 20 maze and the CUSTOM row
 // shows N=20; DOWN x3 + C starts an N = 20 game with start (39,39), goal
 // (1,1), a 4:00 countdown, the ball and follow camera on the start tile, and
 // a goal reachable through the 41 x 41 map in maze_ram at the 64-tile
@@ -88,7 +88,7 @@ module tb_top_n20;
         force dut.frame_tick=0; cycles(16);
         guard=0;
         while(!dut.menu_bg_visible && guard<400000) begin cycles(1); guard=guard+1; end
-        if(!dut.menu_bg_visible || dut.render_n_cells !== 15) fail("menu backdrop is not the N = 15 maze");
+        if(!dut.menu_bg_visible || dut.render_n_cells !== 20) fail("menu backdrop is not the N = 20 maze");
 
         click_d(); click_d(); click_d();
         if(dut.menu_ctrl_i.selected_stage !== 2'd3) fail("DOWN x3 did not select CUSTOM");
@@ -181,7 +181,7 @@ module tb_top_n20;
         sw[4:0]=5'd2;
         to_menu(); click_d(); click_d(); click_d(); click_c(); play_to_win(2, 1'b1, 16'h0024);
         if(dut.stage_high_scores_bcd !== 36'h000000001) fail("CUSTOM N = 2 win changed a HIGH score");
-        $display("PASS: N=20 top through CUSTOM: N=15 backdrop, CUSTOM N=20 row, N=20 game, start (39,39), 4:00, six boxes, switches ignored mid-game, reachable goal, WIN, HIGH scores untouched, next level N=20; invalid N=25 error page with BTNR ignored; FAST rotation, bounce and HUD item row reach the game; EASY win sets HIGH, CUSTOM N=5 and N=2 (0:24, no boxes) wins do not");
+        $display("PASS: N=20 top through CUSTOM: centered N=20 backdrop, CUSTOM N=20 row, N=20 game, start (39,39), 4:00, six boxes, switches ignored mid-game, reachable goal, WIN, HIGH scores untouched, next level N=20; invalid N=25 error page with BTNR ignored; FAST rotation, bounce and HUD item row reach the game; EASY win sets HIGH, CUSTOM N=5 and N=2 (0:24, no boxes) wins do not");
         $finish;
     end
     initial begin #60000000; fail("timeout"); end

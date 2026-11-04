@@ -83,12 +83,20 @@ module tb_timer_warning_overlay;
         @(negedge clk);
         check(edge_glow && edge_strength == 4'd1,
               "30-second edge pulse was not faint red");
-        check(hud_timer_line && !hud_timer_red,
-              "timer changed color before one second elapsed");
+        check(timer_flash_red && hud_timer_line && hud_timer_red,
+              "timer did not flash red with the first half-second pulse");
         pixel_x = 10'd10;
         @(negedge clk);
         check(edge_glow && edge_strength == 4'd1,
               "faint warning did not reach the outer monitor edge");
+        pixel_x = 10'd14;
+        @(negedge clk);
+        check(edge_glow && edge_strength == 4'd1,
+              "thicker vignette did not reach the outermost 12..15 pixel band");
+        pixel_x = 10'd16;
+        @(negedge clk);
+        check(!edge_glow && edge_strength == 4'd0,
+              "vignette extended past the outermost 16-pixel band");
 
         pixel_x = 10'd6;
         seconds_bcd = 8'h28;
@@ -102,12 +110,12 @@ module tb_timer_warning_overlay;
 
         for (i = 0; i < 2; i = i + 1) tick_frame();
         @(negedge clk);
-        check(timer_flash_red && hud_timer_red,
-              "timer did not turn red after one second");
-        for (i = 0; i < 4; i = i + 1) tick_frame();
-        @(negedge clk);
         check(!timer_flash_red && !hud_timer_red,
-              "timer did not return to white after the next second");
+              "timer did not return to white with the next half-second pulse");
+        for (i = 0; i < 2; i = i + 1) tick_frame();
+        @(negedge clk);
+        check(timer_flash_red && hud_timer_red,
+              "timer did not flash red with the following half-second pulse");
 
         seconds_bcd = 8'h00;
         game_state = `ST_LOSE;

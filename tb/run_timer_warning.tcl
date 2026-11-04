@@ -29,7 +29,8 @@ if {[catch {exec xsim timer_warning_snapshot -runall 2>@1} output]} {
     error "Timer-warning simulation failed"
 }
 puts $output
-if {[string first "PASS: timer warning threshold, pulse, ramp, and HUD flash" $output] < 0} {
+if {[string first "FAIL" $output] >= 0 ||
+    [string first "PASS: timer warning threshold, pulse, ramp, and HUD flash" $output] < 0} {
     error "Timer-warning regression did not report PASS"
 }
 puts "PASS: timer warning regression"

@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // Screen-space menu panel shared by welcome, settings, and instructions.
-// The underlying N=15 maze remains visible around the translucent-style
+// The underlying N=20 maze remains visible around the translucent-style
 // framing panel; output timing matches the renderer's one-clock pixel path.
 module monitor_menu_overlay (
     input  wire       clk,

@@ -2,8 +2,8 @@
 `include "labyrinth_pkg.vh"
 
 // Difficulty-independent late-game warning for the VGA output. The edge
-// strength is derived only from absolute time remaining, while the visible
-// pulse runs at 2 Hz and the timer color changes once per second.
+// strength is derived only from absolute time remaining. The edge pulse and
+// timer color both toggle every half-second, with opposite visual states.
 module timer_warning_overlay #(
     parameter integer FRAMES_PER_HALF_SECOND = 30
 ) (
@@ -43,6 +43,7 @@ module timer_warning_overlay #(
             if (frame_count == FRAMES_PER_HALF_SECOND - 1) begin
                 frame_count <= frame_count + 1'b1;
                 pulse_phase <= ~pulse_phase;
+                timer_flash_red <= ~timer_flash_red;
             end else if (frame_count == (FRAMES_PER_HALF_SECOND * 2) - 1) begin
                 frame_count <= {HALF_COUNT_WIDTH{1'b0}};
                 pulse_phase <= ~pulse_phase;
@@ -68,12 +69,17 @@ module timer_warning_overlay #(
                        (pixel_y < 10'd8) || (pixel_y >= 10'd472);
     wire edge_outer = (pixel_x < 10'd12) || (pixel_x >= 10'd628) ||
                       (pixel_y < 10'd12) || (pixel_y >= 10'd468);
+    wire edge_outermost = (pixel_x < 10'd16) || (pixel_x >= 10'd624) ||
+                          (pixel_y < 10'd16) || (pixel_y >= 10'd464);
     wire [3:0] middle_strength = {1'b0, ramp_level[3:1]} + ramp_level[0];
     wire [3:0] outer_strength = {2'b00, ramp_level[3:2]} +
                                 (|ramp_level[1:0]);
+    wire [3:0] outermost_strength = (ramp_level == 4'd0) ? 4'd0 :
+                                    (ramp_level >= 4'd8) ? 4'd2 : 4'd1;
     wire [3:0] spatial_strength = edge_inner ? ramp_level :
                                   edge_middle ? middle_strength :
-                                  edge_outer ? outer_strength : 4'd0;
+                                  edge_outer ? outer_strength :
+                                  edge_outermost ? outermost_strength : 4'd0;
     wire edge_pulse_on = (warning_in_play && pulse_phase) || warning_at_time_up;
     wire [3:0] edge_strength_now = (edge_pulse_on && active_video) ?
                                    spatial_strength : 4'd0;

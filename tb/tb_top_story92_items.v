@@ -19,7 +19,7 @@ module tb_top_story92_items;
     task frame;begin force dut.frame_tick=1;cycles(1);force dut.frame_tick=0;cycles(80);end endtask
     task click;begin btnC=1;cycles(12);btnC=0;cycles(12);end endtask
     // MEDIUM (N = 10) has four boxes; EASY has none. Menu buttons are
-    // ignored until the N = 15 backdrop maze is ready.
+    // ignored until the N = 20 backdrop maze is ready.
     task start;
         integer guard;
         begin guard=0;

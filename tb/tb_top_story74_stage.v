@@ -83,7 +83,7 @@ module tb_top_story74_stage;
     integer i;
     initial begin
         force dut.frame_tick=0; cycles(16);
-        // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+        // Menu buttons are ignored until the N = 20 backdrop maze is ready.
         i=0;
         while(!dut.menu_bg_visible && i<400000) begin cycles(1); i=i+1; end
         if(!dut.menu_bg_visible) fail("menu backdrop did not finish");
