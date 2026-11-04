@@ -185,7 +185,7 @@ module My_Top_Module #(
 
     assign menu_controls_active = menu_active && menu_bg_ready && !instructions_active;
 
-    // Generate a random N=15 backdrop on menu entry and when returning from a
+    // Generate a random N=20 backdrop on menu entry and when returning from a
     // submenu. The maze remains centered and fixed while each page is shown.
     localparam [1:0] MENU_BG_IDLE = 2'd0, MENU_BG_CAPTURE = 2'd1,
                      MENU_BG_START = 2'd2, MENU_BG_WAIT = 2'd3;
@@ -466,7 +466,7 @@ module My_Top_Module #(
     assign gen_start = game_gen_start | menu_bg_gen_start;
     assign seed_capture = game_seed_capture | menu_bg_seed_capture;
     assign gen_n_cells = menu_bg_gen_start || (menu_bg_gen_state != MENU_BG_IDLE && menu_active)
-                       ? 5'd15 : n_cells;
+                       ? 5'd20 : n_cells;
     assign render_enable = (game_state == `ST_PLAY) || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE) || pause_active || menu_bg_visible;
     wire timer_display_active = render_enable_d && maze_pixel_visible;
@@ -792,16 +792,16 @@ module My_Top_Module #(
     wire [3:0] render_r;
     wire [3:0] render_g;
     wire [3:0] render_b;
-    wire [`N_CELLS_W-1:0] render_n_cells = menu_bg_visible ? 5'd15 : n_cells;
+    wire [`N_CELLS_W-1:0] render_n_cells = menu_bg_visible ? 5'd20 : n_cells;
     wire signed [17:0] render_cam_x = menu_bg_visible ? 18'sd0 : cam_x;
     wire signed [17:0] render_cam_y = menu_bg_visible ? 18'sd0 : cam_y;
     wire signed [15:0] render_sin_q = menu_bg_visible ? 16'sd0 : sin_q;
     wire signed [15:0] render_cos_q = menu_bg_visible ? 16'sd16923 : cos_q;
-    // Tile 31 is just off the N = 15 backdrop, so it hides start and goal.
-    wire [`COORD_W-1:0] render_start_col = menu_bg_visible ? 6'd31 : start_col;
-    wire [`COORD_W-1:0] render_start_row = menu_bg_visible ? 6'd31 : start_row;
-    wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd31 : goal_col;
-    wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd31 : goal_row;
+    // Tile 41 is just off the N = 20 backdrop, so it hides start and goal.
+    wire [`COORD_W-1:0] render_start_col = menu_bg_visible ? 6'd41 : start_col;
+    wire [`COORD_W-1:0] render_start_row = menu_bg_visible ? 6'd41 : start_row;
+    wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd41 : goal_col;
+    wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd41 : goal_row;
 
     render render_i (
         .clk          (clk),
@@ -845,17 +845,33 @@ module My_Top_Module #(
         .cos_snap     (cos_frame)
     );
 
-    wire hud_panel, hud_accent, hud_text, hud_item_line, hud_debuff_line;
+    wire timer_warning_active, timer_flash_red;
+    wire warning_edge_glow;
+    wire [3:0] warning_edge_strength;
+    timer_warning_overlay timer_warning_i (
+        .clk(clk), .rst(rst), .frame_tick(frame_tick),
+        .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
+        .game_state(game_state), .minutes_bcd(elapsed_minutes_bcd),
+        .seconds_bcd(elapsed_seconds_bcd), .warning_active(timer_warning_active),
+        .timer_flash_red(timer_flash_red), .edge_glow(warning_edge_glow),
+        .edge_strength(warning_edge_strength)
+    );
+
+    wire hud_panel, hud_accent, hud_text, hud_timer_line, hud_timer_red;
+    wire hud_item_line, hud_debuff_line;
     game_status_hud hud_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .active_video(active_video), .game_state(game_state),
         .n_cells(n_cells),
         .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),
+        .warning_active(timer_warning_active), .timer_flash_red(timer_flash_red),
         .active_effect(item_effect), .effect_seconds(item_seconds),
         .panel_on(hud_panel), .accent_on(hud_accent), .text_on(hud_text),
+        .timer_line(hud_timer_line), .timer_red(hud_timer_red),
         .item_line(hud_item_line), .debuff_line(hud_debuff_line)
     );
     wire [11:0] hud_rgb = !hud_text ? (hud_accent ? 12'h0af : 12'h013) :
+                          hud_timer_line ? (hud_timer_red ? 12'hf00 : 12'hfff) :
                           !hud_item_line ? 12'hfff :
                           hud_debuff_line ? 12'hf82 : 12'h4f4;
 
@@ -874,10 +890,23 @@ module My_Top_Module #(
                                 (menu_panel || menu_accent ? menu_rgb : render_rgb) :
                                 (hud_panel ? hud_rgb : render_rgb);
 
+    // Blend a narrow red vignette over the outer 16 pixels. Red is raised and
+    // green/blue are only reduced slightly, preserving maze detail at maximum.
+    wire [3:0] edge_red_add = {1'b0, warning_edge_strength[3:1]} +
+                              warning_edge_strength[0];
+    wire [4:0] edge_red_sum = {1'b0, composed_rgb[11:8]} + edge_red_add;
+    wire [3:0] edge_dim = warning_edge_strength[3:2];
+    wire [3:0] edge_green = (composed_rgb[7:4] > edge_dim) ?
+                            (composed_rgb[7:4] - edge_dim) : 4'd0;
+    wire [3:0] edge_blue = (composed_rgb[3:0] > edge_dim) ?
+                           (composed_rgb[3:0] - edge_dim) : 4'd0;
+    wire [11:0] warning_rgb = warning_edge_glow ?
+        {(edge_red_sum[4] ? 4'hf : edge_red_sum[3:0]), edge_green, edge_blue} : composed_rgb;
+
     // Do not present stale or partially written map pixels during GENERATE.
-    assign vga_r = render_enable_d ? composed_rgb[11:8] : 4'h0;
-    assign vga_g = render_enable_d ? composed_rgb[7:4]  : 4'h0;
-    assign vga_b = render_enable_d ? composed_rgb[3:0] :
+    assign vga_r = render_enable_d ? warning_rgb[11:8] : 4'h0;
+    assign vga_g = render_enable_d ? warning_rgb[7:4]  : 4'h0;
+    assign vga_b = render_enable_d ? warning_rgb[3:0] :
                                       (active_video_d ? 4'h2 : 4'h0);
 
     // Transfer the composed 512-bit status_text buffer through a held-data

@@ -19,7 +19,16 @@ module tb_menu_background;
     );
 
     integer guard;
+    integer menu_generation_count = 0;
     reg [31:0] saved_seed;
+
+    always @(posedge clk) begin
+        if (dut.menu_bg_gen_start) begin
+            menu_generation_count = menu_generation_count + 1;
+            if (dut.gen_n_cells !== 5'd20)
+                $fatal(1, "menu background generation used N=%0d, expected 20", dut.gen_n_cells);
+        end
+    end
 
     task fail;
         input [8*100-1:0] message;
@@ -100,6 +109,10 @@ module tb_menu_background;
         force dut.frame_tick = 1'b0;
         wait_game_state(`ST_MENU);
         wait_ready();
+        if (dut.render_n_cells !== 5'd20 ||
+            dut.render_start_col !== 6'd41 || dut.render_start_row !== 6'd41 ||
+            dut.render_goal_col !== 6'd41 || dut.render_goal_row !== 6'd41)
+            fail("menu background is not an N=20 maze with start and goal hidden");
         if (dut.render_cam_x !== 18'sd0 || dut.render_cam_y !== 18'sd0 ||
             dut.render_sin_q !== 16'sd0 || dut.render_cos_q !== 16'sd16923)
             fail("menu maze was not configured for centered, unrotated rendering");
@@ -108,24 +121,28 @@ module tb_menu_background;
         press_left();
         if (!dut.settings_page || !dut.menu_bg_ready || dut.seed !== saved_seed)
             fail("entering Settings changed the menu maze");
+        if (dut.render_n_cells !== 5'd20) fail("Settings did not retain the N=20 backdrop");
         press_centre();
         guard = 0;
         while (dut.settings_page && guard < 100) begin
             @(negedge clk); guard = guard + 1;
         end
         wait_ready();
+        if (dut.render_n_cells !== 5'd20) fail("return from Settings did not restore the N=20 backdrop");
         if (dut.seed === saved_seed) fail("returning from Settings reused the maze seed");
         saved_seed = dut.seed;
 
         press_right();
         if (!dut.instructions_active || !dut.menu_bg_ready)
             fail("Instructions page did not open over the current maze");
+        if (dut.render_n_cells !== 5'd20) fail("Instructions did not retain the N=20 backdrop");
         press_centre();
         guard = 0;
         while (dut.instructions_active && guard < 100) begin
             @(negedge clk); guard = guard + 1;
         end
         wait_ready();
+        if (dut.render_n_cells !== 5'd20) fail("return from Instructions did not restore the N=20 backdrop");
         if (dut.seed === saved_seed) fail("returning from Instructions reused the maze seed");
 
         // Start a game and return to MENU with the normal short BTNC action.
@@ -144,9 +161,12 @@ module tb_menu_background;
         press_centre();
         wait_game_state(`ST_MENU);
         wait_ready();
+        if (dut.render_n_cells !== 5'd20) fail("quitting a game did not restore the N=20 backdrop");
         if (dut.seed === saved_seed) fail("quitting the game reused the game maze seed");
+        if (menu_generation_count != 4)
+            fail("N=20 backdrop was not generated on menu entry and each submenu return");
 
-        $display("PASS: menu maze is centered and receives a fresh seed after Settings, Instructions, and game quit");
+        $display("PASS: centered N=20 menu maze receives a fresh seed after Settings, Instructions, and game quit");
         $finish;
     end
 

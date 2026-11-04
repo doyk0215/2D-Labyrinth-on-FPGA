@@ -30,6 +30,34 @@ module tb_top_win_indication;
             if (dut.game_state !== state) fail("state transition timeout");
         end
     endtask
+    task wait_menu_background;
+        integer guard;
+        begin
+            guard = 0;
+            while (!dut.menu_bg_ready && guard < 500000) begin
+                @(negedge clk); guard = guard + 1;
+            end
+            if (!dut.menu_bg_ready) fail("menu backdrop generation timeout");
+            // Menu visibility and synchronous maze reads take two more
+            // clocks to reach the VGA output after generation completes.
+            repeat (3) @(negedge clk);
+        end
+    endtask
+    reg [9:0] menu_probe_x, menu_probe_y;
+    task check_menu_scene;
+        begin
+            // The menu retains a generated maze. Check an unobstructed edge
+            // against the renderer while the forced ball remains hidden.
+            @(negedge clk); menu_probe_x = 10'd620; menu_probe_y = 10'd100;
+            force dut.pixel_x = menu_probe_x;
+            force dut.pixel_y = menu_probe_y;
+            repeat (3) @(negedge clk);
+            if (!dut.menu_bg_visible_d || dut.menu_panel || dut.menu_accent)
+                fail("menu backdrop or clear edge region was not active");
+            if ({r,g,b} !== dut.render_rgb)
+                fail("menu scene did not preserve the rendered maze underlay");
+        end
+    endtask
     task press_centre;
         begin
             @(negedge clk); btnC = 1'b1;
@@ -63,9 +91,8 @@ module tb_top_win_indication;
         force dut.ball_on = 1'b1; // contrasting underlay checks win priority
         repeat (20) @(negedge clk);
         wait_state(`ST_MENU);
-        check_pixel(156,212,12'h002); // MENU masks even a forced ball
-        // Menu buttons are ignored until the N = 15 backdrop maze is ready.
-        wait (dut.menu_bg_visible === 1'b1);
+        wait_menu_background();
+        check_menu_scene(); // MENU hides a forced ball behind the generated maze
         press_centre();
         wait_state(`ST_PLAY);
         force dut.frame_tick = 1'b0;
@@ -112,8 +139,10 @@ module tb_top_win_indication;
         check_pixel(156,212,12'hfff);
         press_centre();
         wait_state(`ST_MENU);
-        if (dut.maze_ram_i.ren_r || dut.render_i.win_frame) fail("reset retained win state");
-        check_pixel(156,212,12'h002);
+        wait_menu_background();
+        if (!dut.maze_ram_i.ren_r || dut.render_i.win_frame || !dut.menu_bg_visible_d)
+            fail("reset did not restore the rendered menu or retained win state");
+        check_menu_scene();
         release dut.game_ctrl_i.in_goal;
         $display("PASS: top win indication, WIN render reads, frozen physics, regeneration clearing, and menu reset");
         $finish;

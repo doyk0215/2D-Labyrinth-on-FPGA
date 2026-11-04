@@ -63,6 +63,7 @@ foreach {top snapshot marker} {
     tb_top_story83_time_up story83_snapshot "PASS: Story 8.3 top"
     tb_top_story82_countdown story82_snapshot "PASS: Story 8.2 top countdown"
     tb_game_timer game_timer_snapshot "PASS: game_timer"
+    tb_timer_warning_overlay timer_warning_snapshot "PASS: timer warning threshold, pulse, ramp, and HUD flash"
     tb_oled_status_text oled_status_snapshot "PASS: OLED status formatter"
     tb_top_story44_integration top_story44_snapshot "PASS: Story 4.4 top status"
     tb_item_ctrl item_ctrl_snapshot "PASS: item_ctrl"

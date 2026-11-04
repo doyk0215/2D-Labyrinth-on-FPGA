@@ -15,11 +15,15 @@ module game_status_hud (
     input  wire [`N_CELLS_W-1:0] n_cells,
     input  wire [7:0] minutes_bcd,
     input  wire [7:0] seconds_bcd,
+    input  wire       warning_active,
+    input  wire       timer_flash_red,
     input  wire [`ITEM_EFFECT_W-1:0] active_effect,
     input  wire [6:0] effect_seconds,
     output reg        panel_on,
     output reg        accent_on,
     output wire       text_on,
+    output reg        timer_line,
+    output reg        timer_red,
     output reg        item_line,
     output reg        debuff_line
 );
@@ -119,6 +123,8 @@ module game_status_hud (
             accent_on <= 1'b0;
             text_area_d <= 1'b0;
             text_row_d <= 3'd0;
+            timer_line <= 1'b0;
+            timer_red <= 1'b0;
             item_line <= 1'b0;
             debuff_line <= 1'b0;
         end else begin
@@ -126,6 +132,8 @@ module game_status_hud (
             accent_on <= active_video && play_active && accent_now;
             text_area_d <= text_pixel_now;
             text_row_d <= text_row_y[3:1];
+            timer_line <= text_pixel_now && row0_now;
+            timer_red <= text_pixel_now && row0_now && warning_active && timer_flash_red;
             item_line <= text_pixel_now && row1_now;
             debuff_line <= text_pixel_now && row1_now && effect_active && effect_debuff;
         end

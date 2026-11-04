@@ -64,7 +64,7 @@ module tb_top_story42_integration;
         end
     endtask
 
-    // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+    // Menu buttons are ignored until the N = 20 backdrop maze is ready.
     task wait_backdrop;
         begin
             timeout = 0;

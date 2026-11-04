@@ -348,7 +348,8 @@ module tb_maze_gen;
             $display("FAIL: N=15 did not exercise both below-cap and at-cap loop counts");
         end
 
-        // 5) seed 0 and out-of-range sizes are handled (0/1 -> 2; 15 is max).
+        // 5) seed 0 and low sizes are handled (0/1 -> 2). The N=20 bench
+        // separately checks the new upper limit and out-of-range clamping.
         run_gen(15, 32'd0);
         run_gen2(15, 15, 32'h1234_5678);
         run_gen2(2, 0, 32'h0000_0042);

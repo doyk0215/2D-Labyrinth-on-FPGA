@@ -32,7 +32,7 @@ puts $output
 
 foreach {top snapshot marker} {
     tb_monitor_menu_overlay menu_overlay_snapshot "PASS: Welcome page renders U/D = SELECT STAGE"
-    tb_menu_background menu_background_snapshot "PASS: menu maze is centered and receives a fresh seed"
+    tb_menu_background menu_background_snapshot "PASS: centered N=20 menu maze receives a fresh seed"
 } {
     if {[catch {exec xelab -debug typical -L unisims_ver -top $top -snapshot $snapshot 2>@1} output]} {
         puts $output
