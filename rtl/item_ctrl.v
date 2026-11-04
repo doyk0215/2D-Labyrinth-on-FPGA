@@ -8,6 +8,14 @@
 module item_ctrl #(
     parameter integer CLK_HZ = 100_000_000,
     parameter integer EFFECT_SECONDS = 8,
+    // Per-effect durations; each defaults to EFFECT_SECONDS.
+    parameter integer LOW_GRAV_SECONDS = EFFECT_SECONDS,
+    parameter integer INVINCIBLE_SECONDS = EFFECT_SECONDS,
+    parameter integer REVERSE_GRAV_SECONDS = EFFECT_SECONDS,
+    parameter integer HIGH_GRAV_SECONDS = EFFECT_SECONDS,
+    parameter integer ZERO_GRAV_SECONDS = EFFECT_SECONDS,
+    parameter integer INVERT_SECONDS = EFFECT_SECONDS,
+    parameter integer FOG_SECONDS = EFFECT_SECONDS,
     parameter integer RESPAWN_SECONDS = 15,
     parameter STUB_LOW_ONLY = 1'b0,
     parameter DEFER_EFFECT = 1'b0
@@ -38,8 +46,24 @@ module item_ctrl #(
     output reg [`ITEM_EFFECT_W-1:0] pending_effect
 );
     localparam integer SECOND_W = (CLK_HZ > 1) ? $clog2(CLK_HZ) : 1;
-    localparam integer DURATION = (EFFECT_SECONDS < 0) ? 0 :
-                                  (EFFECT_SECONDS > 99) ? 99 : EFFECT_SECONDS;
+    function [6:0] clamp_seconds;
+        input integer s;
+        clamp_seconds = (s < 0) ? 7'd0 : (s > 99) ? 7'd99 : s;
+    endfunction
+    // Constant table: the time bonus and unknown codes have no duration.
+    function [6:0] duration_of;
+        input [`ITEM_EFFECT_W-1:0] code;
+        case(code)
+            `ITEM_LOW_GRAV:     duration_of = clamp_seconds(LOW_GRAV_SECONDS);
+            `ITEM_INVINCIBLE:   duration_of = clamp_seconds(INVINCIBLE_SECONDS);
+            `ITEM_REVERSE_GRAV: duration_of = clamp_seconds(REVERSE_GRAV_SECONDS);
+            `ITEM_HIGH_GRAV:    duration_of = clamp_seconds(HIGH_GRAV_SECONDS);
+            `ITEM_ZERO_GRAV:    duration_of = clamp_seconds(ZERO_GRAV_SECONDS);
+            `ITEM_INVERT:       duration_of = clamp_seconds(INVERT_SECONDS);
+            `ITEM_FOG:          duration_of = clamp_seconds(FOG_SECONDS);
+            default:            duration_of = 7'd0;
+        endcase
+    endfunction
     localparam [63:0] RESPAWN_CYCLES = 64'd1 * ((CLK_HZ > 0) ? CLK_HZ : 1) *
                                      ((RESPAWN_SECONDS > 0) ? RESPAWN_SECONDS : 0);
     localparam integer RESPAWN_W = (RESPAWN_CYCLES > 1) ? $clog2(RESPAWN_CYCLES+1) : 1;
@@ -70,6 +94,8 @@ module item_ctrl #(
     reg hit_valid;
     reg [2:0] hit_index;
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
+    wire [6:0] pending_duration = duration_of(pending_effect);
+    wire [6:0] rolled_duration = duration_of(rolled_effect);
     wire [2:0] buff_count = (n_cells == 4'd15) ? 3'd3 : 3'd2;
     wire pickup_allowed = !DEFER_EFFECT || (!roulette_busy && !pending_valid);
     wire pickup_now = !rst && !phys_init && game_state == `ST_PLAY && phys_done && hit_valid && pickup_allowed;
@@ -142,8 +168,8 @@ module item_ctrl #(
             if(commit_now) begin
                 pending_valid<=0; pending_effect<=`ITEM_NONE;
                 if(pending_effect != `ITEM_TIME_BONUS) begin
-                    active_effect <= (DURATION > 0) ? pending_effect : `ITEM_NONE;
-                    effect_seconds<=DURATION; effect_subsecond<=0;
+                    active_effect <= (pending_duration != 0) ? pending_effect : `ITEM_NONE;
+                    effect_seconds<=pending_duration; effect_subsecond<=0;
                 end
             end
             if(phys_done && hit_valid && pickup_allowed) begin
@@ -160,8 +186,8 @@ module item_ctrl #(
                     pending_valid<=1; pending_effect<=rolled_effect;
                 end else if(rolled_effect != `ITEM_TIME_BONUS) begin
                     effect_subsecond<=0;
-                    effect_seconds<=DURATION;
-                    active_effect <= (DURATION > 0) ? rolled_effect : `ITEM_NONE;
+                    effect_seconds<=rolled_duration;
+                    active_effect <= (rolled_duration != 0) ? rolled_effect : `ITEM_NONE;
                 end
             end
         end

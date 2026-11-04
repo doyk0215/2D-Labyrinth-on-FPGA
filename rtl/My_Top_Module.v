@@ -33,7 +33,14 @@ module My_Top_Module #(
     parameter integer EASY_TIME_SECONDS = 60,
     parameter integer HARD_TIME_SECONDS = 120,
     parameter integer HUGE_TIME_SECONDS = 180,
-    parameter integer ITEM_EFFECT_SECONDS = 10,         // playtested in Story 9.8
+    // Item effect durations, per effect (the time bonus is instant).
+    parameter integer ITEM_LOW_GRAV_SECONDS = 12,
+    parameter integer ITEM_HIGH_GRAV_SECONDS = 12,
+    parameter integer ITEM_INVINCIBLE_SECONDS = 12,
+    parameter integer ITEM_REVERSE_GRAV_SECONDS = 10,
+    parameter integer ITEM_ZERO_GRAV_SECONDS = 10,
+    parameter integer ITEM_INVERT_SECONDS = 10,
+    parameter integer ITEM_FOG_SECONDS = 10,
     parameter integer ITEM_RESPAWN_SECONDS = 15,
     parameter integer ITEM_TIME_BONUS_SECONDS = 10,
     parameter ITEM_STUB_LOW_ONLY = 1'b0,
@@ -696,7 +703,12 @@ module My_Top_Module #(
 
     // Item coordinates share physics' stage-centred Q9.8 frame. The pickup
     // commits after physics and is visible to gravity on the following frame.
-    item_ctrl #(.CLK_HZ(TIMER_CLK_HZ), .EFFECT_SECONDS(ITEM_EFFECT_SECONDS),
+    item_ctrl #(.CLK_HZ(TIMER_CLK_HZ),
+        .LOW_GRAV_SECONDS(ITEM_LOW_GRAV_SECONDS), .HIGH_GRAV_SECONDS(ITEM_HIGH_GRAV_SECONDS),
+        .INVINCIBLE_SECONDS(ITEM_INVINCIBLE_SECONDS),
+        .REVERSE_GRAV_SECONDS(ITEM_REVERSE_GRAV_SECONDS),
+        .ZERO_GRAV_SECONDS(ITEM_ZERO_GRAV_SECONDS), .INVERT_SECONDS(ITEM_INVERT_SECONDS),
+        .FOG_SECONDS(ITEM_FOG_SECONDS),
         .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY),
         .DEFER_EFFECT(ITEM_ROULETTE_ENABLE)) item_i (
         .clk(clk), .rst(rst), .game_state(game_state), .phys_init(phys_init),

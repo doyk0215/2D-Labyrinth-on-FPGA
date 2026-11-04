@@ -8,7 +8,7 @@ module tb_top_story92_items;
     always #5 clk=~clk;
     tri1 ps2_clk,ps2_data;
     My_Top_Module #(.POR_CYCLES(4),.MENU_DEBOUNCE_CYCLES(2),.LONG_PRESS_CYCLES(64),
-        .TIMER_CLK_HZ(256),.EASY_TIME_SECONDS(99),.ITEM_EFFECT_SECONDS(2),
+        .TIMER_CLK_HZ(256),.EASY_TIME_SECONDS(99),.ITEM_LOW_GRAV_SECONDS(2),.ITEM_HIGH_GRAV_SECONDS(2),.ITEM_INVINCIBLE_SECONDS(2),.ITEM_REVERSE_GRAV_SECONDS(2),.ITEM_ZERO_GRAV_SECONDS(2),.ITEM_INVERT_SECONDS(2),.ITEM_FOG_SECONDS(2),
         .ITEM_RESPAWN_SECONDS(3),.ITEM_STUB_LOW_ONLY(1'b0),.ITEM_ROULETTE_ENABLE(1'b0),.WIN_HOLD_FRAMES(2)) dut (
         .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(1'b0),.btnL(1'b0),.btnR(1'b0),
         .sw(16'h0020),.ps2_clk(ps2_clk),.ps2_data(ps2_data)
