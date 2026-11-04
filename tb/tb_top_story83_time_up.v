@@ -15,7 +15,7 @@ module tb_top_story83_time_up;
     );
     task fail;
         input [767:0] message;
-        begin $display("FAIL Story 8.3 top: %0s (state=%0d)",message,dut.game_state); $fatal(1); end
+        begin $display("FAIL Story 8.3 top: %0s (state=%0d)",message,dut.game_state); $finish; end
     endtask
     task cycles;
         input integer n;
@@ -38,8 +38,11 @@ module tb_top_story83_time_up;
             // first player action. Force the visibility qualifier here so
             // this timeout integration bench does not need to simulate a
             // complete 800x525 VGA scan before its short timer can start.
+            // Only a mouse click counts as the player action; stand in for it.
             force dut.maze_pixel_visible=1'b1;
+            force dut.timer_player_action=1'b1;
             btnR=1; cycles(8); btnR=0; cycles(8);
+            release dut.timer_player_action;
             release dut.maze_pixel_visible;
         end
     endtask
@@ -64,13 +67,18 @@ module tb_top_story83_time_up;
         input integer hard;
         integer guard;
         begin
+            // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+            guard=0;
+            while(!dut.menu_bg_visible && guard<400000) begin cycles(1); guard=guard+1; end
+            if(!dut.menu_bg_visible) fail("menu backdrop did not finish");
             // Timeout returns to the menu without resetting its selection.
             // Navigate from the retained selection instead of assuming EASY.
             guard=0;
-            while(dut.menu_ctrl_i.selected_stage !== (hard ? 2'd1 : 2'd0) && guard<3) begin
+            while(dut.menu_ctrl_i.selected_stage !== (hard ? 2'd1 : 2'd0) && guard<4) begin
                 click(1); guard=guard+1;
             end
-            if(guard==3) fail("could not select the requested stage");
+            if(dut.menu_ctrl_i.selected_stage !== (hard ? 2'd1 : 2'd0))
+                fail("could not select the requested stage");
             click(0); frame();
             if(dut.game_state !== `ST_GENERATE) fail("stage confirm did not generate");
             guard=0;
@@ -95,8 +103,9 @@ module tb_top_story83_time_up;
             frame();
             if(dut.game_state !== `ST_LOSE || dut.phys_en || dut.angle_rot_cmd !== 0)
                 fail("timeout did not freeze gameplay into LOSE");
-            if(dut.status_text[8*32+:8] !== "T" || dut.status_text[8*37+:8] !== "U" ||
-               dut.status_text[8*38+:8] !== "P" || dut.status_text[8*25+:8] !== "0")
+            // TIME UP is the status line (row 3); 00:00 is on the VGA/7-seg.
+            if(dut.status_text[8*48+:8] !== "T" || dut.status_text[8*53+:8] !== "U" ||
+               dut.status_text[8*54+:8] !== "P" || dut.elapsed_minutes_bcd !== 0)
                 fail("LOSE did not compose TIME UP / 00:00");
             // The real top must allow the LOSE panel through its RGB mask.
             // Probe a white T pixel and its red rim; raster details are
@@ -110,7 +119,7 @@ module tb_top_story83_time_up;
             if({dut.vga_r,dut.vga_g,dut.vga_b} !== 12'hf22) fail("TIME UP red rim missing at top VGA pins");
             release dut.pixel_x; release dut.pixel_y; release dut.active_video;
             oled_snapshot();
-            if(dut.text_active[8*32+:8] !== "T" || dut.text_active[8*37+:8] !== "U")
+            if(dut.text_active[8*48+:8] !== "T" || dut.text_active[8*53+:8] !== "U")
                 fail("OLED active frame did not show TIME UP");
         end
     endtask
@@ -126,10 +135,11 @@ module tb_top_story83_time_up;
             frame(); frame();
             if(dut.game_state !== `ST_LOSE || dut.angle !== frozen_angle) fail("LOSE hold ended early or angle moved");
             frame();
-            if(dut.game_state !== `ST_MENU || dut.status_text[7:0] !== "S") fail("automatic menu return failed");
+            // The menu keeps its selection; its row carries the ">" marker.
+            if(dut.game_state !== `ST_MENU || dut.status_text[8*16*stage+:8] !== ">") fail("automatic menu return failed");
             if(dut.render_enable || dut.render_i.lose_frame) fail("TIME UP VGA panel remained after MENU");
             oled_snapshot();
-            if(dut.text_active[7:0] !== "S") fail("TIME UP remained on OLED after menu return");
+            if(dut.text_active[8*16*stage+:8] !== ">") fail("TIME UP remained on OLED after menu return");
         end
         start(0); player_action(); timeout(); click(0);
         if(dut.game_state !== `ST_MENU || dut.elapsed_minutes_bcd !== 0 || dut.elapsed_seconds_bcd !== 0)

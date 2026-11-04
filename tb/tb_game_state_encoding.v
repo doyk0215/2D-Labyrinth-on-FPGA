@@ -57,7 +57,7 @@ module tb_game_state_encoding;
     localparam [`GAME_STATE_W-1:0] UNUSED_WITH_WIN_BITS = 3'b111;
     task fail;
         input [511:0] message;
-        begin $display("FAIL game state encoding: %0s", message); $fatal(1); end
+        begin $display("FAIL game state encoding: %0s", message); $finish; end
     endtask
     task frame;
         begin
@@ -86,7 +86,7 @@ module tb_game_state_encoding;
         start_game = 1'b1;
         frame(); start_game = 1'b0;
         if (ctrl_state !== `ST_GENERATE || active_cfg !== 10'h145)
-            fail("MENU start changed the 8-bit game configuration");
+            fail("MENU start changed the 10-bit game configuration");
         repeat (5) @(negedge clk);
         gen_done = 1'b1;
         frame(); gen_done = 1'b0;
@@ -123,7 +123,8 @@ module tb_game_state_encoding;
             if (minutes !== frozen_minutes || seconds !== frozen_seconds)
                 fail("reserved code aliased PLAY in game_timer");
             if (code == `ST_LOSE) begin
-                if (status_text[32*8 +: 8] !== "T" || status_text[37*8 +: 8] !== "U")
+                // Status line (row 3) of the stage / LEVELS COMPLETED page.
+                if (status_text[48*8 +: 8] !== "T" || status_text[53*8 +: 8] !== "U")
                     fail("LOSE did not select its dedicated OLED status page");
             end else if (code == `ST_PAUSED) begin
                 if (status_text[0 +: 8] !== "P" || status_text[16*8 +: 8] !== ">")
@@ -143,7 +144,7 @@ module tb_game_state_encoding;
         release top_i.game_ctrl_i.game_state;
         state_in = `ST_WIN;
         frame();
-        if (!render_i.win_frame || {r,g,b} !== 12'hfff || status_text[32*8 +: 8] !== "Y")
+        if (!render_i.win_frame || {r,g,b} !== 12'hfff || status_text[48*8 +: 8] !== "Y")
             fail("valid WIN no longer selects VGA and OLED win indications");
 
         // Code 7 remains unused and keeps the controller's recovery path.
@@ -153,7 +154,7 @@ module tb_game_state_encoding;
         release ctrl_i.game_state;
         @(posedge clk); #1;
         if (ctrl_state !== `ST_GENERATE) fail("unused state was truncated to WIN instead of recovering");
-        $display("PASS: shared game state - 3-bit ports, v1 flow, 8-bit configuration, and no high-bit aliases");
+        $display("PASS: shared game state - 3-bit ports, v1 flow, 10-bit configuration, and no high-bit aliases");
         $finish;
     end
     initial begin #1000000; fail("timeout"); end

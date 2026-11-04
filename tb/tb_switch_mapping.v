@@ -15,6 +15,9 @@ module tb_switch_mapping;
     task frame; begin force dut.frame_tick=1;cycles(1);force dut.frame_tick=0;cycles(5);end endtask
     reg [31:0] first_seed;
     initial begin
+        // Test the switches as they act in a game: the menu ignores SW14 and
+        // latches its own random seed for the backdrop maze.
+        force dut.game_ctrl_i.game_state=`ST_PLAY;
         force dut.frame_tick=0; cycles(12);
         if(dut.snap_mode) fail("default switches selected snap");
         first_seed=dut.seed;cycles(8);if(dut.seed===first_seed) fail("SW14 low did not select running seed");
@@ -29,7 +32,6 @@ module tb_switch_mapping;
         if(!dut.snap_mode || dut.seed !== 32'hc0ffee01) fail("SW15 changed fixed seed or did not enable snap");
         sw[14]=0;cycles(8);first_seed=dut.seed;cycles(8);
         if(!dut.snap_mode || dut.seed===first_seed) fail("SW14 altered snap or failed to restore running seed");
-        force dut.game_ctrl_i.game_state=`ST_PLAY;
         btnR=1;cycles(12);frame();
         if(dut.angle !== 0) fail("snap moved before release");
         btnR=0;cycles(12);frame();

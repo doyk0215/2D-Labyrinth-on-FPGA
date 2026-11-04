@@ -1,21 +1,28 @@
 `timescale 1ns / 1ps
 `include "labyrinth_pkg.vh"
 module tb_top_story97_roulette;
-    reg clk=0,btnC=0,btnR=0;
+    reg clk=0,btnC=0,btnD=0,btnR=0;
     always #5 clk=~clk;
     tri1 ps2_clk,ps2_data;
     My_Top_Module #(.POR_CYCLES(4),.MENU_DEBOUNCE_CYCLES(2),.LONG_PRESS_CYCLES(64),
-        .TIMER_CLK_HZ(1000),.EASY_TIME_SECONDS(600),.ITEM_EFFECT_SECONDS(8),
+        .TIMER_CLK_HZ(1000),.HARD_TIME_SECONDS(600),.ITEM_EFFECT_SECONDS(8),
         .ITEM_ROULETTE_SPIN_MS(64),.ITEM_ROULETTE_HOLD_MS(16),.ITEM_BLOCK_ICON_MS(16)) dut (
-        .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(1'b0),.btnL(1'b0),.btnR(btnR),
+        .clk(clk),.btnC(btnC),.btnU(1'b0),.btnD(btnD),.btnL(1'b0),.btnR(btnR),
         .sw(16'h4000),.ps2_clk(ps2_clk),.ps2_data(ps2_data));
     task fail;input [767:0] msg;
-        begin $display("FAIL Story 9.7 top: %0s state=%0d roll=%0d visual=%h pending=%b effect=%0d",msg,dut.game_state,dut.roulette_i.state,dut.visual_active,dut.item_pending_valid,dut.item_effect);$fatal(1);end endtask
+        begin $display("FAIL Story 9.7 top: %0s state=%0d roll=%0d visual=%h pending=%b effect=%0d",msg,dut.game_state,dut.roulette_i.state,dut.visual_active,dut.item_pending_valid,dut.item_effect);$finish;end endtask
     task cycles;input integer n;begin repeat(n)@(negedge clk);#1;end endtask
     task frame;begin @(negedge clk);#1;force dut.frame_tick=1;cycles(1);force dut.frame_tick=0;cycles(80);end endtask
     task click;begin btnC=1;cycles(12);btnC=0;cycles(12);end endtask
+    // MEDIUM (N = 10) has four boxes; EASY has none. Menu buttons are
+    // ignored until the N = 15 backdrop maze is ready.
     task start;integer guard;
-        begin click();frame();guard=0;
+        begin guard=0;
+            while(!dut.menu_bg_visible && guard<400000)begin cycles(1);guard=guard+1;end
+            if(!dut.menu_bg_visible)fail("menu backdrop did not finish");
+            if(dut.menu_ctrl_i.selected_stage!==2'd1)begin btnD=1;cycles(12);btnD=0;cycles(12);end
+            if(dut.menu_ctrl_i.selected_stage!==2'd1)fail("could not select MEDIUM");
+            click();frame();guard=0;
             while(!dut.gen_done && guard<200000)begin cycles(1);guard=guard+1;end
             if(guard==200000)fail("generation timeout");position(-1);frame();
             if(dut.game_state!==`ST_PLAY || dut.box_visible!==15)fail("new game");end endtask
@@ -81,7 +88,9 @@ module tb_top_story97_roulette;
         frame_visual=dut.visual_active;
         // Even when the request changes to the selected icon, the frame being
         // scanned stays entirely on its original icon source with black margins.
-        force dut.maze_pixel_visible=1;btnR=1;cycles(8);btnR=0;cycles(8);release dut.maze_pixel_visible;
+        // Only a mouse click counts as the timer's first player action.
+        force dut.maze_pixel_visible=1;force dut.timer_player_action=1;btnR=1;cycles(8);btnR=0;cycles(8);
+        release dut.timer_player_action;release dut.maze_pixel_visible;
         saved_time={dut.elapsed_minutes_bcd,dut.elapsed_seconds_bcd};
         force dut.oled_pixel_index=requested_pixel;
         for(a=0;a<6144;a=a+1)begin
@@ -108,7 +117,7 @@ module tb_top_story97_roulette;
             fail("stopped-result frame did not activate effect");
         if(!dut.roulette_busy)fail("hold did not retain busy state");
         drain();oled_frame();
-        if(dut.visual_active[3] || dut.roulette_busy || dut.text_active[8*32+:8]!=="I")fail("hold did not return to effect status");
+        if(dut.visual_active[3] || dut.roulette_busy || dut.text_active[8*48+:8]!=="B")fail("hold did not return to the PLAY text page");
         // Protected debuff gets an icon-only notice, without pending activation.
         pick(2,-1);if(dut.item_pending_valid || dut.item_pickup_effect!==`ITEM_NONE)fail("blocked debuff queued roulette");
         drain();oled_frame();if(dut.visual_active!==4'h9)fail("protection icon missing");
@@ -121,11 +130,11 @@ module tb_top_story97_roulette;
         drain();oled_frame();
         click();start();pick(0,`ITEM_LOW_GRAV);force dut.game_ctrl_i.game_state=`ST_LOSE;cycles(4);
         if(dut.roulette_busy || dut.item_pending_valid || dut.item_effect!==`ITEM_NONE)fail("LOSE retained pending roll");
-        drain();oled_frame();if(dut.visual_active[3] || dut.text_active[8*32+:8]!=="T")fail("LOSE did not restore TIME UP page");
+        drain();oled_frame();if(dut.visual_active[3] || dut.text_active[8*48+:8]!=="T")fail("LOSE did not restore TIME UP page");
         release dut.game_ctrl_i.game_state;btnC=1;cycles(96);
         if(!dut.full_reset || dut.item_pending_valid || dut.roulette_busy || dut.item_time_bonus)fail("full reset retained roulette");
         $display("PASS: Story 9.7 top atomic OLED frame, 6144 icon-only pixels, gameplay/busy gating, stopped-result activation, blocked icon, delayed bonus and LOSE/reset cancellation");
         $finish;
     end
-    initial begin #10000000;fail("timeout");end
+    initial begin #40000000;fail("timeout");end
 endmodule

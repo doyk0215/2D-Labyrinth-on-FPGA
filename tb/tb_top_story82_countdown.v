@@ -69,7 +69,13 @@ module tb_top_story82_countdown;
         end
     endtask
     task start;
-        begin click(); frame();
+        integer guard;
+        begin
+            // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+            guard=0;
+            while(!dut.menu_bg_visible && guard<400000) begin cycles(1); guard=guard+1; end
+            if(!dut.menu_bg_visible) fail("menu backdrop did not finish");
+            click(); frame();
             if(dut.game_state !== `ST_GENERATE) fail("menu confirm failed");
             finish_generation(); end
     endtask

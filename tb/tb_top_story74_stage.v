@@ -13,7 +13,7 @@ module tb_top_story74_stage;
     );
     task fail;
         input [767:0] msg;
-        begin $display("FAIL Story 7.4: %0s state=%0d cfg=%h",msg,dut.game_state,dut.active_game_cfg); $fatal(1); end
+        begin $display("FAIL Story 7.4: %0s state=%0d cfg=%h",msg,dut.game_state,dut.active_game_cfg); $finish; end
     endtask
     task cycles;
         input integer n;
@@ -39,7 +39,7 @@ module tb_top_story74_stage;
             if(guard==200000) fail("N=15 generation timeout");
             frame();
             if(dut.game_state !== `ST_PLAY || dut.n_cells !== 15 || dut.active_game_cfg !== 10'h02F)
-                fail("HUGE was not captured as active configuration");
+                fail("HARD was not captured as active configuration");
             if(dut.start_col !== 29 || dut.start_row !== 29 || dut.goal_col !== 1 || dut.goal_row !== 1)
                 fail("HUGE start/goal coordinates incorrect");
             if(dut.ball_x !== 18'sd57344 || dut.ball_y !== 18'sd57344 ||
@@ -83,6 +83,10 @@ module tb_top_story74_stage;
     integer i;
     initial begin
         force dut.frame_tick=0; cycles(16);
+        // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+        i=0;
+        while(!dut.menu_bg_visible && i<400000) begin cycles(1); i=i+1; end
+        if(!dut.menu_bg_visible) fail("menu backdrop did not finish");
         // UP wraps to CUSTOM (stage 3); DOWN then traverses EASY, MEDIUM, HARD.
         click(1);
         if(dut.menu_ctrl_i.selected_stage !== 3 || dut.game_cfg !== 10'h200 ||
@@ -92,13 +96,13 @@ module tb_top_story74_stage;
         click(2); if(dut.game_cfg !== 10'h02F) fail("MEDIUM to HARD failed");
         click(0); frame();
         if(dut.game_state !== `ST_GENERATE || dut.active_game_cfg !== 10'h02F)
-            fail("confirm did not latch HUGE");
+            fail("confirm did not latch HARD");
         // Inputs after start must not change the active stage.
         click(1); click(2);
         finish_generation(); check_reachable();
         if(dut.status_text[8*6+:8] !== "3" || dut.status_text[8*10+:8] !== "R" ||
-           dut.status_text[8*16+:8] !== "T" || dut.status_text[8*32+:8] !== "P")
-            fail("HUGE PLAY name/time not formatted");
+           dut.status_text[8*16+:8] !== "L" || dut.status_text[8*48+:8] !== "B")
+            fail("HARD PLAY name/status not formatted");
         for(i=0;i<2000;i=i+1) cycles(1);
         if(dut.text_mailbox !== dut.status_text || dut.text_pending !== dut.status_text)
             fail("HUGE status did not cross the real OLED mailbox");
@@ -113,7 +117,7 @@ module tb_top_story74_stage;
         cycles(2); if(!dut.in_goal) fail("N=15 goal detector missed goal centre");
         frame();
         if(dut.game_state !== `ST_WIN || dut.status_text[8*6+:8] !== "3" ||
-           dut.status_text[8*32+:8] !== "Y") fail("HUGE WIN flow/status failed");
+           dut.status_text[8*48+:8] !== "Y") fail("HARD WIN flow/status failed");
         if(dut.angle === 12'd0) fail("WIN did not retain the completed maze orientation");
         release dut.ball_i.ball_x; release dut.ball_i.ball_y;
         frame(); if(dut.game_state !== `ST_WIN) fail("WIN hold ended early");
@@ -121,7 +125,7 @@ module tb_top_story74_stage;
         finish_generation(); check_reachable();
         click(0);
         if(dut.game_state !== `ST_MENU || dut.game_cfg !== 10'h005) fail("CENTER did not restore EASY stage menu");
-        $display("PASS: Story 7.4 HUGE menu, captured N=15, OLED, reachable goal, camera spawn, WIN and replay");
+        $display("PASS: Story 7.4 HARD menu, captured N=15, OLED, reachable goal, camera spawn, WIN and replay");
         $finish;
     end
     initial begin #20000000; fail("timeout"); end

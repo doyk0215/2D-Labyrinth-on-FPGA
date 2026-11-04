@@ -122,14 +122,17 @@ module tb_top_story14_integration;
         repeat (4) @(negedge clk);
         btnD = 1'b0;
         wait_state(`ST_PLAY);
+        // In-game BTND keeps the player's progress: it reuses the latched
+        // seed and rebuilds the same maze (a fresh seed comes with the WIN
+        // replay, checked in tb_top_story33_control).
         seed_second = dut.seed;
         compute_map_hash(hash_second);
-        if (seed_second === seed_first) begin
-            $display("FAIL: seed was reused for the next generation");
+        if (seed_second !== seed_first) begin
+            $display("FAIL: BTND regeneration did not reuse the latched seed");
             errors = errors + 1;
         end
-        if (hash_second === hash_first) begin
-            $display("FAIL: second generated map is identical to the first");
+        if (hash_second !== hash_first) begin
+            $display("FAIL: BTND regeneration did not rebuild the same map");
             errors = errors + 1;
         end
         if (start_count != 2) begin
@@ -138,7 +141,7 @@ module tb_top_story14_integration;
         end
 
         if (errors == 0)
-            $display("PASS: Story 1.4 top startup, fresh-seed regeneration, and render-read isolation");
+            $display("PASS: Story 1.4 top startup, same-seed BTND regeneration, and render-read isolation");
         else
             $display("FAIL: Story 1.4 top integration had %0d errors", errors);
         release dut.frame_tick;

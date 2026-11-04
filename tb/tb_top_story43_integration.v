@@ -36,10 +36,26 @@ module tb_top_story43_integration;
         .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)
     );
 
+    // Game generations only; the menu backdrop has its own requests.
     always @(posedge clk) begin
-        if (dut.gen_start)
+        if (dut.game_gen_start)
             gen_start_count = gen_start_count + 1;
     end
+
+    // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+    task wait_backdrop;
+        begin
+            timeout = 0;
+            while (!dut.menu_bg_visible && (timeout < 400000)) begin
+                @(negedge clk);
+                timeout = timeout + 1;
+            end
+            if (!dut.menu_bg_visible) begin
+                $display("FAIL: menu backdrop did not finish");
+                errors = errors + 1;
+            end
+        end
+    endtask
 
     task press_button;
         input [2:0] button_id;
@@ -126,12 +142,13 @@ module tb_top_story43_integration;
         repeat (12) @(posedge clk);
         #1;
         if (dut.game_state !== `ST_MENU || dut.game_cfg !== 10'h005 ||
-            dut.gen_start !== 1'b0 || gen_start_count != 0) begin
+            dut.game_gen_start !== 1'b0 || gen_start_count != 0) begin
             $display("FAIL: startup was not in stage-selection MENU");
             errors = errors + 1;
         end
 
-        press_button(3'd3); // choose HARD
+        wait_backdrop();
+        press_button(3'd3); // choose MEDIUM
         if (dut.game_cfg !== 10'h02A) begin
             $display("FAIL: stage selection did not retain HARD configuration");
             errors = errors + 1;
@@ -159,6 +176,7 @@ module tb_top_story43_integration;
             errors = errors + 1;
         end
 
+        wait_backdrop(); // leaving settings regenerates the backdrop
         press_button(3'd2); // BTNC on stage page starts
         wait_state(`ST_GENERATE);
         if (dut.active_game_cfg !== 10'h12A ||

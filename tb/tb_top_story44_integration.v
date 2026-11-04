@@ -36,10 +36,26 @@ module tb_top_story44_integration;
         .oled_vbatc(oled_vbatc), .oled_vddc(oled_vddc)
     );
 
+    // Game generations only; the menu backdrop has its own requests.
     always @(posedge clk) begin
-        if (dut.gen_start)
+        if (dut.game_gen_start)
             gen_start_count = gen_start_count + 1;
     end
+
+    // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+    task wait_backdrop;
+        begin
+            timeout = 0;
+            while (!dut.menu_bg_visible && (timeout < 400000)) begin
+                @(negedge clk);
+                timeout = timeout + 1;
+            end
+            if (!dut.menu_bg_visible) begin
+                $display("FAIL Story 4.4 integration: menu backdrop did not finish");
+                errors = errors + 1;
+            end
+        end
+    endtask
 
     task pulse_frame;
         begin
@@ -153,8 +169,10 @@ module tb_top_story44_integration;
             $display("FAIL Story 4.4 integration: power-on did not show MENU");
             errors = errors + 1;
         end
-        expect_char(0, "S", "stage-menu text retained");
+        expect_char(0, ">", "stage-menu text retained");
+        expect_char(1, "E", "stage-menu EASY row");
 
+        wait_backdrop;
         press_confirm;
         pulse_frame;
         wait_state(`ST_GENERATE);
@@ -170,10 +188,11 @@ module tb_top_story44_integration;
             errors = errors + 1;
         end
         expect_char(6, "1", "stage one from active configuration");
-        expect_char(22, "1", "timer shows the stage limit");
+        expect_char(16, "L", "levels-completed row");
+        expect_char(48, "B", "PLAY status row");
 
-        // Synchronize the initial PLAY status into the OLED, then hold its
-        // frame snapshot while the first countdown second changes the text.
+        // Synchronize the initial PLAY status into the OLED. The countdown is
+        // on the VGA and seven-segment displays, so it must not change the page.
         force dut.oled_frame_begin = 1'b0;
         wait_text_pending;
         force dut.oled_frame_begin = 1'b1;
@@ -205,29 +224,22 @@ module tb_top_story44_integration;
             $display("FAIL Story 4.4 integration: one-second countdown did not reach 00:59");
             errors = errors + 1;
         end
-        expect_char(25, "9", "live remaining seconds");
-        force dut.oled_frame_begin = 1'b0;
-        wait_text_pending;
-        if (dut.text_active !== old_active_text) begin
-            $display("FAIL Story 4.4 integration: live timer tore the active OLED frame");
-            errors = errors + 1;
-        end
-        force dut.oled_frame_begin = 1'b1;
-        repeat (4) @(posedge dut.clk_6m25);
-        #1 release dut.oled_frame_begin;
-        if (dut.text_active !== dut.status_text) begin
-            $display("FAIL Story 4.4 integration: complete live timer page missed OLED frame latch");
+        if (dut.status_text !== old_active_text || dut.text_active !== old_active_text) begin
+            $display("FAIL Story 4.4 integration: the countdown changed the OLED page");
             errors = errors + 1;
         end
 
+        // PLAY -> WIN changes the status line; it reaches the OLED only at
+        // a frame boundary, as one complete page.
         force dut.in_goal = 1'b1;
         pulse_frame;
         release dut.in_goal;
         wait_state(`ST_WIN);
-        if (dut.status_text[8*32 +: 8] !== "Y") begin
+        if (dut.status_text[8*48 +: 8] !== "Y") begin
             $display("FAIL Story 4.4 integration: OLED did not display retained WIN status");
             errors = errors + 1;
         end
+        apply_status_at_frame;
         repeat (TIMER_CLK_HZ * 3) @(posedge clk);
         #1;
         if (dut.elapsed_seconds_bcd !== 8'h59 || dut.elapsed_minutes_bcd !== 8'h00) begin
@@ -249,14 +261,14 @@ module tb_top_story44_integration;
         press_confirm;
         wait_state(`ST_MENU);
         if (dut.elapsed_minutes_bcd !== 8'h00 || dut.elapsed_seconds_bcd !== 8'h00 ||
-            dut.status_text[7:0] !== "S") begin
+            dut.status_text[7:0] !== ">") begin
             $display("FAIL Story 4.4 integration: reset did not clear time and restore menu text");
             errors = errors + 1;
         end
         release dut.frame_tick;
 
         if (errors == 0)
-            $display("PASS: Story 4.4 top status, timer, WIN freeze, replay clear, reset, and OLED frame snapshot");
+            $display("PASS: Story 4.4 top status page, countdown kept off the OLED, WIN freeze, replay reload, reset, and frame-safe OLED snapshot");
         else
             $display("FAIL: Story 4.4 integration had %0d errors", errors);
         $finish;

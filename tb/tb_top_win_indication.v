@@ -64,6 +64,8 @@ module tb_top_win_indication;
         repeat (20) @(negedge clk);
         wait_state(`ST_MENU);
         check_pixel(156,212,12'h002); // MENU masks even a forced ball
+        // Menu buttons are ignored until the N = 15 backdrop maze is ready.
+        wait (dut.menu_bg_visible === 1'b1);
         press_centre();
         wait_state(`ST_PLAY);
         force dut.frame_tick = 1'b0;
@@ -116,5 +118,5 @@ module tb_top_win_indication;
         $display("PASS: top win indication, WIN render reads, frozen physics, regeneration clearing, and menu reset");
         $finish;
     end
-    initial begin #1000000; fail("timeout"); end
+    initial begin #20000000; fail("timeout"); end
 endmodule
