@@ -5,9 +5,16 @@
 // The first row shows time remaining; the second shows the current effect and
 // its seconds remaining. Coordinates and font flags share one clock of latency
 // with render's VGA output.
-module game_status_hud (
+module game_status_hud #(
+    parameter integer CLK_HZ = 100_000_000,
+    parameter integer BONUS_SECONDS = 10,
+    parameter integer BONUS_NOTICE_MS = 2000
+) (
     input  wire       clk,
     input  wire       rst,
+    input  wire       frame_tick,
+    input  wire       phys_init,
+    input  wire       time_bonus_pulse,
     input  wire [9:0] pixel_x,
     input  wire [9:0] pixel_y,
     input  wire       active_video,
@@ -25,8 +32,36 @@ module game_status_hud (
     output reg        timer_line,
     output reg        timer_red,
     output reg        item_line,
-    output reg        debuff_line
+    output reg        debuff_line,
+    output reg        bonus_line
 );
+    // This is a display receipt for an already-applied instant bonus. It
+    // never drives the game timer or replaces the current timed effect.
+    localparam integer BONUS_VALUE = BONUS_SECONDS < 0 ? 0 :
+                                     BONUS_SECONDS > 5999 ? 5999 : BONUS_SECONDS;
+    localparam [63:0] NOTICE_RAW = 64'd1 * ((CLK_HZ > 0) ? CLK_HZ : 1) *
+                                  ((BONUS_NOTICE_MS > 0) ? BONUS_NOTICE_MS : 0) / 1000;
+    localparam [63:0] NOTICE_CYCLES = NOTICE_RAW > 0 ? NOTICE_RAW : 1;
+    localparam integer NOTICE_W = $clog2(NOTICE_CYCLES + 1);
+    reg [NOTICE_W-1:0] notice_left = 0;
+    reg bonus_notice = 0;
+    always @(posedge clk) begin
+        if (rst || phys_init || (game_state != `ST_PLAY && game_state != `ST_PAUSED)) begin
+            notice_left <= 0;
+            bonus_notice <= 0;
+        end else begin
+            if (game_state == `ST_PLAY) begin
+                if (time_bonus_pulse && BONUS_VALUE != 0)
+                    notice_left <= NOTICE_CYCLES;
+                else if (notice_left != 0)
+                    notice_left <= notice_left - 1'b1;
+            end
+            // Keep the row's contents/colour stable for the visible frame.
+            if (frame_tick)
+                bonus_notice <= notice_left != 0 ||
+                                (game_state == `ST_PLAY && time_bonus_pulse && BONUS_VALUE != 0);
+        end
+    end
     function [7:0] digit_ascii;
         input [3:0] digit;
         begin digit_ascii = (digit <= 4'd9) ? (8'h30 + digit) : 8'h3f; end
@@ -55,6 +90,17 @@ module game_status_hud (
     reg [159:0] time_line;
     reg [159:0] item_status_line;
     wire [15:0] effect_digits = seconds_digits(effect_seconds);
+    // Parameter arithmetic is elaboration-only, including unusually large
+    // bonuses; normal +10 seconds is shown as TIME BUFF +10s.
+    localparam [7:0] BONUS_TENS = 8'h30 + ((BONUS_VALUE / 10) % 10);
+    localparam [7:0] BONUS_ONES = 8'h30 + (BONUS_VALUE % 10);
+    localparam [7:0] BONUS_MT = 8'h30 + (BONUS_VALUE / 600);
+    localparam [7:0] BONUS_MO = 8'h30 + ((BONUS_VALUE / 60) % 10);
+    localparam [7:0] BONUS_ST = 8'h30 + ((BONUS_VALUE % 60) / 10);
+    localparam [159:0] BONUS_TEXT = BONUS_VALUE >= 100 ?
+        {"TIME BUFF +", BONUS_MT, BONUS_MO, ":", BONUS_ST, BONUS_ONES, {4{8'h20}}} :
+        BONUS_VALUE >= 10 ? {"TIME BUFF +", BONUS_TENS, BONUS_ONES, "s", {6{8'h20}}} :
+                           {"TIME BUFF +", BONUS_ONES, "s", {7{8'h20}}};
 
     always @* begin
         case (active_effect)
@@ -74,7 +120,9 @@ module game_status_hud (
                      digit_ascii(seconds_bcd[7:4]),
                      digit_ascii(seconds_bcd[3:0]),
                      {10{8'h20}}};
-        if (effect_active && effect_debuff)
+        if (bonus_notice)
+            item_status_line = BONUS_TEXT;
+        else if (effect_active && effect_debuff)
             item_status_line = {"DEBUFF ", item_name, " ", effect_digits, "s", 8'h20};
         else if (effect_active)
             item_status_line = {"BUFF ", item_name, " ", effect_digits, "s", {3{8'h20}}};
@@ -84,10 +132,10 @@ module game_status_hud (
 
     // Panel: x=380..627, y=12..59. Each 20-character row uses a 12-pixel
     // cell (10x14 glyph plus a 2-pixel gap) with four-pixel side margins.
-    // Maps up to N = 5 (EASY and small custom sizes) still show the timer, but
-    // omit the item row because they have no buff/debuff boxes.
+    // Maps up to N = 6 still show the timer, but omit the item row because
+    // they have no buff/debuff boxes.
     wire play_active = (game_state == `ST_PLAY);
-    wire item_row_active = (n_cells > 5'd5);
+    wire item_row_active = (n_cells > 5'd6);
     wire panel_now = pixel_x >= 10'd380 && pixel_x < 10'd628 &&
                      pixel_y >= 10'd12 && pixel_y < 10'd60;
     wire accent_now = panel_now && (pixel_x < 10'd384 || pixel_x >= 10'd624 ||
@@ -129,6 +177,7 @@ module game_status_hud (
             timer_red <= 1'b0;
             item_line <= 1'b0;
             debuff_line <= 1'b0;
+            bonus_line <= 1'b0;
         end else begin
             panel_on <= active_video && play_active && panel_now;
             accent_on <= active_video && play_active && accent_now;
@@ -137,7 +186,8 @@ module game_status_hud (
             timer_line <= text_pixel_now && row0_now;
             timer_red <= text_pixel_now && row0_now && warning_active && timer_flash_red;
             item_line <= text_pixel_now && row1_now;
-            debuff_line <= text_pixel_now && row1_now && effect_active && effect_debuff;
+            debuff_line <= text_pixel_now && row1_now && !bonus_notice && effect_active && effect_debuff;
+            bonus_line <= text_pixel_now && row1_now && bonus_notice;
         end
     end
     assign text_on = text_area_d && font_data[text_row_d];

@@ -871,9 +871,11 @@ module My_Top_Module #(
     );
 
     wire hud_panel, hud_accent, hud_text, hud_timer_line, hud_timer_red;
-    wire hud_item_line, hud_debuff_line;
-    game_status_hud hud_i (
+    wire hud_item_line, hud_debuff_line, hud_bonus_line;
+    game_status_hud #(.CLK_HZ(TIMER_CLK_HZ),
+        .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) hud_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
+        .frame_tick(frame_tick), .phys_init(phys_init), .time_bonus_pulse(item_time_bonus),
         .active_video(active_video), .game_state(game_state),
         .n_cells(n_cells),
         .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),
@@ -881,11 +883,12 @@ module My_Top_Module #(
         .active_effect(item_effect), .effect_seconds(item_seconds),
         .panel_on(hud_panel), .accent_on(hud_accent), .text_on(hud_text),
         .timer_line(hud_timer_line), .timer_red(hud_timer_red),
-        .item_line(hud_item_line), .debuff_line(hud_debuff_line)
+        .item_line(hud_item_line), .debuff_line(hud_debuff_line), .bonus_line(hud_bonus_line)
     );
     wire [11:0] hud_rgb = !hud_text ? (hud_accent ? 12'h0af : 12'h013) :
                           hud_timer_line ? (hud_timer_red ? 12'hf00 : 12'hfff) :
                           !hud_item_line ? 12'hfff :
+                          hud_bonus_line ? 12'h4f4 :
                           hud_debuff_line ? 12'hf82 : 12'h4f4;
 
     // The huge background stays in RAM while only the menu overlay mode changes.
