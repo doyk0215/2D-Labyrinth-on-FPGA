@@ -1,7 +1,7 @@
 ---
 story_id: 10.1a
 title: Approved stone-brick maze walls
-status: review-preparation
+status: review
 owner: CJX
 reviewers: [DY, QZ]
 ---
@@ -62,7 +62,25 @@ Vivado 2025.2, 2026-11-05:
 - `git diff --check` passes. No full current-stories suite PASS is claimed;
   this run is the nine-bench rendering-focused regression above.
 
-Routed-build results will be recorded after completion.
+- Fresh Basys 3 synthesis and routed implementation, RTL commit `413c60d`:
+  setup WNS **+0.150 ns**, TNS 0; hold WHS **+0.048 ns**, THS 0; no failing
+  endpoints. All 12,969 routable nets are fully routed, with no routing errors.
+- Resources: 6,499 LUTs (31.25%), 7,375 registers (17.73%), 3.5 BRAM tiles,
+  6 DSPs, 0 MMCM/PLL, within AD-8 caps.
+- Routed checks: no unclocked registers, unconstrained internal endpoints,
+  disconnected generated clocks or combinational loops. Both 100 MHz and
+  6.25 MHz OLED clocks are present. Synthesis's generated-clock lookup warning
+  does not persist as an unconstrained routed clock. Existing external I/O
+  delay warnings remain; no new I/O constraint changes are part of this slice.
+- Bitstream precondition DRC: **0 errors**.
+- Bitstream generation **PASS**, build exit 0. The short-path project uses
+  the repository build flow with only its output directory relocated.
+  Local file: `C:/EE2026Projects/brick-wall-preview/Story10_1a_BrickWalls.bit`.
+  Original build: `C:/EE2026Projects/build-story101a-20261105-185617/`.
+  SHA256: `3D87A7B0F15B5D7ED37BDA476A6FE38DE6D21A1CBC9731F3E687D36B5324B6F9`.
+  Reports are under `labyrinth.runs/impl_1` in that project; local build/sim logs
+  are `C:/EE2026Projects/brick-wall-preview/story101a-{build,sim}.log`.
+
 Board check is pending; no hardware PASS is claimed by the author.
 
 ## Board checklist (DY or QZ)
