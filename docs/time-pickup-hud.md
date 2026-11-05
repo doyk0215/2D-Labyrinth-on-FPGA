@@ -46,9 +46,21 @@ The preview is an actual HUD RTL raster with sample timer inputs (01:52 before,
 
 ![Buff-green time-pickup HUD receipt](time-pickup-hud.png)
 
-The earlier orange build is superseded by the buff-green correction. A fresh
-green bitstream is being generated; final routed evidence will replace this
-paragraph when complete. Do not use the old orange bitstream for colour signoff.
+The final green **TIME BUFF +10s** bitstream completed at 22:06 Singapore on
+2026-11-05 from RTL `cfb760a` (later changes are documentation/preview only):
+
+- Routed WNS **+0.213 ns**, WHS **+0.066 ns**, TNS/THS zero. All user-specified
+  timing constraints met; 13,076/13,076 routable nets fully routed, zero errors.
+- DRC zero errors; seven existing DSP pipelining advisories remain. Both
+  100 MHz and 6.25 MHz clocks present; zero unclocked registers and zero
+  unconstrained internal endpoints. Existing external-I/O delay warnings
+  remain; no constraints changed.
+- Placed resources: 6,582 LUTs (31.64%), 7,405 FFs (17.80%), 3.5 BRAM tiles,
+  six DSPs, zero MMCM/PLL, within AD-8 budgets.
+- Project: `C:/EE2026Projects/time-pickup-hud/build/sevenseg-vga-status-vivado-20261105-215810`.
+- Stable bitstream: `C:/EE2026Projects/time-pickup-preview/TimePickupHUD_Green.bit`.
+  The earlier `TimePickupHUD.bit` path also now contains this corrected build.
+- SHA256: `738DD2FF7A7F534F8B5718DF8BDC96FEF0B7F54427F0B77D532968894B7D9C45`.
 
 This is main plus the time-pickup fix; unmerged PR #100's menu redesign is not
 included in this standalone bitstream. Board test pending; no PASS is claimed.
