@@ -2,7 +2,7 @@
 
 The time bonus applies immediately and deliberately leaves any timed buff or
 debuff running. The VGA HUD now acknowledges that grant in the existing item
-row, using the existing buff-green RGB444 `4f4` text: **TIME +10s** with the default bonus.
+row, using the existing buff-green RGB444 `4f4` text: **TIME BUFF +10s** with the default bonus.
 After two seconds of PLAY, the row returns to the current timed effect or
 ITEM NONE. The panel size and timer row stay unchanged; OLED roulette retains
 its existing icon sequence and colours.
@@ -26,7 +26,7 @@ fix. It is independent of the welcome/menu PR #100.
 ## Validation
 
 Vivado 2025.2, 2026-11-05: `source tb/run_time_pickup_hud.tcl` **8/8 PASS**,
-repeated on green-colour RTL `fb8b7a9`. Time pickups use the normal buff colour;
+repeated on final green TIME BUFF RTL `cfb760a`. Time pickups use the normal buff colour;
 the existing orange debuff text is unchanged.
 
 - Receipt lifetime, pause/resume, repeat grants, frame stability, configured
@@ -58,7 +58,7 @@ included in this standalone bitstream. Board test pending; no PASS is claimed.
 1. Use MEDIUM, HARD, EPIC or a CUSTOM map with item boxes. Collect a buff box
    until roulette selects the time bonus.
 2. During the spin the HUD keeps its ordinary item status. At the stopped
-   selected result, remaining time increases and the item row reads TIME +10s
+   selected result, remaining time increases and the item row reads TIME BUFF +10s
    in buff green for about two seconds, then restores the ordinary status.
 3. Repeat with a timed effect already active. It keeps running underneath the
    notice and reappears with its current remaining duration. A second time
