@@ -101,7 +101,7 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
 **Menu and OLED (B and A)**
 - `game_cfg[9:0]` — `{custom, rot_speed_sel[1:0], restitution_sel[1:0], n_cells[4:0]}` — `menu_ctrl` → `game_ctrl` (latched at game start).
 - `menu_ctrl.selected_stage` is three bits for EASY (N=5), MEDIUM (N=10), HARD (N=15), EPIC (N=20), and CUSTOM. UP/DOWN move through this order with wrap; both together do nothing. The four-row OLED stage list scrolls its visible window as needed. EPIC has its own HIGH score; CUSTOM does not. PLAY/WIN identify the four presets as `STAGE 1 EASY` through `STAGE 4 EPIC`.
-- CUSTOM computes N = 5 + unsigned SW[3:0] and displays the current result as `CUSTOM 5+X=N`; SW4 is unused. Its supported range is 5..20. Time is 12 s × N for custom sizes, with preset limits at N=5/10/15/20. Loop caps remain 3 at N=10 and 5 at N=15; only N=20 increases to a maximum of 7, with each band still seed-skippable. Only N=20 increases to eight boxes (four buffs and four debuffs); N=15..19 retain six, and smaller eligible mazes retain four.
+- CUSTOM computes N = 5 + unsigned SW[3:0] and displays the current result as `CUSTOM 5+X=N`; SW4 is unused. Its supported range is 5..20. Time is 12 s × N for custom sizes, with preset limits at N=5/10/15/20. Loop caps remain 3 at N=10 and 5 at N=15; only N=20 increases to a maximum of 7, with each band still seed-skippable. Item boxes: N<=6 has none; N=7..8 has one buff and one debuff; N=9..14 has two of each; N=15..19 has three of each; N=20 has four of each.
 - `status_text[511:0]` — 64 characters (4 rows × 16), row-major, ASCII — `menu_ctrl` → `oled_driver`
 - `oled_driver` pins: `oled_cs`, `oled_mosi`, `oled_sclk`, `oled_dc`, `oled_res`, `oled_vbatc`, `oled_vddc`
 
