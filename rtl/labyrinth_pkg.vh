@@ -65,6 +65,10 @@
 `define ITEM_ZERO_GRAV 4'd5
 `define ITEM_INVERT    4'd6
 `define ITEM_FOG       4'd7
+// ID 8 is reserved for Kim's Wall Breaker buff. Existing IDs stay stable.
+`define ITEM_INSTANT_DEATH 4'd9
+`define ITEM_ICON_W    4
+`define ITEM_VISUAL_W  5       // {icon-source enable, four-bit item/icon ID}
 `define ITEM_NONE      4'd15
 
 // ---- Rotation command (rot_cmd[1:0], signed) ----

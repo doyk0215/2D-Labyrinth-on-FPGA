@@ -34,6 +34,7 @@ module ball_physics (
     input  wire                         rst,
     input  wire                         frame_tick,
     input  wire                         phys_init,    // pulse: place the ball at spawn tile, velocity 0
+    input  wire                         instant_respawn, // frame-safe item action; no game/maze reset
     input  wire                         phys_en,      // 1 = PLAY: apply gravity
     input  wire [`COORD_W-1:0]          spawn_col,
     input  wire [`COORD_W-1:0]          spawn_row,
@@ -295,13 +296,14 @@ module ball_physics (
             endcase
 
             // a new maze puts the ball at the selected spawn tile, at rest
-            if (phys_init) begin
+            if (phys_init || instant_respawn) begin
                 ball_x <= spawn_x; ball_y <= spawn_y;
                 vel_x  <= 0;       vel_y  <= 0;
                 gx_frac <= 0;      gy_frac <= 0;
                 ft_d <= 5'b0;
                 go2 <= 1'b0; go3 <= 1'b0;
                 state <= S_IDLE;
+                phys_done <= 1'b0; // discard any old collision-step completion
             end
         end
     end

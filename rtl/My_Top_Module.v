@@ -300,12 +300,13 @@ module My_Top_Module #(
     wire [`ITEM_EFFECT_W-1:0] item_pickup_effect;
     wire item_debuff_blocked;
     wire item_time_bonus;
+    wire item_instant_death, instant_respawn_apply;
     wire item_pending_valid;
     wire [`ITEM_EFFECT_W-1:0] item_pending_effect;
     wire roulette_busy,roulette_commit,roulette_returning;
-    wire [3:0] roulette_visual;
+    wire [`ITEM_VISUAL_W-1:0] roulette_visual;
     reg oled_display_frame=0;
-    reg [3:0] oled_display_visual=0;
+    reg [`ITEM_VISUAL_W-1:0] oled_display_visual=0;
     wire [31:0] seed;
     wire        gen_start;
     wire        seed_capture;
@@ -707,6 +708,7 @@ module My_Top_Module #(
         .rst        (rst),
         .frame_tick (frame_tick),
         .phys_init  (phys_init),
+        .instant_respawn(instant_respawn_apply),
         .phys_en    (phys_en),
         .spawn_col  (start_col),
         .spawn_row  (start_row),
@@ -738,15 +740,21 @@ module My_Top_Module #(
         .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY),
         .DEFER_EFFECT(ITEM_ROULETTE_ENABLE)) item_i (
         .clk(clk), .rst(rst), .game_state(game_state), .phys_init(phys_init),
-        .phys_done(phys_done), .n_cells(n_cells), .ball_x(ball_x), .ball_y(ball_y),
+        .phys_done(phys_done && !instant_respawn_apply), .n_cells(n_cells), .ball_x(ball_x), .ball_y(ball_y),
         .box_cols(box_cols), .box_rows(box_rows), .box_valid(box_valid), .seed(seed),
         .roulette_busy(roulette_busy), .roulette_commit(roulette_commit),
         .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
         .pickup_pulse(item_pickup), .pickup_index(item_pickup_index),
         .pickup_effect(item_pickup_effect), .debuff_blocked(item_debuff_blocked),
-        .time_bonus_pulse(item_time_bonus), .pending_valid(item_pending_valid),
+        .time_bonus_pulse(item_time_bonus), .instant_death_pulse(item_instant_death), .pending_valid(item_pending_valid),
         .pending_effect(item_pending_effect)
     );
+
+    instant_death_respawn death_respawn_i (
+        .clk(clk),.rst(rst),.phys_init(phys_init),.frame_tick(frame_tick),
+        .request(item_instant_death),.game_state(game_state),
+        .pause_requested(btnU_press),.time_up(time_up),.in_goal(in_goal),
+        .apply(instant_respawn_apply));
 
     item_roulette #(.CLK_HZ(TIMER_CLK_HZ),.SPIN_MS(ITEM_ROULETTE_SPIN_MS),
         .HOLD_MS(ITEM_ROULETTE_HOLD_MS),.BLOCK_MS(ITEM_BLOCK_ICON_MS)) roulette_i (
@@ -765,8 +773,8 @@ module My_Top_Module #(
     camera camera_i (
         .clk       (clk),
         .rst       (rst),
-        .phys_init (phys_init),
-        .phys_done (phys_done),
+        .phys_init (phys_init || instant_respawn_apply),
+        .phys_done (phys_done && !instant_respawn_apply),
         .n_cells   (n_cells),
         .ball_x    (ball_x),
         .ball_y    (ball_y),
@@ -958,7 +966,7 @@ module My_Top_Module #(
     reg text_ack_toggle = 1'b0;
     reg text_req_toggle = 1'b0;
     reg [511:0] text_mailbox = 512'd0;
-    reg [3:0] visual_mailbox=0;
+    reg [`ITEM_VISUAL_W-1:0] visual_mailbox=0;
     always @(posedge clk) begin
         if (system_reset) begin
             text_ack_sync <= 2'b00;
@@ -983,7 +991,7 @@ module My_Top_Module #(
     reg [511:0] text_pending = 512'd0;
     reg [511:0] text_active = 512'd0;
     reg text_pending_valid = 1'b0;
-    reg [3:0] visual_pending=0,visual_active=0;
+    reg [`ITEM_VISUAL_W-1:0] visual_pending=0,visual_active=0;
     reg oled_frame_toggle=0;
     always @(posedge clk_6m25) begin
         if (oled_reset) begin
@@ -1036,8 +1044,8 @@ module My_Top_Module #(
         .status_text(text_active), .pixel_data(oled_text_data)
     );
     oled_roulette_pixel roulette_pixel_i(.clk(clk_6m25),.pixel_index(oled_pixel_index),
-        .icon(visual_active[2:0]),.pixel_data(oled_icon_data));
-    assign oled_pixel_data=visual_active[3] ? oled_icon_data : oled_text_data;
+        .icon(visual_active[`ITEM_ICON_W-1:0]),.pixel_data(oled_icon_data));
+    assign oled_pixel_data=visual_active[`ITEM_ICON_W] ? oled_icon_data : oled_text_data;
 
     Oled_Display oled_i (
         .clk(clk_6m25), .reset(oled_reset),
