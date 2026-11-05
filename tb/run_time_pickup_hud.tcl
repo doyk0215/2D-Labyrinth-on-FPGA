@@ -6,7 +6,7 @@ cd $run
 set rtl [file join $repo rtl]
 set tb [file join $repo tb]
 if {[catch {exec xvhdl -work work [file join $rtl Ps2Interface.vhd] [file join $rtl Mouse_Control.vhd] 2>@1} out]} {puts $out;error "VHDL compilation failed"}
-set benches {tb_time_pickup_hud tb_timer_warning_overlay tb_time_bonus tb_top_story95_buffs tb_game_timer tb_top_story82_countdown tb_item_roulette}
+set benches {tb_time_pickup_hud tb_top_time_pickup_hud tb_timer_warning_overlay tb_time_bonus tb_top_story95_buffs tb_game_timer tb_top_story82_countdown tb_item_roulette}
 set cmd [list xvlog -work work -i $rtl]
 foreach source [glob [file join $rtl *.v]] {lappend cmd $source}
 foreach bench $benches {lappend cmd [file join $tb ${bench}.v]}
@@ -18,4 +18,4 @@ foreach bench $benches {
     puts $out
     if {[string first "FAIL" $out]>=0 || [string first "PASS:" $out]<0} {error "$bench did not pass"}
 }
-puts "PASS time pickup HUD focused regression (7 benches)"
+puts "PASS time pickup HUD focused regression (8 benches)"
