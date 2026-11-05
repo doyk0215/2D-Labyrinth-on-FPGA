@@ -9,7 +9,7 @@
 // so an aliased read would let the ball through. Goal bounds at (1,1) and at
 // a far goal (39,39).
 // Items: with N = 20 the box at (35,37) is picked up, and the box at its
-// alias (3,5) is not; a debuff box at (33,39) is the debuff pool (index 3,
+// alias (3,5) is not; a debuff box at (33,39) is the debuff pool (index 4,
 // with three buffs from N = 15 up).
 module tb_n20_play;
     reg clk = 1'b0, rst = 1'b1, frame_tick = 1'b0, phys_init = 1'b0;
@@ -35,6 +35,7 @@ module tb_n20_play;
         .ren_r(1'b0), .raddr_r({`MAP_ADDR_W{1'b0}}), .rdata_r()
     );
     ball_physics dut (
+        .instant_respawn(1'b0),
         .effect_code(`ITEM_NONE),
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init),
         .phys_en(1'b1), .spawn_col(spawn_col), .spawn_row(spawn_row),
@@ -100,16 +101,16 @@ module tb_n20_play;
     // ---- items ----
     reg item_done = 1'b0;
     reg signed [`POS_W-1:0] item_x = 0, item_y = 0;
-    reg [6*`COORD_W-1:0] box_cols = {6'd0, 6'd0, 6'd33, 6'd0, 6'd3, 6'd35};
-    reg [6*`COORD_W-1:0] box_rows = {6'd0, 6'd0, 6'd39, 6'd0, 6'd5, 6'd37};
-    wire [5:0] box_visible;
+    reg [8*`COORD_W-1:0] box_cols = {6'd0, 6'd0, 6'd0, 6'd33, 6'd0, 6'd0, 6'd3, 6'd35};
+    reg [8*`COORD_W-1:0] box_rows = {6'd0, 6'd0, 6'd0, 6'd39, 6'd0, 6'd0, 6'd5, 6'd37};
+    wire [7:0] box_visible;
     wire item_pulse, item_blocked;
     wire [2:0] item_index;
     wire [`ITEM_EFFECT_W-1:0] item_picked;
     item_ctrl #(.CLK_HZ(4), .EFFECT_SECONDS(2), .RESPAWN_SECONDS(3)) items_i (
         .clk(clk), .rst(rst), .game_state(`ST_PLAY), .phys_init(phys_init), .phys_done(item_done),
         .n_cells(n_cells), .ball_x(item_x), .ball_y(item_y),
-        .box_cols(box_cols), .box_rows(box_rows), .box_valid(6'b001011), .seed(32'h1234_5678),
+        .box_cols(box_cols), .box_rows(box_rows), .box_valid(8'h13), .seed(32'h1234_5678),
         .roulette_busy(1'b0), .roulette_commit(1'b0),
         .box_visible(box_visible), .active_effect(), .effect_seconds(),
         .pickup_pulse(item_pulse), .pickup_index(item_index), .pickup_effect(item_picked),
@@ -157,9 +158,10 @@ module tb_n20_play;
         item_at(3, 5); item_sample();
         if (!item_pulse || item_index !== 3'd1) fail("box at (3,5) not picked up on its own tile");
         item_at(33, 39); item_sample();
-        if (!item_pulse || item_index !== 3'd3) fail("debuff box at (33,39) not picked up");
-        if (!item_blocked && (item_picked < `ITEM_REVERSE_GRAV || item_picked > `ITEM_FOG))
-            fail("box 3 is not from the debuff pool");   // blocked if a buff rolled invincibility
+        if (!item_pulse || item_index !== 3'd4) fail("debuff box at (33,39) not picked up");
+        if (!item_blocked && (item_picked < `ITEM_REVERSE_GRAV ||
+                             (item_picked > `ITEM_FOG && item_picked != `ITEM_INSTANT_DEATH)))
+            fail("box 4 is not from the debuff pool");   // EPIC has four buff slots before its debuffs
 
         if (errors == 0)
             $display("PASS: N=20 play: wall clamps at tiles 36 and 40 on both axes, goal bounds (1,1) and (39,39), item pickup at (35,37) and (33,39) without aliasing");

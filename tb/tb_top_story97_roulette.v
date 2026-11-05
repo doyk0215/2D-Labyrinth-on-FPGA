@@ -57,7 +57,7 @@ module tb_top_story97_roulette;
             @(posedge dut.clk_6m25);#1;
             @(negedge dut.clk_6m25);force dut.oled_frame_begin=0;release dut.oled_sample_pixel;cycles(80);
         end endtask
-    reg [3:0] previous_visual=0;
+    reg [4:0] previous_visual=0;
     always @(posedge dut.clk_6m25)begin
         previous_visual=dut.visual_active;
         #1;if(!dut.oled_reset && !dut.oled_frame_begin && dut.visual_active!==previous_visual)
@@ -66,10 +66,10 @@ module tb_top_story97_roulette;
     integer grants=0,completions=0;
     always @(posedge clk)begin if(dut.item_time_bonus)grants=grants+1;if(dut.phys_done)completions=completions+1;end
     reg [12:0] requested_pixel=0;
-    reg [1:0] indices[0:2047];reg [15:0] palette[0:31];
+    reg [1:0] indices[0:2559];reg [15:0] palette[0:39];
     integer a,px,py,ix,iy,rom_address,saved_completions,saved_grants;
     reg [15:0] expected,saved_time;
-    reg [3:0] frame_visual;
+    reg [4:0] frame_visual;
     initial begin
         $readmemh("item_icons.mem",indices);$readmemh("item_icons_palette.mem",palette);
         force dut.frame_tick=0;force dut.oled_frame_begin=0;cycles(20);start();
@@ -84,7 +84,7 @@ module tb_top_story97_roulette;
         @(negedge dut.clk_6m25);force dut.oled_frame_begin=0;cycles(80);
         if(dut.roulette_i.shown || dut.item_effect!==`ITEM_NONE)fail("power-up frame counter started roulette");
         oled_frame();
-        if(!dut.visual_active[3] || dut.item_effect!==`ITEM_NONE)fail("spin did not display before activation");
+        if(!dut.visual_active[4] || dut.item_effect!==`ITEM_NONE)fail("spin did not display before activation");
         frame_visual=dut.visual_active;
         // Even when the request changes to the selected icon, the frame being
         // scanned stays entirely on its original icon source with black margins.
@@ -96,8 +96,8 @@ module tb_top_story97_roulette;
         for(a=0;a<6144;a=a+1)begin
             @(negedge dut.clk_6m25);requested_pixel=a;px=a%96;py=a/96;expected=0;
             if(px>=24 && px<72 && py>=8 && py<56)begin
-                ix=(px-24)/3;iy=(py-8)/3;rom_address=frame_visual[2:0]*256+iy*16+ix;
-                expected=palette[frame_visual[2:0]*4+indices[rom_address]];
+                ix=(px-24)/3;iy=(py-8)/3;rom_address=frame_visual[3:0]*256+iy*16+ix;
+                expected=palette[frame_visual[3:0]*4+indices[rom_address]];
             end
             @(posedge dut.clk_6m25);#1;
             if(dut.oled_pixel_data!==expected || dut.visual_active!==frame_visual)fail("mixed/text pixel in roulette frame");
@@ -113,15 +113,15 @@ module tb_top_story97_roulette;
         end
         // Display the chosen result: activation occurs here, before HOLD ends.
         drain();oled_frame();
-        if(dut.visual_active!==4'h9 || dut.item_effect!==`ITEM_INVINCIBLE || dut.item_pending_valid)
+        if(dut.visual_active!==5'h11 || dut.item_effect!==`ITEM_INVINCIBLE || dut.item_pending_valid)
             fail("stopped-result frame did not activate effect");
         if(!dut.roulette_busy)fail("hold did not retain busy state");
         drain();oled_frame();
-        if(dut.visual_active[3] || dut.roulette_busy || dut.text_active[8*48+:8]!=="B")fail("hold did not return to the PLAY text page");
+        if(dut.visual_active[4] || dut.roulette_busy || dut.text_active[8*48+:8]!=="B")fail("hold did not return to the PLAY text page");
         // Protected debuff gets an icon-only notice, without pending activation.
         pick(2,-1);if(dut.item_pending_valid || dut.item_pickup_effect!==`ITEM_NONE)fail("blocked debuff queued roulette");
-        drain();oled_frame();if(dut.visual_active!==4'h9)fail("protection icon missing");
-        drain();oled_frame();if(dut.visual_active[3] || dut.item_effect!==`ITEM_INVINCIBLE)fail("blocked icon disturbed protection");
+        drain();oled_frame();if(dut.visual_active!==5'h11)fail("protection icon missing");
+        drain();oled_frame();if(dut.visual_active[4] || dut.item_effect!==`ITEM_INVINCIBLE)fail("blocked icon disturbed protection");
         click();start();saved_grants=grants;pick(0,`ITEM_TIME_BONUS);
         if(grants!=saved_grants || {dut.elapsed_minutes_bcd,dut.elapsed_seconds_bcd}!==16'h1000)fail("bonus fired at pickup");
         drain();oled_frame();drain();oled_frame();
@@ -130,7 +130,7 @@ module tb_top_story97_roulette;
         drain();oled_frame();
         click();start();pick(0,`ITEM_LOW_GRAV);force dut.game_ctrl_i.game_state=`ST_LOSE;cycles(4);
         if(dut.roulette_busy || dut.item_pending_valid || dut.item_effect!==`ITEM_NONE)fail("LOSE retained pending roll");
-        drain();oled_frame();if(dut.visual_active[3] || dut.text_active[8*48+:8]!=="T")fail("LOSE did not restore TIME UP page");
+        drain();oled_frame();if(dut.visual_active[4] || dut.text_active[8*48+:8]!=="T")fail("LOSE did not restore TIME UP page");
         release dut.game_ctrl_i.game_state;btnC=1;cycles(96);
         if(!dut.full_reset || dut.item_pending_valid || dut.roulette_busy || dut.item_time_bonus)fail("full reset retained roulette");
         $display("PASS: Story 9.7 top atomic OLED frame, 6144 icon-only pixels, gameplay/busy gating, stopped-result activation, blocked icon, delayed bonus and LOSE/reset cancellation");

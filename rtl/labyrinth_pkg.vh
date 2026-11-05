@@ -66,6 +66,9 @@
 `define ITEM_INVERT    4'd6
 `define ITEM_FOG       4'd7
 `define ITEM_WALL_BREAKER 4'd8   // instant buff, icon 8; never an active_effect
+`define ITEM_INSTANT_DEATH 4'd9
+`define ITEM_ICON_W    4
+`define ITEM_VISUAL_W  5       // {icon-source enable, four-bit item/icon ID}
 `define ITEM_NONE      4'd15
 
 // ---- Rotation command (rot_cmd[1:0], signed) ----

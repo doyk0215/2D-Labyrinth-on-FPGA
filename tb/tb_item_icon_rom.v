@@ -12,8 +12,8 @@ module tb_item_icon_rom;
     wire [15:0] rgb;
     item_icon_rom dut (.clk(clk), .icon(icon), .x(x), .y(y), .idx(idx), .rgb(rgb));
 
-    reg [1:0]  ref_idx [0:2303];
-    reg [15:0] ref_pal [0:35];
+    reg [1:0]  ref_idx [0:2559];
+    reg [15:0] ref_pal [0:39];
     integer errors = 0, checked = 0;
     integer n, a, i, j, px, py;
     integer used2, used3, same;
@@ -50,11 +50,11 @@ module tb_item_icon_rom;
         end
 
         // Every pixel of every icon in address order.
-        for (a = 0; a < 2304; a = a + 1) read_pixel(a);
+        for (a = 0; a < 2560; a = a + 1) read_pixel(a);
         // Then in a scattered order, so a stale or neighbouring value cannot pass.
-        for (n = 0; n < 2304; n = n + 1) read_pixel((n * 37 + 11) % 2304);
+        for (n = 0; n < 2560; n = n + 1) read_pixel((n * 37 + 11) % 2560);
 
-        for (i = 0; i < 9; i = i + 1) begin
+        for (i = 0; i < 10; i = i + 1) begin
             used2 = 0; used3 = 0;
             for (py = 0; py < 16; py = py + 1) begin
                 for (px = 0; px < 16; px = px + 1) begin
@@ -71,7 +71,7 @@ module tb_item_icon_rom;
             if (ref_pal[i*4 + 1] !== ((i < 3 || i == 8) ? 16'h0640 : 16'hD800)) begin icon = i; fail("frame colour is not green for buffs and red for debuffs"); end
             if (used2 == 0 || used3 == 0) begin icon = i; fail("icon does not use both of its own colours"); end
             // No two icons are the same picture.
-            for (j = i + 1; j < 9; j = j + 1) begin
+            for (j = i + 1; j < 10; j = j + 1) begin
                 same = 1;
                 for (a = 0; a < 256; a = a + 1) if (ref_idx[i*256 + a] !== ref_idx[j*256 + a]) same = 0;
                 if (same) begin icon = j; fail("two icons have identical pixels"); end
@@ -79,7 +79,7 @@ module tb_item_icon_rom;
         end
 
         if (errors == 0)
-            $display("PASS: item icon ROM - all 9 icons x 256 pixels and 36 palette colours match the data files; %0d reads, frame colours and distinct icons checked", checked);
+            $display("PASS: item icon ROM - all 10 icons x 256 pixels and 40 palette colours match the data files; %0d reads, frame colours and distinct icons checked", checked);
         else
             $display("FAIL: item icon ROM had %0d errors", errors);
         $finish;

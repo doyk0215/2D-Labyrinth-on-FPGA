@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
+`include "labyrinth_pkg.vh"
 // 16x16 ROM at exactly 3x scale, centred in a black 96x64 OLED frame.
 // The icon and source selection are held for a complete OLED frame by the top.
 module oled_roulette_pixel (
     input wire clk,
     input wire [12:0] pixel_index,
-    input wire [3:0] icon,
+    input wire [`ITEM_ICON_W-1:0] icon,
     output wire [15:0] pixel_data
 );
     wire [6:0] x;

@@ -67,7 +67,8 @@ module tb_item_roulette;
             guard=0;previous_interval=0;seen_steps=0;previous_icon=visual[3:0];previous_breakers=breakers;
             while(busy && guard<1000)begin
                 if(roulette_i.state==roulette_i.SPIN && roulette_i.shown)begin
-                    if(((selected<3 || selected==`ITEM_WALL_BREAKER) && visual[3:0]>2 && visual[3:0]!=`ITEM_WALL_BREAKER) || (selected>=3 && selected<8 && (visual[3:0]<3 || visual[3:0]>7)))fail("out-of-pool spin icon");
+                    if(((selected<3 || selected==`ITEM_WALL_BREAKER) && visual[3:0]>2 && visual[3:0]!=`ITEM_WALL_BREAKER) ||
+                       (((selected>=3 && selected<8) || selected==`ITEM_INSTANT_DEATH) && (visual[3:0]<3 || (visual[3:0]>7 && visual[3:0]!=`ITEM_INSTANT_DEATH))))fail("out-of-pool spin icon");
                     if(roulette_i.step_interval<previous_interval)fail("roulette sped up");
                     previous_interval=roulette_i.step_interval;
                     if(visual[3:0]!=previous_icon)seen_steps=seen_steps+1;
