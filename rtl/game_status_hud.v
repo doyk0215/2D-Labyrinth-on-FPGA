@@ -91,16 +91,16 @@ module game_status_hud #(
     reg [159:0] item_status_line;
     wire [15:0] effect_digits = seconds_digits(effect_seconds);
     // Parameter arithmetic is elaboration-only, including unusually large
-    // bonuses; normal +10 seconds is shown as TIME +10s.
+    // bonuses; normal +10 seconds is shown as TIME BUFF +10s.
     localparam [7:0] BONUS_TENS = 8'h30 + ((BONUS_VALUE / 10) % 10);
     localparam [7:0] BONUS_ONES = 8'h30 + (BONUS_VALUE % 10);
     localparam [7:0] BONUS_MT = 8'h30 + (BONUS_VALUE / 600);
     localparam [7:0] BONUS_MO = 8'h30 + ((BONUS_VALUE / 60) % 10);
     localparam [7:0] BONUS_ST = 8'h30 + ((BONUS_VALUE % 60) / 10);
     localparam [159:0] BONUS_TEXT = BONUS_VALUE >= 100 ?
-        {"TIME +", BONUS_MT, BONUS_MO, ":", BONUS_ST, BONUS_ONES, {9{8'h20}}} :
-        BONUS_VALUE >= 10 ? {"TIME +", BONUS_TENS, BONUS_ONES, "s", {11{8'h20}}} :
-                           {"TIME +", BONUS_ONES, "s", {12{8'h20}}};
+        {"TIME BUFF +", BONUS_MT, BONUS_MO, ":", BONUS_ST, BONUS_ONES, {4{8'h20}}} :
+        BONUS_VALUE >= 10 ? {"TIME BUFF +", BONUS_TENS, BONUS_ONES, "s", {6{8'h20}}} :
+                           {"TIME BUFF +", BONUS_ONES, "s", {7{8'h20}}};
 
     always @* begin
         case (active_effect)

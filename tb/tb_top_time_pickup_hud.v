@@ -85,7 +85,7 @@ module tb_top_time_pickup_hud;
         if(grants!=1 || {dut.elapsed_minutes_bcd,dut.elapsed_seconds_bcd}!==16'h0109 || dut.hud_i.notice_left==0)
             fail("selected-result grant did not notify timer and HUD together");
         frame();
-        if(!dut.hud_i.bonus_notice || dut.hud_i.item_status_line!=={"TIME +10s",{11{8'h20}}})
+        if(!dut.hud_i.bonus_notice || dut.hud_i.item_status_line!=={"TIME BUFF +10s",{6{8'h20}}})
             fail("selected-result receipt not captured for VGA frame");
         force dut.pixel_x=10'd384;force dut.pixel_y=10'd38;force dut.active_video=1;cycles(3);
         if(!dut.hud_text || !dut.hud_bonus_line || {dut.vga_r,dut.vga_g,dut.vga_b}!==12'h4f4)

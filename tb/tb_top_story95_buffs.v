@@ -75,7 +75,7 @@ module tb_top_story95_buffs;
         // Occupied consumed debuff stays hidden; departure and physics boundary restore it.
         position(2);cycles(300);frame();if(dut.box_visible[2])fail("blocked box respawned occupied");
         position(-1);frame();if(!dut.box_visible[2])fail("blocked box did not respawn");
-        if(dut.hud_i.item_status_line!=={"TIME +10s",{11{8'h20}}})
+        if(dut.hud_i.item_status_line!=={"TIME BUFF +10s",{6{8'h20}}})
             fail("time receipt not displayed in existing item row");
         // Inspect a real glyph pixel at the VGA pins, including its buff-green
         // colour. No timer/effect/notice or colour signal is forced.

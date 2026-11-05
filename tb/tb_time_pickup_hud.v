@@ -42,7 +42,7 @@ module tb_time_pickup_hud;
         if(dut.bonus_notice || dut.notice_left!=8)fail("grant did not wait for frame snapshot");
         snap();
         if(!dut.bonus_notice || zero_i.bonus_notice)fail("positive/zero grant qualification");
-        if(large_i.item_status_line!=={"TIME +02:05",{9{8'h20}}})fail("configured bonus label");
+        if(large_i.item_status_line!=={"TIME BUFF +02:05",{4{8'h20}}})fail("configured bonus label");
         cycles(2);state=`ST_PAUSED;cycles(20);
         if(dut.notice_left!=5)fail("pause consumed notice duration");
         state=`ST_PLAY;cycles(4);
@@ -56,7 +56,7 @@ module tb_time_pickup_hud;
         snap();
         // Exhaustively walk the actual text row with an independent glyph
         // position model. The held frame must retain both text and colour.
-        expected_line={"TIME +10s",{11{8'h20}}};
+        expected_line={"TIME BUFF +10s",{6{8'h20}}};
         for(py=0;py<14;py=py+1) for(px=0;px<240;px=px+1) begin
             @(negedge clk);x=384+px;y=38+py;
             cell_index=px/12;col=(px%12)/2;row=py/2;
