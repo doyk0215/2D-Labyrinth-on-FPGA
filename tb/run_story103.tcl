@@ -6,7 +6,7 @@ set rtl [file join $repo rtl]
 set tb [file join $repo tb]
 foreach data [glob [file join $tb data *.mem]] {file copy -force $data $run}
 if {[catch {exec xvhdl -work work [file join $rtl Ps2Interface.vhd] [file join $rtl Mouse_Control.vhd] 2>@1} out]} {puts $out;error "VHDL compilation failed"}
-set benches {tb_instant_death_item tb_instant_death_respawn tb_top_instant_death tb_item_icon_rom tb_oled_roulette_pixel tb_item_roulette tb_item_ctrl tb_item_durations tb_ball_physics tb_camera tb_item_gravity tb_story71_physics tb_n20_play tb_game_timer tb_time_bonus tb_game_ctrl tb_top_story82_countdown}
+set benches {tb_instant_death_item tb_instant_death_respawn tb_top_instant_death tb_item_icon_rom tb_oled_roulette_pixel tb_item_roulette tb_item_ctrl tb_item_durations tb_ball_physics tb_camera tb_item_gravity tb_story71_physics tb_n20_play tb_game_timer tb_time_bonus tb_game_ctrl tb_top_story82_countdown tb_top_story95_buffs}
 if {[llength $argv]>0} {set benches $argv}
 set cmd [list xvlog -work work -i $rtl -i $tb]
 foreach source [glob [file join $rtl *.v]] {lappend cmd $source}

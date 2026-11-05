@@ -39,6 +39,8 @@ No Wall Breaker behavior or pool entry is implemented by this branch.
   gravity/collision pipeline, including suppressing stale `phys_done`.
   Only camera placement shares the new action; item/timer/maze initialization
   is untouched. Item/camera consumers mask a simultaneous stale completion.
+  That mask depends only on registered queue/window state, independently of
+  the application guard, so the immediate time-bonus/deadline path stays acyclic.
 
 ## Priority and safe application
 
@@ -58,11 +60,12 @@ camera snaps to the returned ball on large maps; small maps keep a fixed view.
 
 ## Validation
 
-Vivado 2025.2 on 2026-11-05, RTL `70e10e8`: **17 distinct focused benches PASS**.
-Run `source tb/run_story103.tcl`. Twelve passed before the older EPIC fixture
-stopped the run; after correcting that fixture, it and the remaining four
-benches passed in a targeted continuation. The runner accepts individual
-bench names as Tcl arguments for targeted reruns. No test failure is ignored.
+Vivado 2025.2 on 2026-11-05, final RTL `33f98aa`: **18/18 focused benches PASS**,
+exit 0, in one complete run. Run `source tb/run_story103.tcl`. The runner also
+accepts individual bench names as Tcl arguments for targeted reruns.
+An additional respawn-unit assertion verifies the registered stale-step mask
+stays asserted independently of a changing deadline guard; its targeted rerun
+passes too. No test failure is ignored.
 
 - Item tests cover immediate/deferred ID 9, exactly-once action, invincibility,
   box consumption, pause/cancellation, and unchanged active-effect phase.
@@ -78,7 +81,8 @@ bench names as Tcl arguments for targeted reruns. No test failure is ignored.
   OLED pixel checks cover all 61,440 pixels in ten ID slots. Independent checks
   confirm the original 2,048 pixel indices and 32 palette words are unchanged.
 - Existing item pools/durations, delayed roulette, timer, time-bonus, controller
-  and top timeout/reset benches pass. The integration fixture shortens the
+  and top timeout/reset benches pass, including the full-top roulette-disabled
+  pickup path. The integration fixture shortens the
   button debouncers and scanout visibility for simulation; no activation input
   or gameplay signal is changed in RTL.
 
