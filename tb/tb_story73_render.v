@@ -7,6 +7,7 @@
 // centre and near each map edge. The bench has its own pseudo-random 32 x 32
 // tile memory, so every tile of the 31 x 31 map is exercised.
 module tb_story73_render;
+    `include "brick_wall_model.vh"
     localparam real PI = 3.14159265358979323846;
     localparam real CENTRE = 248.0;              // N = 15: tile 15's centre, 16*15 + 8
     localparam real SIZE = 496.0;                // 31 tiles of 16 px
@@ -152,7 +153,7 @@ module tb_story73_render;
                         else if (tile_x == 1 && tile_y == 1)
                             expected = 12'h0f0;              // green goal
                         else if (tile_mem[tile_y * `MAP_STRIDE + tile_x])
-                            expected = 12'hfff;
+                            expected = brick_wall_model(qx >>> 14, qy >>> 14);
                         else
                             expected = 12'h346;
                     end

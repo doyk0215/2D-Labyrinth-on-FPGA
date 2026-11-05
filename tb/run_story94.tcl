@@ -7,7 +7,7 @@ set rtl [file join $repo rtl]
 if {[catch {exec xvhdl -work work [file join $rtl Ps2Interface.vhd] [file join $rtl Mouse_Control.vhd] 2>@1} output]} {
     puts $output; error "VHDL compilation failed"
 }
-set cmd [list xvlog -work work -i $rtl]
+set cmd [list xvlog -work work -i $rtl -i [file join $repo tb]]
 foreach source [glob [file join $rtl *.v]] { lappend cmd $source }
 foreach bench {tb_fog_render tb_top_story94_invert tb_ball_overlay tb_rotated_render tb_switch_mapping tb_oled_status_text} { lappend cmd [file join $repo tb ${bench}.v] }
 if {[catch {exec {*}$cmd 2>@1} output]} { puts $output; error "Verilog compilation failed" }

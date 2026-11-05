@@ -24,7 +24,7 @@ if {[catch {exec {*}$vhdl_compile_cmd 2>@1} vhdl_output]} {
 }
 puts $vhdl_output
 
-set compile_cmd [list xvlog -work work -i $rtl_dir]
+set compile_cmd [list xvlog -work work -i $rtl_dir -i $tb_dir]
 foreach source [glob [file join $rtl_dir *.v]] { lappend compile_cmd $source }
 foreach source [glob [file join $tb_dir *.v]] { lappend compile_cmd $source }
 
@@ -36,6 +36,7 @@ if {[catch {exec {*}$compile_cmd 2>@1} output]} {
 puts $output
 
 foreach {top snapshot marker} {
+    tb_brick_wall_pixel brick_wall_snapshot "PASS: brick texture"
     tb_vga_timing vga_timing_snapshot "PASS: 800x525 totals"
     tb_render render_snapshot "PASS: generated maze"
     tb_rotated_render rotated_render_snapshot "PASS: rotated renderer"

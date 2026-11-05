@@ -57,7 +57,6 @@ module render #(
     wire signed [26:0] n_ext = $signed({{(27-`N_CELLS_W){1'b0}}, n_cells});
     wire signed [26:0] active_centre_q = (n_ext <<< 18) + (27'sd8 <<< 14);
     wire signed [26:0] active_size_q = $signed({{(27-`COORD_W){1'b0}}, active_dim}) <<< 18;
-    localparam [3:0] WALL_R = 4'hf, WALL_G = 4'hf, WALL_B = 4'hf;
     localparam [3:0] FLOOR_R = 4'h3, FLOOR_G = 4'h4, FLOOR_B = 4'h6;
     localparam [3:0] START_R = 4'hf, START_G = 4'h0, START_B = 4'h0;
     localparam [3:0] GOAL_R = 4'h0, GOAL_G = 4'hf, GOAL_B = 4'h0;
@@ -232,6 +231,12 @@ module render #(
     reg in_map_d, is_start_d, is_goal_d, active_video_d;
     reg is_buff_d, is_debuff_d;
     reg [3:0] tile_px_d, tile_py_d;     // pixel inside the tile, maze space
+    wire [11:0] wall_rgb_now;
+    reg [11:0] wall_rgb_d;
+    brick_wall_pixel wall_texture_i (
+        .maze_x(walk_x_q[19:14]), .maze_y(walk_y_q[19:14]),
+        .rgb(wall_rgb_now)
+    );
     always @(posedge clk) begin
         if (rst) begin
             in_map_d <= 1'b0;
@@ -241,6 +246,7 @@ module render #(
             is_debuff_d <= 1'b0;
             tile_px_d <= 4'd0;
             tile_py_d <= 4'd0;
+            wall_rgb_d <= 12'h433;
             active_video_d <= 1'b0;
             vga_hs <= 1'b1;
             vga_vs <= 1'b1;
@@ -266,6 +272,9 @@ module render #(
             end
             tile_px_d <= walk_x_q[17:14];
             tile_py_d <= walk_y_q[17:14];
+            // Compute before the RAM-read edge; register alongside its address
+            // flags so texturing adds no pixel latency or change to map data.
+            wall_rgb_d <= wall_rgb_now;
             active_video_d <= active_video;
             vga_hs <= hsync_in;
             vga_vs <= vsync_in;
@@ -330,7 +339,7 @@ module render #(
                 end else if ((is_buff_d || is_debuff_d) && !box_margin) begin
                     {vga_r, vga_g, vga_b} = box_rgb;
                 end else if (maze_rdata) begin
-                    vga_r = WALL_R; vga_g = WALL_G; vga_b = WALL_B;
+                    {vga_r, vga_g, vga_b} = wall_rgb_d;
                 end else begin
                     vga_r = FLOOR_R; vga_g = FLOOR_G; vga_b = FLOOR_B;
                 end
