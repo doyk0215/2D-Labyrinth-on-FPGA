@@ -101,88 +101,144 @@ module welcome_menu_overlay #(
         end
     end
 
-    // Select one text region, then address the shared 5x7 font. Long strings
-    // are immutable; only stage/size/score/time characters depend on snapshots.
-    integer line_id, ox, oy, scale, length, row_stage, row_n;
-    reg [9:0] dx, dy;
-    integer cell_index, glyph_col, glyph_row;
-    reg [231:0] line;
-    reg [15:0] size_digits;
-    reg [11:0] foreground_rgb;
-    reg text_area;
-    reg [6:0] ch;
-    always @* begin
-        line_id=-1; ox=0; oy=0; scale=2; length=0; row_stage=0; row_n=5;
-        foreground_rgb=12'hfff; line=0; size_digits=0;
-        if(pixel_y>=48 && pixel_y<62) begin line_id=0; ox=261; oy=48; length=10; foreground_rgb=12'hbbb; end
-        else if(pixel_y>=76 && pixel_y<104) begin line_id=1; ox=130; oy=76; scale=4; length=16; end
-        else if(pixel_y>=116 && pixel_y<130) begin line_id=2; ox=147; oy=116; length=29; foreground_rgb=12'haaa; end
-        else if(pixel_y>=160 && pixel_y<174) begin line_id=3; ox=80; oy=160; length=12; foreground_rgb=12'hddd; end
-        else if(pixel_y>=201 && pixel_y<222 && pixel_x>=348) begin
-            line_id=6; ox=(stage_snap==0 || stage_snap==2 || stage_snap==3) ? 416 : 398;
-            oy=201; scale=3; length=(stage_snap==0 || stage_snap==2 || stage_snap==3) ? 4 : 6;
-        end else if(pixel_y>=250 && pixel_y<264 && pixel_x>=348) begin line_id=7; ox=364; oy=250; length=11; foreground_rgb=12'hbbb; end
-        else if(pixel_y>=279 && pixel_y<293 && pixel_x>=348) begin line_id=8; ox=364; oy=279; length=11; foreground_rgb=12'hbbb; end
-        else if(pixel_y>=311 && pixel_y<325 && pixel_x>=348) begin line_id=9; ox=391; oy=311; length=10; foreground_rgb=12'h999; end
-        else if(pixel_y>=337 && pixel_y<351 && pixel_x>=348) begin
-            line_id=10; ox=stage_snap==4 ? 439 : 433; oy=337; length=stage_snap==4 ? 2 : 3; foreground_rgb=12'h6dd;
-        end else if(pixel_y>=393 && pixel_y<407) begin
-            oy=393;
-            if(pixel_x<320) begin line_id=11; ox=131; length=10; foreground_rgb=12'hbbb; end
-            else begin line_id=12; ox=409; length=7; foreground_rgb=12'h6dd; end
-        end else if(pixel_y>=417 && pixel_y<431) begin
-            oy=417; foreground_rgb=12'haaa;
-            if(pixel_x<320) begin line_id=13; ox=131; length=10; end
-            else begin line_id=14; ox=367; length=14; end
-        end
-        // Five non-overlapping stage rows on the left.
-        if(pixel_x<328) begin
-            if(pixel_y>=190 && pixel_y<204) begin row_stage=0; oy=190; end
-            else if(pixel_y>=224 && pixel_y<238) begin row_stage=1; oy=224; end
-            else if(pixel_y>=258 && pixel_y<272) begin row_stage=2; oy=258; end
-            else if(pixel_y>=292 && pixel_y<306) begin row_stage=3; oy=292; end
-            else if(pixel_y>=326 && pixel_y<340) begin row_stage=4; oy=326; end
-            else row_stage=-1;
-            if(row_stage>=0) begin
-                scale=2;
-                row_n=row_stage==0 ? 5 : row_stage==1 ? 10 : row_stage==2 ? 15 : row_stage==3 ? 20 : custom_snap;
-                if(pixel_x<250) begin
-                    line_id=4; ox=102; length=6; foreground_rgb=row_stage==stage_snap ? 12'hfff : 12'hbbb;
-                end else begin
-                    line_id=5; ox=264; length=row_n<10 ? 3 : 4; foreground_rgb=row_stage==stage_snap ? 12'h9cc : 12'h888;
-                end
-            end
-        end
-        size_digits=decimal2(row_n);
-        case(line_id)
-            0: line="WELCOME TO";
-            1: line="LABYRINTH RUNNER";
-            2: line="TILT THE MAZE. FIND THE EXIT.";
-            3: line="SELECT STAGE";
-            4: line=stage_word(row_stage);
-            5: line=row_n<10 ? {"N=",size_digits[7:0]} : {"N=",size_digits};
-            6: line=(length==4) ? (stage_word(stage_snap)>>16) : stage_word(stage_snap);
-            7: line={"MAZE  ",map_digits,"X",map_digits};
-            8: line={"TIME  ",digit(time_digits[15:12]),digit(time_digits[11:8]),":",digit(time_digits[7:4]),digit(time_digits[3:0])};
-            9: line="HIGH SCORE";
-            10: line=stage_snap==4 ? "--" : {digit(best_score[11:8]),digit(best_score[7:4]),digit(best_score[3:0])};
-            11: line="U/D SELECT"; 12: line="C START";
-            13: line="L SETTINGS"; 14: line="R INSTRUCTIONS";
-            default: line=0;
-        endcase
-        dx=pixel_x-ox; dy=pixel_y-oy;
-        cell_index=0; glyph_col=0; glyph_row=0; ch=7'h20; text_area=0;
-        if(line_id>=0 && pixel_x>=ox && pixel_y>=oy) begin
-            // Constant divisors only; a variable font scale must never infer
-            // a general divider in the per-pixel datapath.
-            if(scale==4) begin cell_index=dx/24; glyph_col=(dx%24)>>2; glyph_row=dy>>2; end
-            else if(scale==3) begin cell_index=dx/18; glyph_col=(dx%18)/3; glyph_row=dy/3; end
-            else begin cell_index=dx/12; glyph_col=(dx%12)>>1; glyph_row=dy>>1; end
-            if(cell_index<length && glyph_col<5 && glyph_row<7) begin
-                ch=line[(length-1-cell_index)*8+:7]; text_area=1;
-            end
-        end
-    end
+    // Each line decodes fixed character boxes in parallel. This avoids a
+    // serial y -> origin -> divide -> variable string shift path at 100 MHz.
+    // The single synchronous font lookup still supplies one-clock latency.
+    wire [15:0] custom_digits=decimal2({1'b0,custom_snap});
+    wire hit_0; wire [6:0] ch_0; wire [2:0] col_0, row_0;
+    welcome_text_line #(.LENGTH(10),.X(261),.Y(48),.SCALE(2)) text_0 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("WELCOME TO"),
+        .hit(hit_0),.ch(ch_0),.col(col_0),.row(row_0));
+    wire hit_1; wire [6:0] ch_1; wire [2:0] col_1, row_1;
+    welcome_text_line #(.LENGTH(16),.X(130),.Y(76),.SCALE(4)) text_1 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("LABYRINTH RUNNER"),
+        .hit(hit_1),.ch(ch_1),.col(col_1),.row(row_1));
+    wire hit_2; wire [6:0] ch_2; wire [2:0] col_2, row_2;
+    welcome_text_line #(.LENGTH(29),.X(147),.Y(116),.SCALE(2)) text_2 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("TILT THE MAZE. FIND THE EXIT."),
+        .hit(hit_2),.ch(ch_2),.col(col_2),.row(row_2));
+    wire hit_3; wire [6:0] ch_3; wire [2:0] col_3, row_3;
+    welcome_text_line #(.LENGTH(12),.X(80),.Y(160),.SCALE(2)) text_3 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("SELECT STAGE"),
+        .hit(hit_3),.ch(ch_3),.col(col_3),.row(row_3));
+    wire hit_4; wire [6:0] ch_4; wire [2:0] col_4, row_4;
+    welcome_text_line #(.LENGTH(6),.X(102),.Y(190),.SCALE(2)) text_4 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("EASY  "),
+        .hit(hit_4),.ch(ch_4),.col(col_4),.row(row_4));
+    wire hit_5; wire [6:0] ch_5; wire [2:0] col_5, row_5;
+    welcome_text_line #(.LENGTH(3),.X(264),.Y(190),.SCALE(2)) text_5 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("N=5"),
+        .hit(hit_5),.ch(ch_5),.col(col_5),.row(row_5));
+    wire hit_6; wire [6:0] ch_6; wire [2:0] col_6, row_6;
+    welcome_text_line #(.LENGTH(6),.X(102),.Y(224),.SCALE(2)) text_6 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("MEDIUM"),
+        .hit(hit_6),.ch(ch_6),.col(col_6),.row(row_6));
+    wire hit_7; wire [6:0] ch_7; wire [2:0] col_7, row_7;
+    welcome_text_line #(.LENGTH(4),.X(264),.Y(224),.SCALE(2)) text_7 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("N=10"),
+        .hit(hit_7),.ch(ch_7),.col(col_7),.row(row_7));
+    wire hit_8; wire [6:0] ch_8; wire [2:0] col_8, row_8;
+    welcome_text_line #(.LENGTH(6),.X(102),.Y(258),.SCALE(2)) text_8 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("HARD  "),
+        .hit(hit_8),.ch(ch_8),.col(col_8),.row(row_8));
+    wire hit_9; wire [6:0] ch_9; wire [2:0] col_9, row_9;
+    welcome_text_line #(.LENGTH(4),.X(264),.Y(258),.SCALE(2)) text_9 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("N=15"),
+        .hit(hit_9),.ch(ch_9),.col(col_9),.row(row_9));
+    wire hit_10; wire [6:0] ch_10; wire [2:0] col_10, row_10;
+    welcome_text_line #(.LENGTH(6),.X(102),.Y(292),.SCALE(2)) text_10 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("EPIC  "),
+        .hit(hit_10),.ch(ch_10),.col(col_10),.row(row_10));
+    wire hit_11; wire [6:0] ch_11; wire [2:0] col_11, row_11;
+    welcome_text_line #(.LENGTH(4),.X(264),.Y(292),.SCALE(2)) text_11 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("N=20"),
+        .hit(hit_11),.ch(ch_11),.col(col_11),.row(row_11));
+    wire hit_12; wire [6:0] ch_12; wire [2:0] col_12, row_12;
+    welcome_text_line #(.LENGTH(6),.X(102),.Y(326),.SCALE(2)) text_12 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("CUSTOM"),
+        .hit(hit_12),.ch(ch_12),.col(col_12),.row(row_12));
+    wire hit_13; wire [6:0] ch_13; wire [2:0] col_13, row_13;
+    welcome_text_line #(.LENGTH(3),.X(264),.Y(326),.SCALE(2)) text_13 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(custom_snap<10),.text({"N=",custom_digits[7:0]}),
+        .hit(hit_13),.ch(ch_13),.col(col_13),.row(row_13));
+    wire hit_14; wire [6:0] ch_14; wire [2:0] col_14, row_14;
+    welcome_text_line #(.LENGTH(4),.X(264),.Y(326),.SCALE(2)) text_14 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(custom_snap>=10),.text({"N=",custom_digits}),
+        .hit(hit_14),.ch(ch_14),.col(col_14),.row(row_14));
+    wire hit_15; wire [6:0] ch_15; wire [2:0] col_15, row_15;
+    welcome_text_line #(.LENGTH(4),.X(416),.Y(201),.SCALE(3)) text_15 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(stage_snap==0 || stage_snap==2 || stage_snap==3),.text(stage_word(stage_snap)>>16),
+        .hit(hit_15),.ch(ch_15),.col(col_15),.row(row_15));
+    wire hit_16; wire [6:0] ch_16; wire [2:0] col_16, row_16;
+    welcome_text_line #(.LENGTH(6),.X(398),.Y(201),.SCALE(3)) text_16 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(stage_snap==1 || stage_snap==4),.text(stage_word(stage_snap)),
+        .hit(hit_16),.ch(ch_16),.col(col_16),.row(row_16));
+    wire hit_17; wire [6:0] ch_17; wire [2:0] col_17, row_17;
+    welcome_text_line #(.LENGTH(11),.X(364),.Y(250),.SCALE(2)) text_17 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text({"MAZE  ",map_digits,"X",map_digits}),
+        .hit(hit_17),.ch(ch_17),.col(col_17),.row(row_17));
+    wire hit_18; wire [6:0] ch_18; wire [2:0] col_18, row_18;
+    welcome_text_line #(.LENGTH(11),.X(364),.Y(279),.SCALE(2)) text_18 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text({"TIME  ",digit(time_digits[15:12]),digit(time_digits[11:8]),":",digit(time_digits[7:4]),digit(time_digits[3:0])}),
+        .hit(hit_18),.ch(ch_18),.col(col_18),.row(row_18));
+    wire hit_19; wire [6:0] ch_19; wire [2:0] col_19, row_19;
+    welcome_text_line #(.LENGTH(10),.X(391),.Y(311),.SCALE(2)) text_19 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("HIGH SCORE"),
+        .hit(hit_19),.ch(ch_19),.col(col_19),.row(row_19));
+    wire hit_20; wire [6:0] ch_20; wire [2:0] col_20, row_20;
+    welcome_text_line #(.LENGTH(3),.X(433),.Y(337),.SCALE(2)) text_20 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(stage_snap!=4),.text({digit(best_score[11:8]),digit(best_score[7:4]),digit(best_score[3:0])}),
+        .hit(hit_20),.ch(ch_20),.col(col_20),.row(row_20));
+    wire hit_21; wire [6:0] ch_21; wire [2:0] col_21, row_21;
+    welcome_text_line #(.LENGTH(2),.X(439),.Y(337),.SCALE(2)) text_21 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(stage_snap==4),.text("--"),
+        .hit(hit_21),.ch(ch_21),.col(col_21),.row(row_21));
+    wire hit_22; wire [6:0] ch_22; wire [2:0] col_22, row_22;
+    welcome_text_line #(.LENGTH(10),.X(131),.Y(393),.SCALE(2)) text_22 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("U/D SELECT"),
+        .hit(hit_22),.ch(ch_22),.col(col_22),.row(row_22));
+    wire hit_23; wire [6:0] ch_23; wire [2:0] col_23, row_23;
+    welcome_text_line #(.LENGTH(7),.X(409),.Y(393),.SCALE(2)) text_23 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("C START"),
+        .hit(hit_23),.ch(ch_23),.col(col_23),.row(row_23));
+    wire hit_24; wire [6:0] ch_24; wire [2:0] col_24, row_24;
+    welcome_text_line #(.LENGTH(10),.X(131),.Y(417),.SCALE(2)) text_24 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("L SETTINGS"),
+        .hit(hit_24),.ch(ch_24),.col(col_24),.row(row_24));
+    wire hit_25; wire [6:0] ch_25; wire [2:0] col_25, row_25;
+    welcome_text_line #(.LENGTH(14),.X(367),.Y(417),.SCALE(2)) text_25 (
+        .pixel_x(pixel_x),.pixel_y(pixel_y),.enable(1'b1),.text("R INSTRUCTIONS"),
+        .hit(hit_25),.ch(ch_25),.col(col_25),.row(row_25));
+    wire [6:0] ch=ch_0 | ch_1 | ch_2 | ch_3 | ch_4 | ch_5 | ch_6 | ch_7 | ch_8 | ch_9 | ch_10 | ch_11 | ch_12 | ch_13 | ch_14 | ch_15 | ch_16 | ch_17 | ch_18 | ch_19 | ch_20 | ch_21 | ch_22 | ch_23 | ch_24 | ch_25;
+    wire [2:0] glyph_col=col_0 | col_1 | col_2 | col_3 | col_4 | col_5 | col_6 | col_7 | col_8 | col_9 | col_10 | col_11 | col_12 | col_13 | col_14 | col_15 | col_16 | col_17 | col_18 | col_19 | col_20 | col_21 | col_22 | col_23 | col_24 | col_25;
+    wire [2:0] glyph_row=row_0 | row_1 | row_2 | row_3 | row_4 | row_5 | row_6 | row_7 | row_8 | row_9 | row_10 | row_11 | row_12 | row_13 | row_14 | row_15 | row_16 | row_17 | row_18 | row_19 | row_20 | row_21 | row_22 | row_23 | row_24 | row_25;
+    wire text_area=hit_0 | hit_1 | hit_2 | hit_3 | hit_4 | hit_5 | hit_6 | hit_7 | hit_8 | hit_9 | hit_10 | hit_11 | hit_12 | hit_13 | hit_14 | hit_15 | hit_16 | hit_17 | hit_18 | hit_19 | hit_20 | hit_21 | hit_22 | hit_23 | hit_24 | hit_25;
+    wire [11:0] foreground_rgb=({12{hit_0}} & (12'hbbb)) |
+        ({12{hit_1}} & (12'hfff)) |
+        ({12{hit_2}} & (12'haaa)) |
+        ({12{hit_3}} & (12'hddd)) |
+        ({12{hit_4}} & (stage_snap==0 ? 12'hfff : 12'hbbb)) |
+        ({12{hit_5}} & (stage_snap==0 ? 12'h9cc : 12'h888)) |
+        ({12{hit_6}} & (stage_snap==1 ? 12'hfff : 12'hbbb)) |
+        ({12{hit_7}} & (stage_snap==1 ? 12'h9cc : 12'h888)) |
+        ({12{hit_8}} & (stage_snap==2 ? 12'hfff : 12'hbbb)) |
+        ({12{hit_9}} & (stage_snap==2 ? 12'h9cc : 12'h888)) |
+        ({12{hit_10}} & (stage_snap==3 ? 12'hfff : 12'hbbb)) |
+        ({12{hit_11}} & (stage_snap==3 ? 12'h9cc : 12'h888)) |
+        ({12{hit_12}} & (stage_snap==4 ? 12'hfff : 12'hbbb)) |
+        ({12{hit_13}} & (stage_snap==4 ? 12'h9cc : 12'h888)) |
+        ({12{hit_14}} & (stage_snap==4 ? 12'h9cc : 12'h888)) |
+        ({12{hit_15}} & (12'hfff)) |
+        ({12{hit_16}} & (12'hfff)) |
+        ({12{hit_17}} & (12'hbbb)) |
+        ({12{hit_18}} & (12'hbbb)) |
+        ({12{hit_19}} & (12'h999)) |
+        ({12{hit_20}} & (12'h6dd)) |
+        ({12{hit_21}} & (12'h6dd)) |
+        ({12{hit_22}} & (12'hbbb)) |
+        ({12{hit_23}} & (12'h6dd)) |
+        ({12{hit_24}} & (12'haaa)) |
+        ({12{hit_25}} & (12'haaa));
     wire [7:0] font_data;
     font_rom font_i(.clk(clk),.ch(ch),.col(glyph_col[2:0]),.data(font_data));
     reg text_area_d;
@@ -197,4 +253,45 @@ module welcome_menu_overlay #(
         end
     end
     assign rgb=text_area_d && font_data[row_d] ? foreground_d : background_d;
+endmodule
+
+// Fixed boxes make every character selection a small compare/AND/OR network.
+// All ranges are elaboration constants, including the 3x selected-stage text.
+module welcome_text_line #(
+    parameter integer LENGTH=1, X=0, Y=0, SCALE=2
+) (
+    input wire [9:0] pixel_x,pixel_y,
+    input wire enable,
+    input wire [8*LENGTH-1:0] text,
+    output wire hit,
+    output wire [6:0] ch,
+    output wire [2:0] col,row
+);
+    wire in_y=enable && pixel_y>=Y && pixel_y<Y+7*SCALE;
+    wire [LENGTH-1:0] boxes;
+    wire [6:0] chars [0:LENGTH];
+    wire [2:0] cols [0:LENGTH];
+    assign chars[0]=0;
+    assign cols[0]=0;
+    genvar c;
+    generate for(c=0;c<LENGTH;c=c+1) begin : character
+        localparam integer LEFT=X+c*6*SCALE;
+        assign boxes[c]=in_y && pixel_x>=LEFT && pixel_x<LEFT+5*SCALE;
+        wire [2:0] local_col=pixel_x>=LEFT+4*SCALE ? 4 :
+                             pixel_x>=LEFT+3*SCALE ? 3 :
+                             pixel_x>=LEFT+2*SCALE ? 2 :
+                             pixel_x>=LEFT+SCALE ? 1 : 0;
+        assign chars[c+1]=chars[c] | ({7{boxes[c]}} & text[(LENGTH-1-c)*8+:7]);
+        assign cols[c+1]=cols[c] | ({3{boxes[c]}} & local_col);
+    end endgenerate
+    assign hit=|boxes;
+    assign ch=chars[LENGTH];
+    assign col=cols[LENGTH];
+    wire [2:0] local_row=pixel_y>=Y+6*SCALE ? 6 :
+                         pixel_y>=Y+5*SCALE ? 5 :
+                         pixel_y>=Y+4*SCALE ? 4 :
+                         pixel_y>=Y+3*SCALE ? 3 :
+                         pixel_y>=Y+2*SCALE ? 2 :
+                         pixel_y>=Y+SCALE ? 1 : 0;
+    assign row={3{hit}} & local_row;
 endmodule
