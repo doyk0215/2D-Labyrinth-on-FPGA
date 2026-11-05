@@ -37,6 +37,9 @@ puts $output
 
 foreach {top snapshot marker} {
     tb_brick_wall_pixel brick_wall_snapshot "PASS: brick texture"
+    tb_welcome_menu_overlay welcome_menu_snapshot "PASS: welcome menu"
+    tb_render_palette render_palette_snapshot "PASS: gray walls"
+    tb_monitor_menu_overlay monitor_menu_snapshot "PASS: Welcome page"
     tb_vga_timing vga_timing_snapshot "PASS: 800x525 totals"
     tb_render render_snapshot "PASS: generated maze"
     tb_rotated_render rotated_render_snapshot "PASS: rotated renderer"

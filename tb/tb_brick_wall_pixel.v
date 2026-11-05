@@ -5,7 +5,7 @@ module tb_brick_wall_pixel;
     reg [5:0] maze_x = 0, maze_y = 0;
     wire [11:0] rgb;
     integer x, y, frame_file;
-    brick_wall_pixel dut (.maze_x(maze_x), .maze_y(maze_y), .rgb(rgb));
+    brick_wall_pixel dut (.maze_x(maze_x), .maze_y(maze_y), .gray(1'b0), .rgb(rgb));
     initial begin
         frame_file = $fopen("brick_swatch.ppm", "w");
         if (!frame_file) begin $display("FAIL: cannot open brick swatch"); $finish; end
