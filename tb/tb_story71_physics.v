@@ -32,6 +32,7 @@ module tb_story71_physics;
     );
 
     ball_physics dut (
+        .instant_respawn(1'b0),
         .effect_code(`ITEM_NONE),
         .clk(clk), .rst(rst), .frame_tick(frame_tick), .phys_init(phys_init),
         .phys_en(phys_en), .spawn_col(spawn_col), .spawn_row(spawn_row),

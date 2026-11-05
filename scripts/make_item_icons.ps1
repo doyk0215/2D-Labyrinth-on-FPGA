@@ -178,13 +178,13 @@ foreach ($ic in $icons) {
   $full += @{ name=$ic.name; kind=$ic.kind; px=$px; pal=$pal }
 }
 
-# .mem: 8 icons x 256 pixels, one 2-bit index per line; palette: 8 x 4 RGB565 words
+# .mem: 10 ID slots x 256 pixels (slot 8 reserved black); 10 x 4 RGB565 words
 $mem = foreach ($f in $full) { for ($y=0;$y -lt 16;$y++){ for($x=0;$x -lt 16;$x++){ '{0:x1}' -f $f.px[$y,$x] } } }
 Set-Content -Path (Join-Path $DataDir 'item_icons.mem') -Value $mem -Encoding ascii
 $palm = foreach ($f in $full) { foreach ($p in $f.pal) { '{0:x4}' -f $p[3] } }
 Set-Content -Path (Join-Path $DataDir 'item_icons_palette.mem') -Value $palm -Encoding ascii
 
-# rtl/item_icon_rom.v: 8 icons x 16 rows of 32 bits (pixel x = 0 in the top two bits) and a 32-entry palette
+# rtl/item_icon_rom.v: 10 ID slots x 16 rows, 32 bits per row; 40-entry palette
 $v = New-Object System.Collections.Generic.List[string]
 $v.Add('`timescale 1ns / 1ps')
 $v.Add('')
@@ -248,7 +248,7 @@ function Draw-Icon($gfx, $f, $ox, $oy, $s) {
   }}
 }
 
-# Sheet: buffs on row 1, debuffs on row 2, at 8x; an OLED mock (96 x 64 at 4x) on the right
+# Sheet: buffs on row 1, six debuffs on row 2; reserved slot is not displayed.
 $S = 8; $cell = 16*$S; $gap = 28; $lab = 26
 $sheetColumns = 6
 $sheetW = $sheetColumns*($cell+$gap) + $gap + 96*4 + $gap
@@ -279,4 +279,4 @@ Draw-Icon $gfx $full[9] ($mx + 24*4) ($my + 8*4) (3*4)
 $gfx.DrawRectangle([System.Drawing.Pens]::Gray, $mx-1, $my-1, 96*4+1, 64*4+1)
 $bmp.Save($PreviewPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $gfx.Dispose(); $bmp.Dispose()
-"wrote $($full.Count) icons"
+"wrote 9 icons and reserved black ID 8"

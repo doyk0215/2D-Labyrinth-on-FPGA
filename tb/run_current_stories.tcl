@@ -36,6 +36,9 @@ if {[catch {exec {*}$compile_cmd 2>@1} output]} {
 puts $output
 
 foreach {top snapshot marker} {
+    tb_instant_death_item instant_death_item_snapshot "PASS: instant death item"
+    tb_instant_death_respawn instant_death_respawn_snapshot "PASS: instant death respawn"
+    tb_top_instant_death instant_death_top_snapshot "PASS: top instant death"
     tb_brick_wall_pixel brick_wall_snapshot "PASS: brick texture"
     tb_welcome_menu_overlay welcome_menu_snapshot "PASS: welcome menu"
     tb_render_palette render_palette_snapshot "PASS: gray walls"

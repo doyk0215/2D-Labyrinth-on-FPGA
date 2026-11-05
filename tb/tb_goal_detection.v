@@ -16,6 +16,7 @@ module tb_goal_detection;
     always #5 clk = ~clk;
 
     ball_physics dut (
+        .instant_respawn(1'b0),
         .effect_code(`ITEM_NONE),
         .clk(clk), .rst(rst), .frame_tick(1'b0), .phys_init(1'b0), .phys_en(1'b0),
         .spawn_col(6'd19), .spawn_row(6'd19), .goal_col(goal_col), .goal_row(goal_row), .n_cells(n_cells),

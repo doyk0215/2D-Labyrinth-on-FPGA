@@ -13,6 +13,7 @@ module tb_item_gravity;
     reg wall=1;
     always@(posedge clk) wall <= addr[`MAP_ADDR_W-1:`COORD_W]==0 || addr[`MAP_ADDR_W-1:`COORD_W]>=30 || addr[`COORD_W-1:0]==0 || addr[`COORD_W-1:0]>=30;
     ball_physics dut (
+        .instant_respawn(1'b0),
         .clk(clk),.rst(rst),.frame_tick(frame_tick),.phys_init(init),.phys_en(1'b1),
         .spawn_col(6'd15),.spawn_row(6'd15),.goal_col(6'd1),.goal_row(6'd1),.n_cells(5'd15),
         .sin_q(sn),.cos_q(cs),.effect_code(effect),.restitution_sel(restitution),

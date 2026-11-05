@@ -11,10 +11,10 @@ module tb_item_roulette;
     wire [6:0] seconds;
     wire pulse,blocked,bonus,pending_valid,busy,commit,returning;
     wire [1:0] index;
-    wire [3:0] visual;
+    wire [4:0] visual;
     reg display_frame=0;
     reg auto_display=1,near_action=0;
-    reg [3:0] display_visual=0;
+    reg [4:0] display_visual=0;
     integer frame_phase=0,commits=0,bonuses=0;
     wire [7:0] timer_minutes,timer_seconds;
     wire [7:0] near_minutes,near_seconds;
@@ -61,19 +61,19 @@ module tb_item_roulette;
             cycles(1);end endtask
     integer code,guard,previous_commits,previous_bonuses,first_interval,last_interval,seen_steps;
     reg [63:0] previous_interval;
-    reg [2:0] previous_icon;
+    reg [3:0] previous_icon;
     task finish_roll;input integer selected;
         begin
-            guard=0;previous_interval=0;seen_steps=0;previous_icon=visual[2:0];
+            guard=0;previous_interval=0;seen_steps=0;previous_icon=visual[3:0];
             while(busy && guard<1000)begin
                 if(roulette_i.state==roulette_i.SPIN && roulette_i.shown)begin
-                    if((selected<3 && visual[2:0]>2) || (selected>=3 && visual[2:0]<3))fail("out-of-pool spin icon");
+                    if((selected<3 && visual[3:0]>2) || (selected>=3 && visual[3:0]<3))fail("out-of-pool spin icon");
                     if(roulette_i.step_interval<previous_interval)fail("roulette sped up");
                     previous_interval=roulette_i.step_interval;
-                    if(visual[2:0]!=previous_icon)seen_steps=seen_steps+1;
-                    previous_icon=visual[2:0];
+                    if(visual[3:0]!=previous_icon)seen_steps=seen_steps+1;
+                    previous_icon=visual[3:0];
                 end
-                if(roulette_i.state==roulette_i.HOLD && visual[2:0]!==selected)fail("hold did not show selected result");
+                if(roulette_i.state==roulette_i.HOLD && visual[3:0]!==selected)fail("hold did not show selected result");
                 // Roll over another box while busy: no consumption or event.
                 position(1);done=1;cycles(1);done=0;
                 if(pulse || !visible[1])fail("busy roulette allowed another pickup");
@@ -108,9 +108,9 @@ module tb_item_roulette;
         // Protected pickup shows only the protection icon and never commits.
         fresh();previous_commits=commits;previous_bonuses=bonuses;pick_code(`ITEM_INVINCIBLE);finish_roll(`ITEM_INVINCIBLE);
         previous_commits=commits;position(2);done=1;cycles(1);done=0;cycles(1);
-        if(!busy || pending_valid || visual!==4'h9)fail("protected pickup did not enter icon-only notification");
+        if(!busy || pending_valid || visual!==5'h11)fail("protected pickup did not enter icon-only notification");
         guard=0;while(busy && guard<200)begin
-            if(visual[3] && visual[2:0]!==`ITEM_INVINCIBLE)fail("blocked pickup spun a debuff");
+            if(visual[4] && visual[3:0]!==`ITEM_INVINCIBLE)fail("blocked pickup spun a debuff");
             cycles(1);guard=guard+1;
         end
         if(guard==200 || effect!==`ITEM_INVINCIBLE || commits!=previous_commits)fail("blocked notification altered protection");
@@ -122,7 +122,7 @@ module tb_item_roulette;
                 if(guard==1000)fail("cancel phase not reached");
                 previous_commits=commits;previous_bonuses=bonuses;
                 game_state=cancel_state;#1;if(commit || bonus)fail("terminal transition leaked grant");cycles(2);
-                if(busy || visual[3] || pending_valid || effect!==`ITEM_NONE || commits!=previous_commits || bonuses!=previous_bonuses)
+                if(busy || visual[4] || pending_valid || effect!==`ITEM_NONE || commits!=previous_commits || bonuses!=previous_bonuses)
                     fail("state change did not cancel pending roulette");
             end
         end
