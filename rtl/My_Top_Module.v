@@ -127,6 +127,7 @@ module My_Top_Module #(
     wire start_game;
     wire [9:0] game_cfg;
     wire [9:0] active_game_cfg;
+    wire [2:0] selected_stage;
     wire menu_error;
     // CUSTOM size offset X from SW3..SW0, synchronised like the snap switch.
     (* ASYNC_REG = "TRUE" *) reg [3:0] size_sw_meta = 4'd0;
@@ -264,7 +265,7 @@ module My_Top_Module #(
         .start_game    (start_game),
         .game_cfg      (game_cfg),
         .status_text   (menu_page_text),
-        .selected_stage(),
+        .selected_stage(selected_stage),
         .settings_page(settings_page),
         .error_active  (menu_error)
     );
@@ -882,13 +883,33 @@ module My_Top_Module #(
     // The huge background stays in RAM while only the menu overlay mode changes.
     wire [1:0] monitor_menu_mode = instructions_active ? 2'd2 :
                                    settings_page ? 2'd1 : 2'd0;
+    reg [1:0] menu_mode_snap=0;
+    always @(posedge clk) begin
+        if(rst) menu_mode_snap<=0;
+        else if(frame_tick) menu_mode_snap<=monitor_menu_mode;
+    end
     wire menu_panel, menu_accent, menu_text;
+    wire legacy_menu_panel, legacy_menu_accent, welcome_panel;
+    wire [11:0] welcome_rgb;
+    welcome_menu_overlay #(
+        .EASY_SECONDS(EASY_TIME_SECONDS), .MEDIUM_SECONDS(HARD_TIME_SECONDS),
+        .HARD_SECONDS(HUGE_TIME_SECONDS), .EPIC_SECONDS(XL_TIME_SECONDS),
+        .SECONDS_PER_CELL(SECONDS_PER_CELL)
+    ) welcome_overlay_i (
+        .clk(clk), .rst(rst), .frame_tick(frame_tick),
+        .pixel_x(pixel_x), .pixel_y(pixel_y), .active_video(active_video),
+        .selected_stage(selected_stage), .custom_n(custom_n),
+        .high_scores_bcd(stage_high_scores_bcd), .panel_on(welcome_panel), .rgb(welcome_rgb)
+    );
     monitor_menu_overlay menu_overlay_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
-        .active_video(active_video), .mode(monitor_menu_mode),
-        .panel_on(menu_panel), .accent_on(menu_accent), .text_on(menu_text)
+        .active_video(active_video), .mode(menu_mode_snap),
+        .panel_on(legacy_menu_panel), .accent_on(legacy_menu_accent), .text_on(menu_text)
     );
-    wire [11:0] menu_rgb = menu_text ? 12'hfff : menu_accent ? 12'h0cf : 12'h012;
+    assign menu_panel=menu_mode_snap==0 ? welcome_panel : legacy_menu_panel;
+    assign menu_accent=menu_mode_snap==0 ? 1'b0 : legacy_menu_accent;
+    wire [11:0] menu_rgb = menu_mode_snap==0 ? welcome_rgb :
+                          menu_text ? 12'hfff : menu_accent ? 12'h0cf : 12'h012;
     wire [11:0] render_rgb = {render_r, render_g, render_b};
     wire [11:0] composed_rgb = menu_bg_visible_d ?
                                 (menu_panel || menu_accent ? menu_rgb : render_rgb) :

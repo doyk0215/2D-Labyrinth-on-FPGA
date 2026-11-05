@@ -89,6 +89,7 @@ module render #(
     reg lose_frame;
     reg pause_frame;
     reg fog_frame;                          // fog of war for this picture (Story 9.4)
+    reg gray_frame, menu_frame;
     reg [7:0] win_min_bcd, win_sec_bcd;
     reg [7:0] blink_count;
     reg blink_phase;
@@ -156,6 +157,8 @@ module render #(
             lose_frame <= 1'b0;
             pause_frame <= 1'b0;
             fog_frame <= 1'b0;
+            gray_frame <= 1'b1;
+            menu_frame <= 1'b1;
             win_min_bcd <= 8'h00;
             win_sec_bcd <= 8'h00;
             blink_count <= 8'd0;
@@ -179,6 +182,8 @@ module render #(
                 // The effect can start or end at any clock; the picture
                 // follows it from the next frame, never half way down.
                 fog_frame <= fog_en;
+                gray_frame <= (game_state != `ST_PLAY);
+                menu_frame <= (game_state == `ST_MENU);
                 win_min_bcd <= time_min_bcd;
                 win_sec_bcd <= time_sec_bcd;
                 // The goal blink restarts bright on the first WIN frame and
@@ -235,7 +240,7 @@ module render #(
     reg [11:0] wall_rgb_d;
     brick_wall_pixel wall_texture_i (
         .maze_x(walk_x_q[19:14]), .maze_y(walk_y_q[19:14]),
-        .rgb(wall_rgb_now)
+        .gray(gray_frame), .rgb(wall_rgb_now)
     );
     always @(posedge clk) begin
         if (rst) begin
@@ -341,10 +346,10 @@ module render #(
                 end else if (maze_rdata) begin
                     {vga_r, vga_g, vga_b} = wall_rgb_d;
                 end else begin
-                    vga_r = FLOOR_R; vga_g = FLOOR_G; vga_b = FLOOR_B;
+                    {vga_r, vga_g, vga_b} = menu_frame ? 12'h222 : {FLOOR_R, FLOOR_G, FLOOR_B};
                 end
             end else begin
-                vga_r = BACK_R; vga_g = BACK_G; vga_b = BACK_B;
+                {vga_r, vga_g, vga_b} = menu_frame ? 12'h111 : {BACK_R, BACK_G, BACK_B};
             end
         end
     end

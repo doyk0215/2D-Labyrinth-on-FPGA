@@ -14,7 +14,7 @@ Work in small slices because every visual change needs board testing:
 | Slice | Scope | State |
 | --- | --- | --- |
 | 10.1a | Maze wall texture only | Approved preview; this PR |
-| 10.1b | Welcome/main menu | Preview and exact layout to agree next |
+| 10.1b | Labyrinth Runner welcome/menu and gray non-PLAY palette | Approved; implementation on feature/10-1b-menu-ui |
 | 10.1c | Settings/instructions | Planned; layout to agree |
 | 10.1d | HUD, pause, results, matching OLED layout where useful | Planned; layout to agree |
 
@@ -34,6 +34,11 @@ Work in small slices because every visual change needs board testing:
 For later slices, agree a preview before editing RTL, preserve navigation and
 game behavior, check text clipping/contrast/control accuracy, and test each PR
 before widening the visual scope. No new welcome/menu layout is included here.
+
+10.1b uses **HIGH SCORE** for the existing preset best completed-maze count,
+matching OLED HIGH; CUSTOM shows `--`. It keeps the approved symmetric hints
+and changes walls to gray outside active PLAY (including pause/results), while
+PLAY uses beige. See the implementation artifact for the three-PR board checklist.
 
 ## Story 10.2: Wall Phaser buff
 
