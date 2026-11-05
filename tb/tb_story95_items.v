@@ -69,6 +69,7 @@ module tb_story95_items;
         pick(3);
         if(!blocked || effect!==`ITEM_NONE || effect_seconds!==0)
             fail("last protection clock did not block or expiry deadline was refreshed");
+        while(item_i.debuff_roll==5)cycles(1);
         pick(2);if(blocked || effect<`ITEM_REVERSE_GRAV || effect>`ITEM_FOG)fail("debuff still blocked after expiry");
         // An ordinary buff can replace invincibility.
         start();choose(`ITEM_INVINCIBLE);pick(0);choose(`ITEM_LOW_GRAV);pick(1);

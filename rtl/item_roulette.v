@@ -14,9 +14,9 @@ module item_roulette #(
     input wire [2:0] pickup_index,
     input wire [`ITEM_EFFECT_W-1:0] pickup_effect,
     input wire display_frame,
-    input wire [3:0] display_visual,
+    input wire [`ITEM_VISUAL_W-1:0] display_visual,
     output wire busy,
-    output wire [3:0] visual,
+    output wire [`ITEM_VISUAL_W-1:0] visual,
     output wire commit,
     output wire returning
 );
@@ -31,7 +31,7 @@ module item_roulette #(
     localparam integer CW=(MAX_CYCLES>1)?$clog2(MAX_CYCLES+1):1;
     localparam [2:0] IDLE=0,SPIN=1,HOLD=2,BLOCK=3,RETURN=4;
     reg [2:0] state=IDLE;
-    reg [2:0] icon=0,chosen=0;
+    reg [`ITEM_ICON_W-1:0] icon=0,chosen=0;
     reg debuff_pool=0,shown=0,apply_pending=0;
     reg [CW-1:0] elapsed=0,step_elapsed=0;
     reg [63:0] step_interval;
@@ -64,8 +64,8 @@ module item_roulette #(
                 shown<=0;elapsed<=0;step_elapsed<=0;apply_pending<=0;
                 if(pickup_pulse)begin
                     if(debuff_blocked)begin state<=BLOCK;icon<=`ITEM_INVINCIBLE;end
-                    else if(pickup_effect<=`ITEM_FOG)begin
-                        state<=SPIN;chosen<=pickup_effect[2:0];debuff_pool<=pickup_effect>=4'd3;
+                    else if(pickup_effect<=`ITEM_FOG || pickup_effect==`ITEM_INSTANT_DEATH)begin
+                        state<=SPIN;chosen<=pickup_effect;debuff_pool<=pickup_effect>=4'd3;
                         icon<=(pickup_effect>=4'd3) ? 3'd3 : 3'd0;apply_pending<=1;
                     end
                 end
@@ -79,7 +79,8 @@ module item_roulette #(
                     elapsed<=elapsed+1'b1;
                     if(step_elapsed>=step_interval-1)begin
                         step_elapsed<=0;
-                        if(debuff_pool)icon<=(icon==7)?3'd3:icon+1'b1;
+                        if(debuff_pool)icon<=(icon==`ITEM_INSTANT_DEATH) ? 4'd3 :
+                                            (icon==7) ? `ITEM_INSTANT_DEATH : icon+1'b1;
                         else icon<=(icon==2)?3'd0:icon+1'b1;
                     end else step_elapsed<=step_elapsed+1'b1;
                 end
@@ -95,7 +96,7 @@ module item_roulette #(
                     state<=RETURN;shown<=0;elapsed<=0;
                 end else elapsed<=elapsed+1'b1;
             end
-            RETURN:if(display_frame && !display_visual[3])begin state<=IDLE;apply_pending<=0;end
+            RETURN:if(display_frame && !display_visual[`ITEM_ICON_W])begin state<=IDLE;apply_pending<=0;end
             default:state<=IDLE;
         endcase
     end

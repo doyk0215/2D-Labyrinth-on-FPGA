@@ -13,10 +13,10 @@ Work in small slices because every visual change needs board testing:
 
 | Slice | Scope | State |
 | --- | --- | --- |
-| 10.1a | Maze wall texture only | Approved preview; this PR |
-| 10.1b | Labyrinth Runner welcome/menu and gray non-PLAY palette | Approved; implementation on feature/10-1b-menu-ui |
-| 10.1c | Settings/instructions | Planned; layout to agree |
-| 10.1d | HUD, pause, results, matching OLED layout where useful | Planned; layout to agree |
+| 10.1a | Maze wall texture only | Merged #99 |
+| 10.1b | Labyrinth Runner welcome/menu and gray non-PLAY palette | Merged #100 |
+| 10.1c | Settings/instructions | Paused by CJX; no further UI expansion now |
+| 10.1d | HUD, pause, results, matching OLED layout where useful | Paused by CJX; time receipt fix #101 remains separate |
 
 10.1a acceptance:
 
@@ -41,6 +41,9 @@ and changes walls to gray outside active PLAY (including pause/results), while
 PLAY uses beige. See the implementation artifact for the three-PR board checklist.
 
 ## Story 10.2: Wall Phaser buff
+
+Kim owns this implementation (called Wall Breaker in current coordination).
+Item/icon ID 8 is reserved for that branch; Story 10.3 uses ID 9.
 
 As a player, I want to cross one interior wall after receiving a buff, so I can
 take a shortcut or escape a difficult route.
@@ -69,6 +72,11 @@ icon/source producers, consumers, frame acknowledgements and pools together.
 Preserve existing item IDs and frame-atomic OLED updates.
 
 ## Story 10.3: Instant Kill debuff (respawn penalty)
+
+Implementation: `feature/10-3-instant-death`, item/icon ID 9, white/gray skull
+with the same red frame as existing debuffs. See
+`_bmad-output/implementation-artifacts/10-3-instant-death.md` for the interface,
+priority rules, simulation/build evidence and board checklist.
 
 As a player, I want a debuff that sends my ball to the start, so red boxes add
 risk without ending the current run.

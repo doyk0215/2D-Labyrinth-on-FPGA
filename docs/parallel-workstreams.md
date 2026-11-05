@@ -130,7 +130,8 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   consumers. `debuff_blocked` accompanies a consumed debuff protected by
   invincibility; `pickup_effect=ITEM_NONE` in that event, and no effect starts.
   Its normal respawn still runs. An ordinary buff replaces/restarts protection;
-  TIME_BONUS is the exception and never changes the active effect or its phase.
+  TIME_BONUS and INSTANT_DEATH are instant exceptions and never change the
+  active effect or its phase.
 - `time_bonus_pulse` is a same-edge, one-clock grant from `item_ctrl` to
   `game_timer`, qualified by PLAY, reset, phys_init and accepted pickup. Do not
   derive it from the registered pickup notification: the extra clock could
@@ -159,12 +160,25 @@ Widths and scales follow AD-4. All signals are in the single 100 MHz clock domai
   follows the usual terminal-state clearing, with no later duplicate grant.
 - `oled_roulette_pixel` uses the existing icon ROM at 3x scale: x=24..71,
   y=8..55 in a black 96x64 frame, with one registered-pixel latency.
-  The existing held-data text mailbox now carries the source/icon nibble in
+  Story 10.3 expands icon IDs to four bits and the visual bundle to five bits:
+  `{icon_source, icon[3:0]}`. Source selection is bit 4 throughout the held-data
+  mailbox and frame acknowledgement. IDs 0..7 stay stable; 8 is reserved for
+  Kim's Wall Breaker and 9 is Instant Death (red skull). The mailbox carries
+  the complete source/icon bundle in
   the same request and latches both at `oled_frame_begin`. Applied visual/frame
   feedback returns through a synchronized toggle and held-data capture, qualified
   by an actual driver pixel request (power-up counter boundaries do not count). Thus
   activation waits for the actual selected-result frame; source/icon never
   change inside an OLED frame. Status text continues updating behind the icon.
+- Story 10.3 adds untimed `instant_death_pulse` on accepted pickup/commit.
+  Invincibility blocks it using the existing red-box consumption/notice path.
+  `instant_death_respawn` queues it until one clock after a VGA frame boundary;
+  timeout/goal/regeneration decisions win first, pause holds it, and reset/menu/
+  new maze cancels it. Only `ball_physics.instant_respawn` and camera placement
+  receive the action. Global `phys_init`, maze, angle, seed, timer, levels and
+  timed-effect state are untouched. A registered queue/window mask discards
+  stale physics completions independently of the deadline/bonus guard, keeping
+  both deferred and immediate pickup modes acyclic.
 - Story 9.4: while `item_ctrl.active_effect` (the top's `item_effect`) is `ITEM_INVERT`, the top negates
   `angle_rot_cmd`, so left and right swap for the mouse and the board
   buttons in smooth and snap modes. A snap press held while the effect starts
