@@ -263,14 +263,17 @@ module render #(
                 (tile_col_now == start_col) && (tile_row_now == start_row);
             is_goal_d <= in_map_now &&
                 (tile_col_now == goal_col) && (tile_row_now == goal_row);
-            // N=20 has four of each; N=15..19 has three, and smaller eligible
-            // maps retain two of each.
+            // N=20 has four of each; N=15..19 has three; N=9..14 has two;
+            // N=7..8 has one of each. N<=6 has no item boxes.
             if (n_cells == 20) begin
                 is_buff_d <= |is_box_now[3:0];
                 is_debuff_d <= |is_box_now[7:4];
             end else if (n_cells >= 15) begin
                 is_buff_d <= |is_box_now[2:0];
                 is_debuff_d <= |is_box_now[5:3];
+            end else if (n_cells <= 8) begin
+                is_buff_d <= is_box_now[0];
+                is_debuff_d <= is_box_now[1];
             end else begin
                 is_buff_d <= |is_box_now[1:0];
                 is_debuff_d <= |is_box_now[3:2];

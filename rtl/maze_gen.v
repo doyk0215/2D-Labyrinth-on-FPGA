@@ -24,9 +24,9 @@
 // Cell (cx,cy) is tile (2*cx+1,2*cy+1); passages occupy the intervening tiles.
 // Start is (2N-1,2N-1), goal is (1,1), and N is clamped to 2..20.
 //
-// Item boxes: EASY (N=5) has none, N=10..14 has two buffs and two debuffs,
-// N=15..19 has three of each, and EPIC (N=20) has four of each. Other
-// eligible sizes retain four boxes.
+// Item boxes: N<=6 has none, N=7..8 has one buff and one debuff,
+// N=9..14 has two of each, N=15..19 has three of each, and EPIC (N=20)
+// has four of each.
 // Positions are seeded within quadrants and avoid the start, goal, and all
 // previously placed boxes. N=20 places two boxes in each quadrant.
 //
@@ -95,7 +95,7 @@ module maze_gen (
     reg [4:0]  scx, scy;          // loop-pass scan position (cell)
     reg        sdir;              // 0 = east wall, 1 = south wall
     reg [2:0]  box_k;             // box being placed
-    reg [3:0]  box_target;        // 0 up to N = 5, then 4/6/8 at N=10/15/20
+    reg [3:0]  box_target;        // 0 through N=6, then 2/4/6/8 at N=7/9/15/20
     reg [1:0]  box_rot;           // quadrant of box 0
     reg        box_swap;          // swap the quadrants of boxes 1 and 2
 
@@ -244,8 +244,9 @@ module maze_gen (
                     // shorter final band; other sizes retain their old cap.
                     loop_cap         <= (n < 5'd8) ? 4'd0 :
                                         (n == 5'd20) ? 4'd7 : n / 5'd3;
-                    // Only N=20 gets four buffs plus four debuffs.
-                    box_target       <= (n <= 5'd5) ? 4'd0 :
+                    // Keep the smallest custom mazes clear; add two boxes at N=7/8.
+                    box_target       <= (n <= 5'd6) ? 4'd0 :
+                                        (n <= 5'd8) ? 4'd2 :
                                         (n == 5'd20) ? 4'd8 :
                                         (n >= 5'd15) ? 4'd6 : 4'd4;
                     band_index       <= 4'd0;

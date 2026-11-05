@@ -98,7 +98,9 @@ module item_ctrl #(
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
     wire [6:0] pending_duration = duration_of(pending_effect);
     wire [6:0] rolled_duration = duration_of(rolled_effect);
-    wire [2:0] buff_count = (n_cells == 20) ? 3'd4 :
+    wire [2:0] buff_count = (n_cells <= 5'd6) ? 3'd0 :
+                            (n_cells <= 5'd8) ? 3'd1 :
+                            (n_cells == 20) ? 3'd4 :
                             (n_cells >= 15) ? 3'd3 : 3'd2;
     wire pickup_allowed = !DEFER_EFFECT || (!roulette_busy && !pending_valid);
     wire pickup_now = !rst && !phys_init && game_state == `ST_PLAY && phys_done && hit_valid && pickup_allowed;
