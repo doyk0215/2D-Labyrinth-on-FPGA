@@ -416,9 +416,9 @@ module My_Top_Module #(
     assign snap_left = mouse_left | btnL_snap;
     assign snap_right = mouse_right | btnR_snap;
     assign rot_held = snap_left | snap_right;
-    // Start the countdown only after a mouse click and a visible maze pixel.
-    // Motion and board-button rotation do not count as starting the game.
-    assign timer_player_action = mouse_left || mouse_right;
+    // Start the countdown only after a rotation input (mouse left/right click
+    // or board BTNL/BTNR) and a visible maze pixel. Mouse motion does not count.
+    assign timer_player_action = rot_held;
     wire signed [1:0] rot_cmd_normal = (menu_active || (game_state == `ST_WIN) ||
                            (game_state == `ST_LOSE) || pause_active) ? 2'sd0 :
                            !snap_mode ? rot_cmd :

@@ -56,12 +56,13 @@ module tb_top_story82_countdown;
             cycles(2);
             if(dut.elapsed_timer_i.play_started)
                 fail("visible maze started the timer without player action");
-            force dut.timer_player_action=1'b1;
-            cycles(2);
-            if(!dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
-                fail("timer did not arm on first player action with the maze visible");
-            release dut.maze_pixel_visible;
+            // The real BTNR rotation input is the first player action.
             release dut.timer_player_action;
+            btnR=1; cycles(8);
+            if(!dut.elapsed_timer_i.play_started || dut.elapsed_seconds_bcd !== 8'h03)
+                fail("timer did not arm on first BTNR action with the maze visible");
+            btnR=0; cycles(8);
+            release dut.maze_pixel_visible;
             release dut.active_video;
             cycles(16);
             if(dut.elapsed_seconds_bcd !== 8'h03)
