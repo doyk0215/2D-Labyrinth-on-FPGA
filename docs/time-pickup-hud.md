@@ -44,7 +44,23 @@ The preview is an actual HUD RTL raster with sample timer inputs (01:52 before,
 
 ![Orange time-pickup HUD receipt](time-pickup-hud.png)
 
-Routed build results will be recorded after completion. Board test pending.
+Fresh bitstream completed at 21:44 Singapore on 2026-11-05 from RTL commit
+`a926d54` (later commits add tests/documentation only):
+
+- Routed WNS **+0.287 ns**, WHS **+0.056 ns**, TNS/THS zero; all user-specified
+  timing constraints met. 13,047/13,047 routable nets fully routed, zero errors.
+- DRC zero errors; seven existing DSP pipelining advisories remain. Both
+  100 MHz and 6.25 MHz clocks are present; no unclocked registers or
+  unconstrained internal endpoints. Existing external-I/O delay warnings
+  remain; no constraints changed.
+- Placed: 6,575 LUTs (31.61%), 7,406 FFs (17.80%), 3.5 BRAM tiles, six DSPs,
+  zero MMCM/PLL; within AD-8 budgets.
+- Build project: `C:/EE2026Projects/time-pickup-hud/build/sevenseg-vga-status-vivado-20261105-213702`.
+- Stable bitstream: `C:/EE2026Projects/time-pickup-preview/TimePickupHUD.bit`.
+- SHA256: `FC0E0581D5BA6E44D2F55E2F0F2EE71562D8D90A24BE49A5B5150128481927E0`.
+
+This is main plus the time-pickup fix; unmerged PR #100's menu redesign is not
+included in this standalone bitstream. Board test pending; no PASS is claimed.
 
 ## Board check
 
