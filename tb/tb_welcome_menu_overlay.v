@@ -117,7 +117,7 @@ module tb_welcome_menu_overlay;
         pixel(50,28,12'haaa); pixel(348,186,12'h556); pixel(80,146,12'h555);
         @(negedge clk);active_video=0;@(posedge clk);#1;
         if(panel) fail("panel visible during blanking");
-        $display("PASS: welcome menu title, symmetric hints, five stages, live size/time, independent high scores, CUSTOM, frame snapshots, blanking; %0d text pixels",checked);
+        $display("PASS: welcome menu title, symmetric hints, four presets plus CUSTOM, live size/time, independent high scores, frame snapshots, blanking; %0d text pixels",checked);
         $finish;
     end
 endmodule
