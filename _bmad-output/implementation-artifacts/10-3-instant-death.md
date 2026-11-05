@@ -3,7 +3,7 @@ story_id: 10.3
 title: Instant Death debuff — respawn penalty
 owner: CJX
 reviewers: [DY, QZ]
-status: validation
+status: review
 ---
 
 # Instant Death (ID 9)
@@ -86,8 +86,26 @@ passes too. No test failure is ignored.
   button debouncers and scanout visibility for simulation; no activation input
   or gameplay signal is changed in RTL.
 
-The hardware build is running; final routed evidence will be appended before
-the board handoff. No board PASS is claimed.
+The fresh hardware build completed successfully at 22:53 SGT on 2026-11-05,
+using final production RTL `33f98aa` (subsequent commits change tests/docs only).
+Routed timing meets all specified constraints: WNS **+0.316 ns**, WHS
+**+0.035 ns**, TNS/THS **0**, no failing setup/hold/pulse-width endpoints.
+Both clocks are recognized (100 MHz system and 6.25 MHz OLED); there are no
+unclocked registers, unconstrained internal endpoints or combinational loops.
+The design uses 8,304 LUTs (39.92%), 7,528 FFs (18.10%), 4 BRAM tiles and 6 DSPs,
+with no MMCM/PLL, within the AD-8 budgets. Routed DRC has no errors or critical
+warnings; its seven warnings advise pipelining existing renderer/overlay DSPs.
+The constraints still omit external I/O delays (13 input/42 output checks), so
+this timing result covers the specified clocked paths rather than board I/O
+timing signoff. No board PASS is claimed.
+
+- Project: `build/sevenseg-vga-status-vivado-20261105-224445/labyrinth.xpr`
+- Reports: the project's `labyrinth.runs/impl_1/` timing, DRC and utilization reports.
+- Ready-to-program copy: `C:/EE2026Projects/instant-death-preview/InstantDeath.bit`
+  (2,192,137 bytes).
+- SHA-256: `74819A9A271F7874E4870CBD10D59E9DC3AF7844B75220F2B359350BE8EB2215`.
+- Reproduce: `vivado -mode batch -source scripts/build_bitstream.tcl` from this
+  branch. The fresh isolated build leaves the shared Vivado project untouched.
 
 Captured from the actual top OLED pixel stream (shown 4x):
 
