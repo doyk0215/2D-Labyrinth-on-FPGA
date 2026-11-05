@@ -3,7 +3,10 @@
 
 // Independent real-number inverse mapping for the affine renderer. This uses
 // the fixed maze RAM, rather than copying the RTL's incremental arithmetic.
-module tb_rotated_render;
+module tb_rotated_render #(
+    parameter CAPTURE_FRAMES = 0
+);
+    `include "brick_wall_model.vh"
     localparam real PI = 3.14159265358979323846;
     reg clk = 1'b0;
     reg rst = 1'b1;
@@ -49,6 +52,7 @@ module tb_rotated_render;
     );
 
     integer checked = 0, box_checked = 0;
+    integer frame_file = 0;
     real model_sin, model_cos;
 
     // Independent model of the 16 x 16 item-box tile (spec Design Notes):
@@ -191,7 +195,7 @@ module tb_rotated_render;
                         else if (tile_x == 1 && tile_y == 19)
                             expected = 12'h0f0; // green goal
                         else if (ram_i.tile_mem[tile_y * `MAP_STRIDE + tile_x])
-                            expected = 12'hfff;
+                            expected = brick_wall_model(qx >>> 14, qy >>> 14);
                         else
                             expected = 12'h346;
                         // The box mask is looked up at the renderer's own
@@ -205,6 +209,8 @@ module tb_rotated_render;
                 end
 
                 @(posedge clk); #1;
+                if (frame_file != 0)
+                    $fwrite(frame_file, "%0d %0d %0d\n", vga_r*17, vga_g*17, vga_b*17);
                 if (vga_hs !== 1'b1 || vga_vs !== 1'b1)
                     fail("sync pipeline misaligned", x, y);
                 if (check_color) begin
@@ -250,6 +256,20 @@ module tb_rotated_render;
         for (y = 0; y < 480; y = y + 16) check_line(y, 7);
 
         if (box_checked < 900) fail("too few item-box pixels checked", box_checked, -1);
+        if (CAPTURE_FRAMES) begin
+            capture_angle(12'd0);
+            frame_file = $fopen("brick_maze_0.ppm", "w");
+            if (!frame_file) fail("cannot open zero-degree frame", -1, -1);
+            $fwrite(frame_file, "P3\n640 480\n255\n");
+            for (y = 0; y < 480; y = y + 1) check_line(y, 1);
+            $fclose(frame_file); frame_file = 0;
+            capture_angle(12'd341); // about 30 degrees, also exercise non-cardinal texture samples
+            frame_file = $fopen("brick_maze_30.ppm", "w");
+            if (!frame_file) fail("cannot open rotated frame", -1, -1);
+            $fwrite(frame_file, "P3\n640 480\n255\n");
+            for (y = 0; y < 480; y = y + 1) check_line(y, 1);
+            $fclose(frame_file); frame_file = 0;
+        end
         $display("PASS: rotated renderer at 0, 45, 90, 135 degrees; %0d pixels checked, %0d on item boxes", checked, box_checked);
         $finish;
     end

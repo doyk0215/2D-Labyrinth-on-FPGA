@@ -27,6 +27,9 @@ if {[llength $tb_files] > 0} {
     add_files -fileset sim_1 -norecurse $tb_files
     set_property top tb_rotated_render [get_filesets sim_1]
 }
-set_property include_dirs [list [file join $repo rtl]] [get_filesets sim_1]
+set tb_hdr [file join $repo tb brick_wall_model.vh]
+add_files -fileset sim_1 -norecurse $tb_hdr
+set_property file_type {Verilog Header} [get_files $tb_hdr]
+set_property include_dirs [list [file join $repo rtl] [file join $repo tb]] [get_filesets sim_1]
 
 puts "Project created in [file join $repo vivado]"

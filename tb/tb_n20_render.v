@@ -8,6 +8,7 @@
 // tile memory; tiles at columns and rows 32..40 must be checked (no aliasing
 // onto 0..8 through a 5-bit slice).
 module tb_n20_render;
+    `include "brick_wall_model.vh"
     localparam real PI = 3.14159265358979323846;
     localparam real CENTRE = 328.0;              // N = 20: tile 20's centre, 16*20 + 8
     localparam real SIZE = 656.0;                // 41 tiles of 16 px
@@ -160,7 +161,7 @@ module tb_n20_render;
                         else if (tile_x == 1 && tile_y == 1)
                             expected = 12'h0f0;              // green goal
                         else if (tile_mem[tile_y * `MAP_STRIDE + tile_x])
-                            expected = 12'hfff;
+                            expected = brick_wall_model(qx >>> 14, qy >>> 14);
                         else
                             expected = 12'h346;
                     end

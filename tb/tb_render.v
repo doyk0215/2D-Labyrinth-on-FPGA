@@ -2,6 +2,7 @@
 `include "labyrinth_pkg.vh"
 
 module tb_render;
+    `include "brick_wall_model.vh"
 
     reg clk = 1'b0;
     reg rst = 1'b1;
@@ -30,7 +31,7 @@ module tb_render;
         .btnL       (1'b0),
         .btnR       (1'b0),
         .btnD       (1'b0),
-        .sw         (16'h4000),
+        .sw         (16'h4005), // fixed seed + current CUSTOM offset: N=5+5=10
         .led        (led),
         .vga_r      (vga_r),
         .vga_g      (vga_g),
@@ -135,7 +136,7 @@ module tb_render;
                 else if (c == dut.goal_col && r == dut.goal_row)
                     exp_rgb = 12'h0f0;                       // green goal tile
                 else if (dut.maze_ram_i.tile_mem[r * `MAP_STRIDE + c])
-                    exp_rgb = 12'hfff;                       // wall
+                    exp_rgb = brick_wall_model(16*c+8, 16*r+8); // textured wall
                 else
                     exp_rgb = 12'h346;                       // floor
                 check_pixel(10'd160 + 16 * c, 10'd80 + 16 * r, exp_rgb);

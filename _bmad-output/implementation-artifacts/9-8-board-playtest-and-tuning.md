@@ -56,8 +56,9 @@ be run on HARD and N = 15. The team should agree on this and record it here.
 
 Program the board, then for each of HARD and N = 15:
 
-1. **Timer start.** The countdown does not start on mouse motion or the board
-   buttons, only on the first mouse click (#88).
+1. **Timer start.** The countdown does not start on mouse motion, only on the
+   first mouse click or BTNL / BTNR press (mouse-only in #88; board buttons
+   count again).
 2. **Pickup and roulette.** Roll onto a buff box and a debuff box. The OLED
    spins that box's pool for about 1.5 s, holds about 1 s, then shows
    `ITEM:<name> <seconds>`. No box can be picked up while it spins. The box
