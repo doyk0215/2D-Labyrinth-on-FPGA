@@ -4,7 +4,7 @@
 module oled_roulette_pixel (
     input wire clk,
     input wire [12:0] pixel_index,
-    input wire [2:0] icon,
+    input wire [3:0] icon,
     output wire [15:0] pixel_data
 );
     wire [6:0] x;

@@ -53,8 +53,8 @@ module tb_top_story92_items;
         force dut.frame_tick=0;force dut.oled_frame_begin=0;cycles(20);start();
         probe_buff(12'h04f);
         c=dut.box_cols[`COORD_W-1:0];r=dut.box_rows[`COORD_W-1:0];ball_at(c,r);frame();
-        if(dut.box_visible[0] || dut.item_pickup_effect > `ITEM_TIME_BONUS ||
-           (dut.item_pickup_effect != `ITEM_TIME_BONUS && dut.item_seconds==0))
+        if(dut.box_visible[0] || (dut.item_pickup_effect > `ITEM_TIME_BONUS && dut.item_pickup_effect != `ITEM_WALL_BREAKER) ||
+           (dut.item_pickup_effect != `ITEM_TIME_BONUS && dut.item_pickup_effect != `ITEM_WALL_BREAKER && dut.item_seconds==0))
             fail("actual physics completion did not pick up generated buff");
         if(dut.ball_i.effect_code !== dut.item_effect)fail("effect did not reach physics");
         probe_buff(12'h346);
@@ -65,7 +65,7 @@ module tb_top_story92_items;
             fail("effect expiry or occupied respawn failed");
         ball_at(dut.start_col,dut.start_row);frame();
         if(!dut.box_visible[0])fail("box did not reappear on departure");probe_buff(12'h04f);
-        ball_at(c,r);frame();if(dut.item_pickup_effect > `ITEM_TIME_BONUS)fail("respawned buff box did not roll from its pool");
+        ball_at(c,r);frame();if((dut.item_pickup_effect > `ITEM_TIME_BONUS && dut.item_pickup_effect != `ITEM_WALL_BREAKER))fail("respawned buff box did not roll from its pool");
         release dut.ball_i.ball_x;release dut.ball_i.ball_y;
         click();if(dut.game_state !== `ST_MENU || dut.item_effect!==`ITEM_NONE || dut.box_visible!==0)
             fail("short reset retained item/respawn state");

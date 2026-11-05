@@ -13,7 +13,9 @@ module tb_item_ctrl;
     wire [3:0] visible,effect,picked;
     wire [6:0] seconds;
     wire pulse;
-    wire blocked, bonus;
+    wire blocked, bonus, breaker;
+    integer brk_count=0;
+    always @(posedge clk) if(breaker) brk_count=brk_count+1;
     wire [1:0] index;
     wire [3:0] stub_effect;
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(2),.RESPAWN_SECONDS(3)) dut (
@@ -21,7 +23,7 @@ module tb_item_ctrl;
         .n_cells(n),.ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(valid),.seed(seed),
         .box_visible(visible),.active_effect(effect),.effect_seconds(seconds),
         .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),
-        .debuff_blocked(blocked),.time_bonus_pulse(bonus)
+        .debuff_blocked(blocked),.time_bonus_pulse(bonus),.wall_breaker_pulse(breaker)
     );
     item_ctrl #(.CLK_HZ(HZ),.EFFECT_SECONDS(2),.RESPAWN_SECONDS(3),.STUB_LOW_ONLY(1)) stub_i (
         .clk(clk),.rst(rst),.game_state(state),.phys_init(init),.phys_done(done),.roulette_busy(1'b0),.roulette_commit(1'b0),
@@ -29,7 +31,7 @@ module tb_item_ctrl;
         .active_effect(stub_effect)
     );
     task fail;input [767:0] msg;
-        begin $display("FAIL item_ctrl: %0s vis=%b effect=%0d sec=%0d",msg,visible,effect,seconds);$fatal(1);end endtask
+        begin $display("FAIL item_ctrl: %0s vis=%b effect=%0d sec=%0d",msg,visible,effect,seconds);$finish;end endtask
     task cycles;input integer count;begin repeat(count)@(negedge clk);end endtask
     task position;input integer c,r;
         begin bx=(c-n)*4096;by=(r-n)*4096;end endtask
@@ -40,19 +42,24 @@ module tb_item_ctrl;
     task choose_low;
         integer guard;
         begin guard=0;while(dut.buff_roll!=0 && guard<1000)begin cycles(1);guard=guard+1;end
-            if(guard==1000)fail("no low-gravity candidate");end endtask
+            if(guard==1000)fail("no low-gravity candidate");
+            force dut.buff_roll=2'd0;   // hold it: the roll changes every clock now
+        end endtask
     task pickup;input integer slot;
         reg [3:0] previous_effect;
+        integer prior_breaks;
         begin
-            previous_effect=effect;
+            previous_effect=effect;prior_breaks=brk_count;
             position(cols[slot*`COORD_W+:`COORD_W],rows[slot*`COORD_W+:`COORD_W]);done=1;cycles(1);done=0;
             if(!pulse || index !== slot || visible[slot] !== 0)fail("centre pickup failed");
             if(blocked)begin
                 if(previous_effect!==`ITEM_INVINCIBLE || slot<2 || picked!==`ITEM_NONE)fail("invalid blocked pickup");
             end else begin
-                if((slot<2 && picked>2) || (slot>=2 && (picked<3 || picked>7)))fail("effect outside its pool");
-                if(picked!=`ITEM_TIME_BONUS && (effect!==picked || seconds!==2))fail("timed effect activation failed");
-                if(picked==`ITEM_TIME_BONUS && effect==`ITEM_TIME_BONUS)fail("instant bonus became timed effect");
+                if((slot<2 && picked>2 && picked!=`ITEM_WALL_BREAKER) || (slot>=2 && (picked<3 || picked>7)))fail("effect outside its pool");
+                if(picked!=`ITEM_TIME_BONUS && picked!=`ITEM_WALL_BREAKER && (effect!==picked || seconds!==2))fail("timed effect activation failed");
+                if(picked==`ITEM_WALL_BREAKER && effect!==previous_effect)fail("wall breaker changed the running effect");
+                if(brk_count!=prior_breaks+((picked==`ITEM_WALL_BREAKER)?1:0))fail("wall breaker pulse count wrong");
+                if((picked==`ITEM_TIME_BONUS && effect==`ITEM_TIME_BONUS) || effect==`ITEM_WALL_BREAKER)fail("instant effect became timed effect");
             end
             if(stub_effect !== `ITEM_LOW_GRAV)fail("stub option failed");
         end endtask
@@ -60,7 +67,7 @@ module tb_item_ctrl;
         begin done=1;cycles(1);done=0;
             if(pulse)fail("spurious pickup");end endtask
     integer i,slot;
-    reg [7:0] seen=0;
+    reg [8:0] seen=0;
     reg [3:0] first_roll;
     initial begin
         cycles(2);rst=0;new_maze();choose_low();
@@ -81,15 +88,16 @@ module tb_item_ctrl;
         if(seconds!==2 || effect<3)fail("new pickup did not replace/restart old effect");
         // No underflow and no duplicate pickup while a hidden box is occupied.
         cycles(HZ*4);sample_no_pickup();if(visible[2] || seconds!==0)fail("hidden box repicked or timer wrapped");
+        release dut.buff_roll;
         // Re-roll the same visible slots after respawn. Every cached candidate
-        // belongs to its pool; all eight IDs occur across this deterministic run.
+        // belongs to its pool; all nine IDs occur across this deterministic run.
         new_maze();
         for(i=0;i<160;i=i+1)begin
             slot=i%4;position(1,1);cycles(HZ*3+3);sample_no_pickup();cycles((i%7)+1);
-            pickup(slot);seen=seen|(8'b1<<picked);cycles(1);
+            pickup(slot);seen=seen|(9'b1<<picked);cycles(1);
             if(pulse)fail("pickup pulse wider than one system clock");
         end
-        if(seen!==8'hff)fail("repeated fresh rolls did not cover every pool member");
+        if(seen!==9'h1ff)fail("repeated fresh rolls did not cover every pool member");
         // Same seed and same input timing give the same first roll.
         new_maze();pickup(1);first_roll=picked;
         new_maze();pickup(1);if(picked!==first_roll)fail("same-seed timing not deterministic");

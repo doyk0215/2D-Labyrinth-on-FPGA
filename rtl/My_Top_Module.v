@@ -285,6 +285,12 @@ module My_Top_Module #(
     wire        maze_we;
     wire [`MAP_ADDR_W-1:0] maze_waddr;
     wire        maze_wdata;
+    wire        gen_we;
+    wire [`MAP_ADDR_W-1:0] gen_waddr;
+    wire        gen_wdata;
+    wire        wall_breaker_pulse;
+    wire        brk_we, brk_wdata, brk_busy;
+    wire [`MAP_ADDR_W-1:0] brk_waddr;
     wire [`COORD_W-1:0] start_col;
     wire [`COORD_W-1:0] start_row;
     wire [`COORD_W-1:0] goal_col;
@@ -303,9 +309,9 @@ module My_Top_Module #(
     wire item_pending_valid;
     wire [`ITEM_EFFECT_W-1:0] item_pending_effect;
     wire roulette_busy,roulette_commit,roulette_returning;
-    wire [3:0] roulette_visual;
+    wire [4:0] roulette_visual;
     reg oled_display_frame=0;
-    reg [3:0] oled_display_visual=0;
+    reg [4:0] oled_display_visual=0;
     wire [31:0] seed;
     wire        gen_start;
     wire        seed_capture;
@@ -663,9 +669,9 @@ module My_Top_Module #(
         .seed      (seed),
         .gen_busy  (gen_busy),
         .gen_done  (gen_done),
-        .we        (maze_we),
-        .waddr     (maze_waddr),
-        .wdata     (maze_wdata),
+        .we        (gen_we),
+        .waddr     (gen_waddr),
+        .wdata     (gen_wdata),
         .start_col (start_col),
         .start_row (start_row),
         .goal_col  (goal_col),
@@ -675,8 +681,13 @@ module My_Top_Module #(
         .box_valid (box_valid)
     );
 
-    // maze_gen is the sole writer; ball_physics reads walls through the
-    // physics port (Story 3.2) and render through the render port.
+    // maze_gen writes the map; the wall breaker edits it only during PLAY, when
+    // the generator is idle (the generator wins if they ever coincide).
+    // ball_physics reads walls through the physics port (Story 3.2) and render
+    // through the render port.
+    assign maze_we    = gen_we | brk_we;
+    assign maze_waddr = gen_we ? gen_waddr : brk_waddr;
+    assign maze_wdata = gen_we ? gen_wdata : brk_wdata;
     maze_ram maze_ram_i (
         .clk     (clk),
         .we      (maze_we),
@@ -744,7 +755,8 @@ module My_Top_Module #(
         .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
         .pickup_pulse(item_pickup), .pickup_index(item_pickup_index),
         .pickup_effect(item_pickup_effect), .debuff_blocked(item_debuff_blocked),
-        .time_bonus_pulse(item_time_bonus), .pending_valid(item_pending_valid),
+        .time_bonus_pulse(item_time_bonus), .wall_breaker_pulse(wall_breaker_pulse),
+        .pending_valid(item_pending_valid),
         .pending_effect(item_pending_effect)
     );
 
@@ -755,6 +767,15 @@ module My_Top_Module #(
         .debuff_blocked(item_debuff_blocked),.display_frame(oled_display_frame),
         .display_visual(oled_display_visual),.busy(roulette_busy),.visual(roulette_visual),
         .commit(roulette_commit),.returning(roulette_returning));
+
+    // WALL BREAKER bomb: clears the 5 x 5 block of interior walls around the
+    // ball at the next physics completion after the roulette grants it.
+    wall_breaker #(.BLAST_RADIUS(2)) wall_breaker_i (
+        .clk(clk), .rst(rst), .phys_init(phys_init), .game_state(game_state),
+        .phys_done(phys_done), .trigger(wall_breaker_pulse), .n_cells(n_cells),
+        .ball_x(ball_x), .ball_y(ball_y),
+        .we(brk_we), .waddr(brk_waddr), .wdata(brk_wdata), .busy(brk_busy)
+    );
 
     // Camera (Story 7.2): follows the ball on stages too large for the
     // screen, the map centre otherwise. render centres the view on it and
@@ -958,7 +979,7 @@ module My_Top_Module #(
     reg text_ack_toggle = 1'b0;
     reg text_req_toggle = 1'b0;
     reg [511:0] text_mailbox = 512'd0;
-    reg [3:0] visual_mailbox=0;
+    reg [4:0] visual_mailbox=0;
     always @(posedge clk) begin
         if (system_reset) begin
             text_ack_sync <= 2'b00;
@@ -983,7 +1004,7 @@ module My_Top_Module #(
     reg [511:0] text_pending = 512'd0;
     reg [511:0] text_active = 512'd0;
     reg text_pending_valid = 1'b0;
-    reg [3:0] visual_pending=0,visual_active=0;
+    reg [4:0] visual_pending=0,visual_active=0;
     reg oled_frame_toggle=0;
     always @(posedge clk_6m25) begin
         if (oled_reset) begin
@@ -1036,8 +1057,8 @@ module My_Top_Module #(
         .status_text(text_active), .pixel_data(oled_text_data)
     );
     oled_roulette_pixel roulette_pixel_i(.clk(clk_6m25),.pixel_index(oled_pixel_index),
-        .icon(visual_active[2:0]),.pixel_data(oled_icon_data));
-    assign oled_pixel_data=visual_active[3] ? oled_icon_data : oled_text_data;
+        .icon(visual_active[3:0]),.pixel_data(oled_icon_data));
+    assign oled_pixel_data=visual_active[4] ? oled_icon_data : oled_text_data;
 
     Oled_Display oled_i (
         .clk(clk_6m25), .reset(oled_reset),

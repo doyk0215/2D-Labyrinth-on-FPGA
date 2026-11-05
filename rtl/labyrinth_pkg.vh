@@ -65,6 +65,7 @@
 `define ITEM_ZERO_GRAV 4'd5
 `define ITEM_INVERT    4'd6
 `define ITEM_FOG       4'd7
+`define ITEM_WALL_BREAKER 4'd8   // instant buff, icon 8; never an active_effect
 `define ITEM_NONE      4'd15
 
 // ---- Rotation command (rot_cmd[1:0], signed) ----

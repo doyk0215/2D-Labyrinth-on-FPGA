@@ -44,6 +44,7 @@ module tb_story95_items;
             if(state!==`ST_PLAY || visible!==15 || seconds!==1)fail("new game initialization");end endtask
     task choose;input [3:0] code;integer guard;
         begin guard=0;while(item_i.buff_roll!=code && guard<1000)begin cycles(1);guard=guard+1;end
+            force item_i.buff_roll=code[1:0];   // hold it: the roll changes every clock
             if(guard==1000)fail("seed never produced requested buff candidate");end endtask
     task pick;input integer slot;
         begin position(slot);done=1;cycles(1);done=0;
