@@ -300,7 +300,7 @@ module My_Top_Module #(
     wire [`ITEM_EFFECT_W-1:0] item_pickup_effect;
     wire item_debuff_blocked;
     wire item_time_bonus;
-    wire item_instant_death, instant_respawn_apply;
+    wire item_instant_death, instant_respawn_apply, instant_discard_step;
     wire item_pending_valid;
     wire [`ITEM_EFFECT_W-1:0] item_pending_effect;
     wire roulette_busy,roulette_commit,roulette_returning;
@@ -740,7 +740,7 @@ module My_Top_Module #(
         .RESPAWN_SECONDS(ITEM_RESPAWN_SECONDS), .STUB_LOW_ONLY(ITEM_STUB_LOW_ONLY),
         .DEFER_EFFECT(ITEM_ROULETTE_ENABLE)) item_i (
         .clk(clk), .rst(rst), .game_state(game_state), .phys_init(phys_init),
-        .phys_done(phys_done && !instant_respawn_apply), .n_cells(n_cells), .ball_x(ball_x), .ball_y(ball_y),
+        .phys_done(phys_done && !instant_discard_step), .n_cells(n_cells), .ball_x(ball_x), .ball_y(ball_y),
         .box_cols(box_cols), .box_rows(box_rows), .box_valid(box_valid), .seed(seed),
         .roulette_busy(roulette_busy), .roulette_commit(roulette_commit),
         .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
@@ -754,7 +754,7 @@ module My_Top_Module #(
         .clk(clk),.rst(rst),.phys_init(phys_init),.frame_tick(frame_tick),
         .request(item_instant_death),.game_state(game_state),
         .pause_requested(btnU_press),.time_up(time_up),.in_goal(in_goal),
-        .apply(instant_respawn_apply));
+        .apply(instant_respawn_apply),.discard_step(instant_discard_step));
 
     item_roulette #(.CLK_HZ(TIMER_CLK_HZ),.SPIN_MS(ITEM_ROULETTE_SPIN_MS),
         .HOLD_MS(ITEM_ROULETTE_HOLD_MS),.BLOCK_MS(ITEM_BLOCK_ICON_MS)) roulette_i (
@@ -774,7 +774,7 @@ module My_Top_Module #(
         .clk       (clk),
         .rst       (rst),
         .phys_init (phys_init || instant_respawn_apply),
-        .phys_done (phys_done && !instant_respawn_apply),
+        .phys_done (phys_done && !instant_discard_step),
         .n_cells   (n_cells),
         .ball_x    (ball_x),
         .ball_y    (ball_y),
