@@ -1,4 +1,4 @@
-# Orange instant time-bonus receipt and unchanged timer/item behavior.
+# Buff-green instant time-bonus receipt and unchanged timer/item behavior.
 set repo [file normalize [file join [file dirname [info script]] ..]]
 set run [file join $::env(TEMP) time_pickup_hud_vivado_run]
 file mkdir $run

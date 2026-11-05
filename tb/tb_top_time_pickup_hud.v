@@ -88,14 +88,14 @@ module tb_top_time_pickup_hud;
         if(!dut.hud_i.bonus_notice || dut.hud_i.item_status_line!=={"TIME +10s",{11{8'h20}}})
             fail("selected-result receipt not captured for VGA frame");
         force dut.pixel_x=10'd384;force dut.pixel_y=10'd38;force dut.active_video=1;cycles(3);
-        if(!dut.hud_text || !dut.hud_bonus_line || {dut.vga_r,dut.vga_g,dut.vga_b}!==12'hf80)
-            fail("roulette receipt is not orange at VGA pins");
+        if(!dut.hud_text || !dut.hud_bonus_line || {dut.vga_r,dut.vga_g,dut.vga_b}!==12'h4f4)
+            fail("roulette receipt is not buff green at VGA pins");
         release dut.pixel_x;release dut.pixel_y;release dut.active_video;
         if(dut.item_effect!==`ITEM_NONE)fail("receipt created timed gameplay effect");
         cycles(600);frame();
         if(grants!=1 || dut.hud_i.bonus_notice || dut.hud_i.item_status_line!=={"ITEM NONE",{11{8'h20}}})
             fail("receipt did not expire or bonus applied twice");
-        $display("PASS: roulette time pickup HUD stays hidden until selected result, same-edge timer grant, orange VGA text, exact-once bonus and ITEM NONE restore");
+        $display("PASS: roulette time pickup HUD stays hidden until selected result, same-edge timer grant, buff-green VGA text, exact-once bonus and ITEM NONE restore");
         $finish;
     end
     initial begin #10000000;fail("timeout");end

@@ -77,12 +77,12 @@ module tb_top_story95_buffs;
         position(-1);frame();if(!dut.box_visible[2])fail("blocked box did not respawn");
         if(dut.hud_i.item_status_line!=={"TIME +10s",{11{8'h20}}})
             fail("time receipt not displayed in existing item row");
-        // Inspect a real glyph pixel at the VGA pins, including its orange
+        // Inspect a real glyph pixel at the VGA pins, including its buff-green
         // colour. No timer/effect/notice or colour signal is forced.
         force dut.pixel_x=10'd384;force dut.pixel_y=10'd38;
         force dut.active_video=1;cycles(3);
-        if(!dut.hud_bonus_line || !dut.hud_text || {dut.vga_r,dut.vga_g,dut.vga_b}!==12'hf80)
-            fail("time receipt is not orange at VGA pins");
+        if(!dut.hud_bonus_line || !dut.hud_text || {dut.vga_r,dut.vga_g,dut.vga_b}!==12'h4f4)
+            fail("time receipt is not buff green at VGA pins");
         release dut.pixel_x;release dut.pixel_y;release dut.active_video;
         cycles(512);frame();
         if(dut.hud_i.bonus_notice || dut.item_effect!==`ITEM_INVINCIBLE)

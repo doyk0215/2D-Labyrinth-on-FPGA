@@ -879,7 +879,7 @@ module My_Top_Module #(
     wire [11:0] hud_rgb = !hud_text ? (hud_accent ? 12'h0af : 12'h013) :
                           hud_timer_line ? (hud_timer_red ? 12'hf00 : 12'hfff) :
                           !hud_item_line ? 12'hfff :
-                          hud_bonus_line ? 12'hf80 :
+                          hud_bonus_line ? 12'h4f4 :
                           hud_debuff_line ? 12'hf82 : 12'h4f4;
 
     // The huge background stays in RAM while only the menu overlay mode changes.
