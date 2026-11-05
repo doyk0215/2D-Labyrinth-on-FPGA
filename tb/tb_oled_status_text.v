@@ -97,10 +97,10 @@ module tb_oled_status_text;
         game_state = `ST_GENERATE; #1;
         check_game_page("STAGE 1 EASY    ", "N: 000          ", "GENERATING...   ", "EASY GENERATE");
         game_state = `ST_PLAY; #1;
-        check_game_page("STAGE 1 EASY    ", "N: 000          ", "BTNC RESET      ", "EASY PLAY");
+        check_game_page("STAGE 1 EASY    ", "N: 000          ", "BTNC MENU       ", "EASY PLAY");
 
         active_game_cfg = 10'h12A; levels_completed_bcd = 12'h007; #1;  // MEDIUM, FAST
-        check_game_page("STAGE 2 MEDIUM  ", "N: 007          ", "BTNC RESET      ", "MEDIUM PLAY");
+        check_game_page("STAGE 2 MEDIUM  ", "N: 007          ", "BTNC MENU       ", "MEDIUM PLAY");
         game_state = `ST_WIN; levels_completed_bcd = 12'h123; #1;
         check_game_page("STAGE 2 MEDIUM  ", "N: 123          ", "YOU WIN         ", "MEDIUM WIN");
 

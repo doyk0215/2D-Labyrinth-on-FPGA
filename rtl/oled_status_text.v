@@ -97,7 +97,7 @@ module oled_status_text (
             );
             `ST_PLAY: status_text = pack_text(
                 stage_text, "LEVELS COMPLETED", completed_count_line,
-                "BTNC RESET      "
+                "BTNC MENU       "
             );
             `ST_PAUSED: status_text = pack_text(
                 "PAUSED          ", pause_resume_line, pause_restart_line,
