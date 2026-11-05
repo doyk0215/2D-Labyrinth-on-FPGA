@@ -32,6 +32,7 @@ module tb_timer_warning_overlay;
     wire hud_item_line, hud_debuff_line;
     game_status_hud hud_i (
         .clk(clk), .rst(rst), .pixel_x(10'd385), .pixel_y(10'd20),
+        .frame_tick(frame_tick), .phys_init(1'b0), .time_bonus_pulse(1'b0),
         .active_video(1'b1), .game_state(game_state), .n_cells(hud_n_cells),
         .minutes_bcd(minutes_bcd), .seconds_bcd(seconds_bcd),
         .warning_active(warning_active), .timer_flash_red(timer_flash_red),

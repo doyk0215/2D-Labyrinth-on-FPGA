@@ -36,6 +36,7 @@ if {[catch {exec {*}$compile_cmd 2>@1} output]} {
 puts $output
 
 foreach {top snapshot marker} {
+    tb_time_pickup_hud time_pickup_hud_snapshot "PASS: time pickup HUD"
     tb_brick_wall_pixel brick_wall_snapshot "PASS: brick texture"
     tb_vga_timing vga_timing_snapshot "PASS: 800x525 totals"
     tb_render render_snapshot "PASS: generated maze"
