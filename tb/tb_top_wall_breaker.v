@@ -75,6 +75,7 @@ module tb_top_wall_breaker;
         if(dut.item_pickup_effect!==`ITEM_WALL_BREAKER)fail("pickup was not WALL BREAKER");
         cycles(60);
         if(breaks!=1)fail("expected exactly one breaker pulse");
+        if(!dut.blast_on || dut.blast_col!==bc[5:0] || dut.blast_row!==br[5:0])fail("explosion did not start on the blast tile");
         if(dut.item_effect!==`ITEM_INVINCIBLE || dut.item_seconds>prior_seconds)fail("breaker ended or refreshed the running effect");
         // Every interior wall within 2 tiles of the box tile is floor; nothing else changed.
         changed=0;expected_changes=0;
@@ -102,6 +103,10 @@ module tb_top_wall_breaker;
         frame();frame();
         if(dut.maze_ram_i.tile_mem[(br+1)*64+bc]!==1'b0 && before[(br+1)*64+bc] && (br+1)<=2*dut.n_cells-1)
             fail("blast did not persist across frames");
+        // The explosion plays out (6 steps of 3 frames) and then stops by itself.
+        if(!dut.blast_on)fail("explosion ended too early");
+        for(i=0;i<18;i=i+1)frame();
+        if(dut.blast_on)fail("explosion did not end");
         // BTND regenerates the same seeded maze, so the broken walls are back.
         btnD=1;cycles(12);btnD=0;cycles(12);frame();i=0;
         while(!dut.gen_done && i<200000)begin cycles(1);i=i+1;end

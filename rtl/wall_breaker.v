@@ -23,7 +23,10 @@ module wall_breaker #(
     output reg                          we,
     output reg  [`MAP_ADDR_W-1:0]       waddr,
     output wire                         wdata,
-    output wire                         busy
+    output wire                         busy,
+    output reg                          blast_start,   // one clock when a blast begins
+    output wire [`COORD_W-1:0]          blast_col,     // its centre tile
+    output wire [`COORD_W-1:0]          blast_row
 );
     localparam integer SIDE = 2 * BLAST_RADIUS + 1;
     localparam integer IDX_W = (SIDE > 1) ? $clog2(SIDE) : 1;
@@ -47,6 +50,8 @@ module wall_breaker #(
     reg [`COORD_W-1:0] limit;                  // last interior tile index, 2N-1
     reg [IDX_W-1:0] ix, iy;
     assign busy = running;
+    assign blast_col = centre_col;
+    assign blast_row = centre_row;
 
     // The game may leave PLAY only through PAUSED (kept) or an end/restart
     // state (dropped).
@@ -61,6 +66,7 @@ module wall_breaker #(
 
     always @(posedge clk) begin
         we <= 1'b0;
+        blast_start <= 1'b0;
         if (rst || phys_init || !keep_state) begin
             pending <= 1'b0;
             running <= 1'b0;
@@ -87,6 +93,7 @@ module wall_breaker #(
             end else if (in_play && phys_done && (pending || trigger) && in_map) begin
                 pending <= 1'b0;
                 running <= 1'b1;
+                blast_start <= 1'b1;
                 centre_col <= ball_col;
                 centre_row <= ball_row;
                 limit <= max_tile - 1'b1;

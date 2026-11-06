@@ -80,6 +80,8 @@ foreach {top snapshot marker} {
     tb_story95_items story95_items_snapshot "PASS: Story 9.5 items"
     tb_wall_breaker wall_breaker_snapshot "PASS: wall breaker"
     tb_top_wall_breaker top_wall_breaker_snapshot "PASS: top wall breaker"
+    tb_blast_effect blast_effect_snapshot "PASS: blast effect"
+    tb_render_blast render_blast_snapshot "PASS: render blast tint"
     tb_top_story95_buffs story95_top_snapshot "PASS: Story 9.5 top"
     tb_item_roulette item_roulette_snapshot "PASS: item roulette"
     tb_oled_roulette_pixel roulette_pixel_snapshot "PASS: OLED roulette pixel"

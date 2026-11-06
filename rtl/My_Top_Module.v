@@ -289,6 +289,12 @@ module My_Top_Module #(
     wire [`MAP_ADDR_W-1:0] gen_waddr;
     wire        gen_wdata;
     wire        wall_breaker_pulse;
+    wire        blast_start;
+    wire [`COORD_W-1:0] blast_centre_col, blast_centre_row;
+    wire        blast_on, blast_fill;
+    wire [1:0]  blast_radius;
+    wire [`COORD_W-1:0] blast_col, blast_row;
+    wire [11:0] blast_rgb;
     wire        brk_we, brk_wdata, brk_busy;
     wire [`MAP_ADDR_W-1:0] brk_waddr;
     wire [`COORD_W-1:0] start_col;
@@ -782,7 +788,17 @@ module My_Top_Module #(
         .clk(clk), .rst(rst), .phys_init(phys_init), .game_state(game_state),
         .phys_done(phys_done), .trigger(wall_breaker_pulse), .n_cells(n_cells),
         .ball_x(ball_x), .ball_y(ball_y),
-        .we(brk_we), .waddr(brk_waddr), .wdata(brk_wdata), .busy(brk_busy)
+        .we(brk_we), .waddr(brk_waddr), .wdata(brk_wdata), .busy(brk_busy),
+        .blast_start(blast_start), .blast_col(blast_centre_col), .blast_row(blast_centre_row)
+    );
+
+    // Explosion drawn by render over the blast area (maze space, per frame).
+    blast_effect blast_effect_i (
+        .clk(clk), .rst(rst), .phys_init(phys_init), .frame_tick(frame_tick),
+        .game_state(game_state), .start(blast_start),
+        .centre_col(blast_centre_col), .centre_row(blast_centre_row),
+        .on(blast_on), .col(blast_col), .row(blast_row),
+        .fill(blast_fill), .radius(blast_radius), .rgb(blast_rgb)
     );
 
     // Camera (Story 7.2): follows the ball on stages too large for the
@@ -837,7 +853,7 @@ module My_Top_Module #(
     wire [`COORD_W-1:0] render_goal_col = menu_bg_visible ? 6'd41 : goal_col;
     wire [`COORD_W-1:0] render_goal_row = menu_bg_visible ? 6'd41 : goal_row;
 
-    render render_i (
+    render #(.BLAST_ENABLE(1)) render_i (
         .clk          (clk),
         .rst          (rst),
         .ce_pix       (ce_pix),
@@ -869,6 +885,12 @@ module My_Top_Module #(
         .ball_on      (menu_bg_visible ? 1'b0 : ball_on),
         .fog_en       (menu_bg_visible ? 1'b0 : (item_effect == `ITEM_FOG)),
         .fog_clear    (fog_clear),
+        .blast_on     (menu_bg_visible ? 1'b0 : blast_on),
+        .blast_fill   (blast_fill),
+        .blast_radius (blast_radius),
+        .blast_col    (blast_col),
+        .blast_row    (blast_row),
+        .blast_rgb    (blast_rgb),
         .vga_r        (render_r),
         .vga_g        (render_g),
         .vga_b        (render_b),
