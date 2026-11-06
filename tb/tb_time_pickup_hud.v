@@ -2,7 +2,7 @@
 `include "labyrinth_pkg.vh"
 module tb_time_pickup_hud;
     reg clk=0; always #5 clk=~clk;
-    reg rst=1, frame=0, init=0, bonus=0, video=1;
+    reg rst=1, frame=0, init=0, bonus=0, wall_breaker=0, video=1;
     reg [`GAME_STATE_W-1:0] state=`ST_PLAY;
     reg [9:0] x=0,y=0;
     reg [4:0] n=10;
@@ -10,17 +10,20 @@ module tb_time_pickup_hud;
     wire panel,text_on,bonus_line,item_line,debuff_line;
     game_status_hud #(.CLK_HZ(4)) dut(
         .clk(clk),.rst(rst),.frame_tick(frame),.phys_init(init),.time_bonus_pulse(bonus),
+        .wall_breaker_pulse(wall_breaker),
         .pixel_x(x),.pixel_y(y),.active_video(video),.game_state(state),.n_cells(n),
         .minutes_bcd(8'h01),.seconds_bcd(8'h09),.warning_active(1'b0),.timer_flash_red(1'b0),
         .active_effect(effect),.effect_seconds(7'd8),.panel_on(panel),.text_on(text_on),
         .item_line(item_line),.debuff_line(debuff_line),.bonus_line(bonus_line));
     game_status_hud #(.CLK_HZ(4),.BONUS_SECONDS(125)) large_i(
         .clk(clk),.rst(rst),.frame_tick(frame),.phys_init(init),.time_bonus_pulse(bonus),
+        .wall_breaker_pulse(wall_breaker),
         .pixel_x(x),.pixel_y(y),.active_video(video),.game_state(state),.n_cells(n),
         .minutes_bcd(8'h01),.seconds_bcd(8'h09),.warning_active(1'b0),.timer_flash_red(1'b0),
         .active_effect(effect),.effect_seconds(7'd8));
     game_status_hud #(.CLK_HZ(4),.BONUS_SECONDS(0)) zero_i(
         .clk(clk),.rst(rst),.frame_tick(frame),.phys_init(init),.time_bonus_pulse(bonus),
+        .wall_breaker_pulse(wall_breaker),
         .pixel_x(x),.pixel_y(y),.active_video(video),.game_state(state),.n_cells(n),
         .minutes_bcd(8'h01),.seconds_bcd(8'h09),.warning_active(1'b0),.timer_flash_red(1'b0),
         .active_effect(effect),.effect_seconds(7'd8));
@@ -72,6 +75,19 @@ module tb_time_pickup_hud;
         if(dut.item_status_line!=={"DEBUFF FOG      08s",8'h20})fail("debuff label changed");
         effect=`ITEM_NONE;grant();snap();state=`ST_MENU;cycles(1);
         if(dut.bonus_notice || dut.notice_left!=0)fail("menu retained notice");
+        state=`ST_PLAY;effect=`ITEM_INVINCIBLE;
+        wall_breaker=1;cycles(1);wall_breaker=0;
+        if(dut.notice_left!=8 || dut.wall_breaker_notice)fail("wall breaker notice did not wait for frame snapshot");
+        snap();
+        if(!dut.wall_breaker_notice || dut.bonus_notice ||
+           dut.item_status_line!=={"WALL BREAKER",{8{8'h20}}})fail("wall breaker VGA text");
+        state=`ST_PAUSED;cycles(20);
+        if(dut.notice_left!=7)fail("pause consumed wall breaker notice duration");
+        state=`ST_PLAY;cycles(7);
+        if(dut.notice_left!=0 || !dut.wall_breaker_notice)fail("wall breaker notice expired during visible frame");
+        snap();
+        if(dut.wall_breaker_notice || dut.item_status_line!=={"BUFF INVINCIB 08s",{3{8'h20}}})
+            fail("wall breaker notice did not expire and restore the current effect");
         state=`ST_PLAY;n=5;grant();snap();x=385;y=40;cycles(2);
         if(text_on || bonus_line)fail("notice appeared on no-items EASY row");
         n=10;video=0;cycles(2);if(panel || text_on || bonus_line)fail("notice leaked into blanking");

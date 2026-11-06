@@ -42,6 +42,7 @@ module item_ctrl #(
     output reg [`ITEM_EFFECT_W-1:0] pickup_effect,
     output reg debuff_blocked,
     output wire time_bonus_pulse,
+    output wire wall_breaker_pulse,
     output wire instant_death_pulse,
     output reg pending_valid,
     output reg [`ITEM_EFFECT_W-1:0] pending_effect
@@ -96,6 +97,8 @@ module item_ctrl #(
     reg [7:0] on_box;
     reg hit_valid;
     reg [2:0] hit_index;
+    wire [7:0] hit_boxes = on_box & box_visible;
+    wire [7:0] selected_box;
     reg [`ITEM_EFFECT_W-1:0] rolled_effect;
     wire [6:0] pending_duration = duration_of(pending_effect);
     wire [6:0] rolled_duration = duration_of(rolled_effect);
@@ -113,21 +116,35 @@ module item_ctrl #(
                       !rst && !phys_init && game_state == `ST_PLAY;
     assign time_bonus_pulse = DEFER_EFFECT ? (commit_now && pending_effect == `ITEM_TIME_BONUS) :
                              (pickup_now && !block_debuff && rolled_effect == `ITEM_TIME_BONUS);
+    // Same grant edge as the time bonus: the breaker is instant and never
+    // becomes active_effect, so it cannot end or refresh a running effect.
+    assign wall_breaker_pulse = DEFER_EFFECT ? (commit_now && pending_effect == `ITEM_WALL_BREAKER) :
+                                (pickup_now && !block_debuff && rolled_effect == `ITEM_WALL_BREAKER);
     assign instant_death_pulse = DEFER_EFFECT ? (commit_now && pending_effect == `ITEM_INSTANT_DEATH) :
                                 (pickup_now && !block_debuff && rolled_effect == `ITEM_INSTANT_DEATH);
+    // Keep the winning pickup as a one-hot mask as well as an encoded index.
+    // Per-box updates use this mask directly, avoiding an encode/decode chain
+    // from the ball coordinate to each respawn timer register.
+    genvar box_sel;
+    generate for (box_sel=0; box_sel<8; box_sel=box_sel+1) begin : select_box
+        if (box_sel == 0) begin
+            assign selected_box[box_sel] = hit_boxes[box_sel];
+        end else begin
+            assign selected_box[box_sel] = hit_boxes[box_sel] && !(|hit_boxes[box_sel-1:0]);
+        end
+    end endgenerate
     integer k;
     always @* begin
         for(k=0;k<8;k=k+1)
             on_box[k] = in_map && box_valid[k] &&
                         ball_col == box_cols[k*`COORD_W+:`COORD_W] && ball_row == box_rows[k*`COORD_W+:`COORD_W];
-        hit_valid=0; hit_index=0;
-        // Lowest slot wins if a malformed map overlaps boxes. At most one
-        // pickup is published per completed physics frame.
-        for(k=7;k>=0;k=k-1) begin
-            if(on_box[k] && box_visible[k]) begin hit_valid=1; hit_index=k; end
-        end
+        hit_valid=|hit_boxes;
+        hit_index[0]=selected_box[1] | selected_box[3] | selected_box[5] | selected_box[7];
+        hit_index[1]=selected_box[2] | selected_box[3] | selected_box[6] | selected_box[7];
+        hit_index[2]=selected_box[4] | selected_box[5] | selected_box[6] | selected_box[7];
         if(STUB_LOW_ONLY) rolled_effect=`ITEM_LOW_GRAV;
-        else if(hit_index < buff_count) rolled_effect={2'b0,buff_roll};
+        else if(hit_index < buff_count)
+            rolled_effect=(buff_roll == 2'd3) ? `ITEM_WALL_BREAKER : {2'b0,buff_roll};
         else rolled_effect=(debuff_roll==5) ? `ITEM_INSTANT_DEATH : 4'd3+{1'b0,debuff_roll};
     end
     integer i;
@@ -159,7 +176,7 @@ module item_ctrl #(
             rng<=xorshift(rng);
             // Rejection sampling caches valid choices between frames, with
             // no modulo/divider on the pickup path and no out-of-pool IDs.
-            if(rng[2:0] < 3) buff_roll<=rng[1:0];
+            buff_roll<=rng[1:0];     // four buffs, so every 2-bit value is valid
             if(rng[5:3] < 6) debuff_roll<=rng[5:3];
             if(active_effect != `ITEM_NONE && effect_seconds != 0) begin
                 if(CLK_HZ <= 1 || effect_subsecond == CLK_HZ-1) begin
@@ -172,10 +189,14 @@ module item_ctrl #(
                 if(respawn_left[i] != 0) respawn_left[i]<=respawn_left[i]-1'b1;
                 if(phys_done && !box_visible[i] && box_valid[i] &&
                    respawn_left[i] == 0 && !on_box[i]) box_visible[i]<=1;
+                if(phys_done && selected_box[i] && pickup_allowed) begin
+                    box_visible[i]<=0; respawn_left[i]<=RESPAWN_CYCLES;
+                end
             end
             if(commit_now) begin
                 pending_valid<=0; pending_effect<=`ITEM_NONE;
-                if(pending_effect != `ITEM_TIME_BONUS && pending_effect != `ITEM_INSTANT_DEATH) begin
+                if(pending_effect != `ITEM_TIME_BONUS && pending_effect != `ITEM_WALL_BREAKER &&
+                   pending_effect != `ITEM_INSTANT_DEATH) begin
                     active_effect <= (pending_duration != 0) ? pending_effect : `ITEM_NONE;
                     effect_seconds<=pending_duration; effect_subsecond<=0;
                 end
@@ -184,7 +205,6 @@ module item_ctrl #(
                 pickup_pulse<=1;
                 pickup_index<=hit_index;
                 pickup_effect<=rolled_effect;
-                box_visible[hit_index]<=0; respawn_left[hit_index]<=RESPAWN_CYCLES;
                 // Both paths keep the ordinary effect countdown above running:
                 // neither blocking a debuff nor an instant bonus refreshes it.
                 if(block_debuff) begin
@@ -192,7 +212,8 @@ module item_ctrl #(
                     pickup_effect<=`ITEM_NONE;
                 end else if(DEFER_EFFECT) begin
                     pending_valid<=1; pending_effect<=rolled_effect;
-                end else if(rolled_effect != `ITEM_TIME_BONUS && rolled_effect != `ITEM_INSTANT_DEATH) begin
+                end else if(rolled_effect != `ITEM_TIME_BONUS && rolled_effect != `ITEM_WALL_BREAKER &&
+                            rolled_effect != `ITEM_INSTANT_DEATH) begin
                     effect_subsecond<=0;
                     effect_seconds<=rolled_duration;
                     active_effect <= (rolled_duration != 0) ? rolled_effect : `ITEM_NONE;

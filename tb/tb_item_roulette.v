@@ -9,13 +9,13 @@ module tb_item_roulette;
     wire [4*`COORD_W-1:0] cols={6'd5,6'd3,6'd5,6'd3}, rows={6'd5,6'd5,6'd3,6'd3};
     wire [3:0] visible,effect,picked,pending;
     wire [6:0] seconds;
-    wire pulse,blocked,bonus,pending_valid,busy,commit,returning;
+    wire pulse,blocked,bonus,breaker,pending_valid,busy,commit,returning;
     wire [1:0] index;
     wire [4:0] visual;
     reg display_frame=0;
     reg auto_display=1,near_action=0;
     reg [4:0] display_visual=0;
-    integer frame_phase=0,commits=0,bonuses=0;
+    integer frame_phase=0,commits=0,bonuses=0,breakers=0,previous_breakers=0;
     wire [7:0] timer_minutes,timer_seconds;
     wire [7:0] near_minutes,near_seconds;
     wire near_deadline;
@@ -24,7 +24,7 @@ module tb_item_roulette;
         .ball_x(bx),.ball_y(by),.box_cols(cols),.box_rows(rows),.box_valid(4'b1111),.seed(32'h12345678),
         .roulette_busy(busy),.roulette_commit(commit),.box_visible(visible),.active_effect(effect),.effect_seconds(seconds),
         .pickup_pulse(pulse),.pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),
-        .time_bonus_pulse(bonus),.pending_valid(pending_valid),.pending_effect(pending));
+        .time_bonus_pulse(bonus),.wall_breaker_pulse(breaker),.pending_valid(pending_valid),.pending_effect(pending));
     item_roulette #(.CLK_HZ(1000),.SPIN_MS(64),.HOLD_MS(16),.BLOCK_MS(16)) roulette_i (
         .clk(clk),.rst(rst),.phys_init(init),.game_state(game_state),.pickup_pulse(pulse),
         .pickup_index(index),.pickup_effect(picked),.debuff_blocked(blocked),.display_frame(display_frame),
@@ -42,9 +42,9 @@ module tb_item_roulette;
         display_frame=auto_display && (frame_phase%8)==0;
         if(display_frame)display_visual=visual;
     end
-    always @(posedge clk)begin if(commit)commits=commits+1;if(bonus)bonuses=bonuses+1;end
+    always @(posedge clk)begin if(commit)commits=commits+1;if(bonus)bonuses=bonuses+1;if(breaker)breakers=breakers+1;end
     task fail;input [767:0] msg;
-        begin $display("FAIL item roulette: %0s state=%0d pending=%b/%0d effect=%0d visual=%h",msg,roulette_i.state,pending_valid,pending,effect,visual);$fatal(1);end endtask
+        begin $display("FAIL item roulette: %0s state=%0d pending=%b/%0d effect=%0d visual=%h",msg,roulette_i.state,pending_valid,pending,effect,visual);$finish;end endtask
     task cycles;input integer n;begin repeat(n)@(negedge clk);#1;end endtask
     task position;input integer slot;
         begin if(slot<0)begin bx=-16384;by=-16384;end
@@ -53,8 +53,8 @@ module tb_item_roulette;
         begin game_state=`ST_PLAY;position(-1);init=1;done=0;cycles(1);init=0;cycles(2);
             if(pending_valid || busy || effect!==`ITEM_NONE || visible!==15)fail("new maze not clean");end endtask
     task pick_code;input integer code;integer guard,slot;
-        begin slot=(code<3)?0:2;guard=0;
-            while(((code<3 && item_i.buff_roll!=code) || (code>=3 && item_i.debuff_roll!=code-3)) && guard<2000)
+        begin slot=(code<3 || code==`ITEM_WALL_BREAKER)?0:2;guard=0;
+            while(((code<3 && item_i.buff_roll!=code) || (code==`ITEM_WALL_BREAKER && item_i.buff_roll!=3) || (code>=3 && code<8 && item_i.debuff_roll!=code-3)) && guard<2000)
                 begin cycles(1);guard=guard+1;end
             if(guard==2000)fail("no seeded candidate");position(slot);done=1;cycles(1);done=0;
             if(!pulse || !pending_valid || pending!==code || effect!==`ITEM_NONE || visible[slot])fail("pickup did not defer exactly chosen effect");
@@ -64,10 +64,11 @@ module tb_item_roulette;
     reg [3:0] previous_icon;
     task finish_roll;input integer selected;
         begin
-            guard=0;previous_interval=0;seen_steps=0;previous_icon=visual[3:0];
+            guard=0;previous_interval=0;seen_steps=0;previous_icon=visual[3:0];previous_breakers=breakers;
             while(busy && guard<1000)begin
                 if(roulette_i.state==roulette_i.SPIN && roulette_i.shown)begin
-                    if((selected<3 && visual[3:0]>2) || (selected>=3 && visual[3:0]<3))fail("out-of-pool spin icon");
+                    if(((selected<3 || selected==`ITEM_WALL_BREAKER) && visual[3:0]>2 && visual[3:0]!=`ITEM_WALL_BREAKER) ||
+                       (((selected>=3 && selected<8) || selected==`ITEM_INSTANT_DEATH) && (visual[3:0]<3 || (visual[3:0]>7 && visual[3:0]!=`ITEM_INSTANT_DEATH))))fail("out-of-pool spin icon");
                     if(roulette_i.step_interval<previous_interval)fail("roulette sped up");
                     previous_interval=roulette_i.step_interval;
                     if(visual[3:0]!=previous_icon)seen_steps=seen_steps+1;
@@ -85,12 +86,15 @@ module tb_item_roulette;
             if(selected==`ITEM_TIME_BONUS)begin
                 if(effect!==`ITEM_NONE || bonuses!=previous_bonuses+1 || {timer_minutes,timer_seconds}!==16'h0109)
                     fail("delayed instant bonus changed effect or timer incorrectly");
-            end else if(effect!==selected || seconds!==1 || bonuses!=previous_bonuses)fail("selected effect did not activate at stopped result");
+            end else if(selected==`ITEM_WALL_BREAKER)begin
+                if(effect!==`ITEM_NONE || breakers!=previous_breakers+1 || bonuses!=previous_bonuses || {timer_minutes,timer_seconds}!==16'h0059)
+                    fail("delayed wall breaker changed effect or timer, or did not pulse once");
+            end else if(effect!==selected || seconds!==1 || bonuses!=previous_bonuses || breakers!=previous_breakers)fail("selected effect did not activate at stopped result");
         end endtask
     integer cancel_state,phase;
     initial begin
         cycles(2);rst=0;
-        for(code=0;code<8;code=code+1)begin
+        for(code=0;code<9;code=code+1)begin
             fresh();previous_commits=commits;previous_bonuses=bonuses;pick_code(code);finish_roll(code);
         end
         // Hold the result frame's acknowledgement until exactly the timer's
@@ -117,12 +121,12 @@ module tb_item_roulette;
         // Cancel at each roulette phase for every non-PLAY state.
         for(cancel_state=0;cancel_state<5;cancel_state=cancel_state+1)if(cancel_state!=`ST_PLAY)begin
             for(phase=1;phase<=4;phase=phase+1)if(phase!=3)begin
-                fresh();previous_commits=commits;previous_bonuses=bonuses;pick_code(`ITEM_TIME_BONUS);
+                fresh();previous_commits=commits;previous_bonuses=bonuses;pick_code((cancel_state%2) ? `ITEM_WALL_BREAKER : `ITEM_TIME_BONUS);
                 guard=0;while(roulette_i.state!=phase && guard<1000)begin cycles(1);guard=guard+1;end
                 if(guard==1000)fail("cancel phase not reached");
-                previous_commits=commits;previous_bonuses=bonuses;
-                game_state=cancel_state;#1;if(commit || bonus)fail("terminal transition leaked grant");cycles(2);
-                if(busy || visual[4] || pending_valid || effect!==`ITEM_NONE || commits!=previous_commits || bonuses!=previous_bonuses)
+                previous_commits=commits;previous_bonuses=bonuses;previous_breakers=breakers;
+                game_state=cancel_state;#1;if(commit || bonus || breaker)fail("terminal transition leaked grant");cycles(2);
+                if(busy || visual[4] || pending_valid || effect!==`ITEM_NONE || commits!=previous_commits || bonuses!=previous_bonuses || breakers!=previous_breakers)
                     fail("state change did not cancel pending roulette");
             end
         end

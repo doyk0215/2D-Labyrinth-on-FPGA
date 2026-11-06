@@ -285,6 +285,12 @@ module My_Top_Module #(
     wire        maze_we;
     wire [`MAP_ADDR_W-1:0] maze_waddr;
     wire        maze_wdata;
+    wire        gen_we;
+    wire [`MAP_ADDR_W-1:0] gen_waddr;
+    wire        gen_wdata;
+    wire        wall_breaker_pulse;
+    wire        brk_we, brk_wdata, brk_busy;
+    wire [`MAP_ADDR_W-1:0] brk_waddr;
     wire [`COORD_W-1:0] start_col;
     wire [`COORD_W-1:0] start_row;
     wire [`COORD_W-1:0] goal_col;
@@ -664,9 +670,9 @@ module My_Top_Module #(
         .seed      (seed),
         .gen_busy  (gen_busy),
         .gen_done  (gen_done),
-        .we        (maze_we),
-        .waddr     (maze_waddr),
-        .wdata     (maze_wdata),
+        .we        (gen_we),
+        .waddr     (gen_waddr),
+        .wdata     (gen_wdata),
         .start_col (start_col),
         .start_row (start_row),
         .goal_col  (goal_col),
@@ -676,8 +682,13 @@ module My_Top_Module #(
         .box_valid (box_valid)
     );
 
-    // maze_gen is the sole writer; ball_physics reads walls through the
-    // physics port (Story 3.2) and render through the render port.
+    // maze_gen writes the map; the wall breaker edits it only during PLAY, when
+    // the generator is idle (the generator wins if they ever coincide).
+    // ball_physics reads walls through the physics port (Story 3.2) and render
+    // through the render port.
+    assign maze_we    = gen_we | brk_we;
+    assign maze_waddr = gen_we ? gen_waddr : brk_waddr;
+    assign maze_wdata = gen_we ? gen_wdata : brk_wdata;
     maze_ram maze_ram_i (
         .clk     (clk),
         .we      (maze_we),
@@ -746,7 +757,8 @@ module My_Top_Module #(
         .box_visible(box_visible), .active_effect(item_effect), .effect_seconds(item_seconds),
         .pickup_pulse(item_pickup), .pickup_index(item_pickup_index),
         .pickup_effect(item_pickup_effect), .debuff_blocked(item_debuff_blocked),
-        .time_bonus_pulse(item_time_bonus), .instant_death_pulse(item_instant_death), .pending_valid(item_pending_valid),
+        .time_bonus_pulse(item_time_bonus), .wall_breaker_pulse(wall_breaker_pulse),
+        .instant_death_pulse(item_instant_death), .pending_valid(item_pending_valid),
         .pending_effect(item_pending_effect)
     );
 
@@ -763,6 +775,15 @@ module My_Top_Module #(
         .debuff_blocked(item_debuff_blocked),.display_frame(oled_display_frame),
         .display_visual(oled_display_visual),.busy(roulette_busy),.visual(roulette_visual),
         .commit(roulette_commit),.returning(roulette_returning));
+
+    // WALL BREAKER bomb: clears the 5 x 5 block of interior walls around the
+    // ball at the next physics completion after the roulette grants it.
+    wall_breaker #(.BLAST_RADIUS(2)) wall_breaker_i (
+        .clk(clk), .rst(rst), .phys_init(phys_init), .game_state(game_state),
+        .phys_done(phys_done), .trigger(wall_breaker_pulse), .n_cells(n_cells),
+        .ball_x(ball_x), .ball_y(ball_y),
+        .we(brk_we), .waddr(brk_waddr), .wdata(brk_wdata), .busy(brk_busy)
+    );
 
     // Camera (Story 7.2): follows the ball on stages too large for the
     // screen, the map centre otherwise. render centres the view on it and
@@ -876,6 +897,8 @@ module My_Top_Module #(
         .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) hud_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .frame_tick(frame_tick), .phys_init(phys_init), .time_bonus_pulse(item_time_bonus),
+        .instant_death_pulse(item_instant_death),
+        .wall_breaker_pulse(wall_breaker_pulse),
         .active_video(active_video), .game_state(game_state),
         .n_cells(n_cells),
         .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),

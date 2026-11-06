@@ -6,7 +6,7 @@
 module tb_item_icon_rom;
     reg clk = 1'b0;
     always #5 clk = ~clk;
-    reg [3:0] icon = 3'd0;
+    reg [3:0] icon = 4'd0;
     reg [3:0] x = 4'd0, y = 4'd0;
     wire [1:0] idx;
     wire [15:0] rgb;
@@ -54,12 +54,12 @@ module tb_item_icon_rom;
         // Then in a scattered order, so a stale or neighbouring value cannot pass.
         for (n = 0; n < 2560; n = n + 1) read_pixel((n * 37 + 11) % 2560);
 
-        for (i = 0; i < 10; i = i + 1) if(i!=8) begin
+        for (i = 0; i < 10; i = i + 1) begin
             used2 = 0; used3 = 0;
             for (py = 0; py < 16; py = py + 1) begin
                 for (px = 0; px < 16; px = px + 1) begin
                     addr = i * 256 + py * 16 + px;
-                    // The outer ring is the frame: green for buffs (icons 0 to 2), red for debuffs.
+                    // The outer ring is the frame: green for buffs (icons 0 to 2 and 8), red for debuffs.
                     if (px == 0 || px == 15 || py == 0 || py == 15) begin
                         if (ref_idx[addr] !== 2'd1) begin icon = i; x = px; y = py; fail("frame pixel is not index 1"); end
                     end
@@ -68,10 +68,10 @@ module tb_item_icon_rom;
                 end
             end
             if (ref_pal[i*4 + 0] !== 16'h0000) begin icon = i; fail("colour 0 is not black"); end
-            if (ref_pal[i*4 + 1] !== ((i < 3) ? 16'h0640 : 16'hD800)) begin icon = i; fail("frame colour is not green for buffs and red for debuffs"); end
+            if (ref_pal[i*4 + 1] !== ((i < 3 || i == 8) ? 16'h0640 : 16'hD800)) begin icon = i; fail("frame colour is not green for buffs and red for debuffs"); end
             if (used2 == 0 || used3 == 0) begin icon = i; fail("icon does not use both of its own colours"); end
             // No two icons are the same picture.
-            for (j = i + 1; j < 10; j = j + 1) if(j!=8) begin
+            for (j = i + 1; j < 10; j = j + 1) begin
                 same = 1;
                 for (a = 0; a < 256; a = a + 1) if (ref_idx[i*256 + a] !== ref_idx[j*256 + a]) same = 0;
                 if (same) begin icon = j; fail("two icons have identical pixels"); end
@@ -79,7 +79,7 @@ module tb_item_icon_rom;
         end
 
         if (errors == 0)
-            $display("PASS: item icon ROM - IDs 0..7 and 9 plus black reserved 8; 10 slots x 256 pixels and 40 palette colours match the data files; %0d reads, frame colours and distinct icons checked", checked);
+            $display("PASS: item icon ROM - all 10 icons x 256 pixels and 40 palette colours match the data files; %0d reads, frame colours and distinct icons checked", checked);
         else
             $display("FAIL: item icon ROM had %0d errors", errors);
         $finish;

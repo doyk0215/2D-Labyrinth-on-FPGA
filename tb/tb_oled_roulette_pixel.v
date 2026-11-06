@@ -22,15 +22,15 @@ module tb_oled_roulette_pixel;
                 end
                 @(posedge clk);#1;
                 if(pixel!==expected)begin
-                    $display("FAIL roulette pixel icon=%0d x=%0d y=%0d got=%h expected=%h",i,x,y,pixel,expected);$fatal(1);
+                    $display("FAIL roulette pixel icon=%0d x=%0d y=%0d got=%h expected=%h",i,x,y,pixel,expected);$finish;
                 end
                 checked=checked+1;
             end
         end
         @(negedge clk);address=8191;@(posedge clk);#1;
-        if(pixel!==0)begin $display("FAIL roulette pixel invalid address");$fatal(1);end
-        $display("PASS: OLED roulette pixel IDs 0..7/9 and reserved black 8, 3x scale, centred 48x48 and black margins; %0d pixels match ROM data",checked);
+        if(pixel!==0)begin $display("FAIL roulette pixel invalid address");$finish;end
+        $display("PASS: OLED roulette pixel all 10 icons, 3x scale, centred 48x48 and black margins; %0d pixels match ROM data",checked);
         $finish;
     end
-    initial begin #1000000;$display("FAIL roulette pixel timeout");$fatal(1);end
+    initial begin #1000000;$display("FAIL roulette pixel timeout");$finish;end
 endmodule

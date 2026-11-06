@@ -52,8 +52,8 @@ module tb_item_durations;
         integer d;
         begin
             d=expected(code);
-            if(code==`ITEM_TIME_BONUS || code==`ITEM_INSTANT_DEATH)begin
-                if((deferred ? effect_d : effect_i) !== `ITEM_NONE)fail("time bonus started a timed effect");
+            if(code==`ITEM_TIME_BONUS || code==`ITEM_WALL_BREAKER || code==`ITEM_INSTANT_DEATH)begin
+                if((deferred ? effect_d : effect_i) !== `ITEM_NONE)fail("instant item (time bonus, wall breaker or instant death) started a timed effect");
             end else begin
                 if((deferred ? effect_d : effect_i) !== code ||
                    (deferred ? seconds_d : seconds_i) !== d)fail("effect did not load its own duration");
@@ -88,13 +88,13 @@ module tb_item_durations;
         cycles(2);rst=0;init=1;cycles(1);init=0;cycles(2);
         for(pass=0;pass<2;pass=pass+1)begin
             seen=0;
-            for(i=0;i<200 && seen!=10'h2ff;i=i+1)begin
+            for(i=0;i<400 && seen!=10'h3ff;i=i+1)begin
                 pickup(i%4,pass);
                 code = pass ? picked_d : picked_i;
                 seen=seen|(10'b1<<code);
                 check_run(code,pass);
             end
-            if(seen!=10'h2ff)fail("not every effect was picked up");
+            if(seen!=10'h3ff)fail("not every effect was picked up");
         end
         $display("PASS: item durations per effect 1..7 s, immediate and roulette commit, exact expiry, time bonus untimed");
         $finish;
