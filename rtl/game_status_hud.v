@@ -15,6 +15,7 @@ module game_status_hud #(
     input  wire       frame_tick,
     input  wire       phys_init,
     input  wire       time_bonus_pulse,
+    input  wire       instant_death_pulse,
     input  wire       wall_breaker_pulse,
     input  wire [9:0] pixel_x,
     input  wire [9:0] pixel_y,
@@ -47,36 +48,54 @@ module game_status_hud #(
     reg [NOTICE_W-1:0] notice_left = 0;
     reg bonus_notice = 0;
     reg wall_breaker_notice = 0;
+    reg respawn_notice = 0;
     reg notice_is_wall_breaker = 0;
+    reg notice_is_respawn = 0;
     always @(posedge clk) begin
         if (rst || phys_init || (game_state != `ST_PLAY && game_state != `ST_PAUSED)) begin
             notice_left <= 0;
             bonus_notice <= 0;
             wall_breaker_notice <= 0;
+            respawn_notice <= 0;
             notice_is_wall_breaker <= 0;
+            notice_is_respawn <= 0;
         end else begin
             if (game_state == `ST_PLAY) begin
                 if (time_bonus_pulse && BONUS_VALUE != 0) begin
                     notice_left <= NOTICE_CYCLES;
                     notice_is_wall_breaker <= 0;
+                    notice_is_respawn <= 0;
+                end else if (instant_death_pulse) begin
+                    notice_left <= NOTICE_CYCLES;
+                    notice_is_wall_breaker <= 0;
+                    notice_is_respawn <= 1;
                 end else if (wall_breaker_pulse) begin
                     notice_left <= NOTICE_CYCLES;
                     notice_is_wall_breaker <= 1;
+                    notice_is_respawn <= 0;
                 end else if (notice_left != 0) begin
                     notice_left <= notice_left - 1'b1;
                 end
             end
             // Keep the row's contents/colour stable for the visible frame.
             if (frame_tick) begin
-                if (game_state == `ST_PLAY && wall_breaker_pulse) begin
-                    bonus_notice <= 0;
-                    wall_breaker_notice <= 1;
-                end else if (game_state == `ST_PLAY && time_bonus_pulse && BONUS_VALUE != 0) begin
+                if (game_state == `ST_PLAY && time_bonus_pulse && BONUS_VALUE != 0) begin
                     bonus_notice <= 1;
                     wall_breaker_notice <= 0;
+                    respawn_notice <= 0;
+                end else if (game_state == `ST_PLAY && instant_death_pulse) begin
+                    bonus_notice <= 0;
+                    wall_breaker_notice <= 0;
+                    respawn_notice <= 1;
+                end else if (game_state == `ST_PLAY && wall_breaker_pulse) begin
+                    bonus_notice <= 0;
+                    wall_breaker_notice <= 1;
+                    respawn_notice <= 0;
                 end else begin
-                    bonus_notice <= notice_left != 0 && !notice_is_wall_breaker;
+                    bonus_notice <= notice_left != 0 && !notice_is_wall_breaker &&
+                                    !notice_is_respawn;
                     wall_breaker_notice <= notice_left != 0 && notice_is_wall_breaker;
+                    respawn_notice <= notice_left != 0 && notice_is_respawn;
                 end
             end
         end
@@ -139,7 +158,9 @@ module game_status_hud #(
                      digit_ascii(seconds_bcd[7:4]),
                      digit_ascii(seconds_bcd[3:0]),
                      {10{8'h20}}};
-        if (wall_breaker_notice)
+        if (respawn_notice)
+            item_status_line = {"RESPAWN", {13{8'h20}}};
+        else if (wall_breaker_notice)
             item_status_line = {"WALL BREAKER", {8{8'h20}}};
         else if (bonus_notice)
             item_status_line = BONUS_TEXT;
@@ -207,8 +228,9 @@ module game_status_hud #(
             timer_line <= text_pixel_now && row0_now;
             timer_red <= text_pixel_now && row0_now && warning_active && timer_flash_red;
             item_line <= text_pixel_now && row1_now;
-            debuff_line <= text_pixel_now && row1_now && !bonus_notice &&
-                           !wall_breaker_notice && effect_active && effect_debuff;
+            debuff_line <= text_pixel_now && row1_now &&
+                           (respawn_notice || (!bonus_notice && !wall_breaker_notice &&
+                            effect_active && effect_debuff));
             bonus_line <= text_pixel_now && row1_now && (bonus_notice || wall_breaker_notice);
         end
     end
