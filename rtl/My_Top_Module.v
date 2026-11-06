@@ -897,6 +897,7 @@ module My_Top_Module #(
         .BONUS_SECONDS(ITEM_TIME_BONUS_SECONDS)) hud_i (
         .clk(clk), .rst(rst), .pixel_x(pixel_x), .pixel_y(pixel_y),
         .frame_tick(frame_tick), .phys_init(phys_init), .time_bonus_pulse(item_time_bonus),
+        .wall_breaker_pulse(wall_breaker_pulse),
         .active_video(active_video), .game_state(game_state),
         .n_cells(n_cells),
         .minutes_bcd(elapsed_minutes_bcd), .seconds_bcd(elapsed_seconds_bcd),

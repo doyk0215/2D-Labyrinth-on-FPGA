@@ -55,10 +55,15 @@ module tb_top_wall_breaker;
         end endtask
 
     reg before [0:`MAP_TILES-1];
+    reg [7:0] boxes_valid_before, boxes_visible_before;
+    reg [8*`COORD_W-1:0] box_cols_before, box_rows_before;
     integer i,c,r,bc,br,expected_changes,changed,prior_seconds;
     reg want_floor;
     initial begin
         force dut.frame_tick=0;force dut.oled_frame_begin=0;cycles(20);start();
+        boxes_valid_before=dut.box_valid;
+        box_cols_before=dut.box_cols;box_rows_before=dut.box_rows;
+        boxes_visible_before=dut.box_visible;
         // Protection first: the breaker must leave a running effect alone.
         pick(0,`ITEM_INVINCIBLE);
         if(dut.item_effect!==`ITEM_INVINCIBLE)fail("invincibility did not start");
@@ -85,6 +90,14 @@ module tb_top_wall_breaker;
         end
         if(expected_changes==0)fail("blast removed no walls, the check is vacuous");
         if(changed!=expected_changes)fail("changed tile count");
+        if(dut.box_valid!==boxes_valid_before || dut.box_cols!==box_cols_before ||
+           dut.box_rows!==box_rows_before)fail("blast changed the generated item boxes");
+        if(dut.box_visible[3:2]!==boxes_visible_before[3:2] || dut.box_visible[1:0]!==2'b00)
+            fail("blast hid uncollected boxes or restored collected boxes");
+        frame();
+        if(!dut.hud_i.wall_breaker_notice ||
+           dut.hud_i.item_status_line!=={"WALL BREAKER",{8{8'h20}}})
+            fail("VGA item row did not show WALL BREAKER");
         // The edit stays through ordinary frames.
         frame();frame();
         if(dut.maze_ram_i.tile_mem[(br+1)*64+bc]!==1'b0 && before[(br+1)*64+bc] && (br+1)<=2*dut.n_cells-1)
