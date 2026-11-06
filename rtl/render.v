@@ -10,7 +10,8 @@
 // in the middle of a picture. The fog of war flag (Story 9.4) is latched the
 // same way; under fog only the ball and the pixels inside fog_clear are drawn.
 module render #(
-    parameter integer BLINK_FRAMES = 16   // frames per blink phase, about 2 Hz at 60 Hz
+    parameter integer BLINK_FRAMES = 16,  // frames per blink phase, about 2 Hz at 60 Hz
+    parameter integer BLAST_ENABLE = 0    // 1: tint the tiles of a wall breaker blast (needs the blast_* inputs)
 ) (
     input  wire              clk,
     input  wire              rst,
@@ -43,6 +44,14 @@ module render #(
     input  wire              ball_on,       // from ball_overlay; lines up with the *_d flags below
     input  wire              fog_en,        // fog of war effect active (Story 9.4); latched per frame
     input  wire              fog_clear,     // from ball_overlay: pixel inside the fog circle, aligned with ball_on
+    // Wall breaker explosion (blast_effect). Used only when BLAST_ENABLE is 1, so
+    // benches that leave these unconnected are unaffected.
+    input  wire              blast_on,
+    input  wire              blast_fill,    // 1: every tile within blast_radius, 0: only the ring
+    input  wire [1:0]        blast_radius,
+    input  wire [`COORD_W-1:0] blast_col,
+    input  wire [`COORD_W-1:0] blast_row,
+    input  wire [11:0]       blast_rgb,
     output reg  [3:0]        vga_r,
     output reg  [3:0]        vga_g,
     output reg  [3:0]        vga_b,
@@ -233,6 +242,24 @@ module render #(
         end
     endgenerate
 
+    // Wall breaker explosion: Chebyshev tile distance from the blast centre.
+    wire [`COORD_W-1:0] blast_dx = (tile_col_now > blast_col) ? tile_col_now - blast_col : blast_col - tile_col_now;
+    wire [`COORD_W-1:0] blast_dy = (tile_row_now > blast_row) ? tile_row_now - blast_row : blast_row - tile_row_now;
+    wire [`COORD_W-1:0] blast_dist = (blast_dx > blast_dy) ? blast_dx : blast_dy;
+    wire [`COORD_W-1:0] blast_rad = {{(`COORD_W-2){1'b0}}, blast_radius};
+    wire blast_hit_now = (BLAST_ENABLE != 0) && blast_on && in_map_now &&
+                         (blast_fill ? (blast_dist <= blast_rad) : (blast_dist == blast_rad));
+    reg blast_hit_d;
+    function [11:0] mix12;      // per-channel average
+        input [11:0] a, b;
+        reg [4:0] sr, sg, sb;
+        begin
+            sr = {1'b0, a[11:8]} + {1'b0, b[11:8]};
+            sg = {1'b0, a[7:4]}  + {1'b0, b[7:4]};
+            sb = {1'b0, a[3:0]}  + {1'b0, b[3:0]};
+            mix12 = {sr[4:1], sg[4:1], sb[4:1]};
+        end
+    endfunction
     reg in_map_d, is_start_d, is_goal_d, active_video_d;
     reg is_buff_d, is_debuff_d;
     reg [3:0] tile_px_d, tile_py_d;     // pixel inside the tile, maze space
@@ -245,6 +272,7 @@ module render #(
     always @(posedge clk) begin
         if (rst) begin
             in_map_d <= 1'b0;
+            blast_hit_d <= 1'b0;
             is_start_d <= 1'b0;
             is_goal_d <= 1'b0;
             is_buff_d <= 1'b0;
@@ -259,6 +287,7 @@ module render #(
             // maze_ram samples maze_raddr on this edge. These flags are
             // delayed by the same edge, so RAM data and RGB stay aligned.
             in_map_d <= in_map_now;
+            blast_hit_d <= blast_hit_now;
             is_start_d <= in_map_now &&
                 (tile_col_now == start_col) && (tile_row_now == start_row);
             is_goal_d <= in_map_now &&
@@ -347,9 +376,10 @@ module render #(
                 end else if ((is_buff_d || is_debuff_d) && !box_margin) begin
                     {vga_r, vga_g, vga_b} = box_rgb;
                 end else if (maze_rdata) begin
-                    {vga_r, vga_g, vga_b} = wall_rgb_d;
+                    {vga_r, vga_g, vga_b} = blast_hit_d ? mix12(wall_rgb_d, blast_rgb) : wall_rgb_d;
                 end else begin
-                    {vga_r, vga_g, vga_b} = menu_frame ? 12'h222 : {FLOOR_R, FLOOR_G, FLOOR_B};
+                    {vga_r, vga_g, vga_b} = blast_hit_d ? mix12(menu_frame ? 12'h222 : {FLOOR_R, FLOOR_G, FLOOR_B}, blast_rgb) :
+                                            menu_frame ? 12'h222 : {FLOOR_R, FLOOR_G, FLOOR_B};
                 end
             end else begin
                 {vga_r, vga_g, vga_b} = menu_frame ? 12'h111 : {BACK_R, BACK_G, BACK_B};
