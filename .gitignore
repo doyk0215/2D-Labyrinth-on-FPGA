@@ -9,3 +9,12 @@ vivado/
 *.str
 .Xil/
 *.bit
+
+# BMAD framework install and agent skills (kept locally, not in the repo)
+_bmad/
+.claude/
+.thinkrail/
+
+# Report drafts and photos
+docs/report-*
+/IMG_*.png
