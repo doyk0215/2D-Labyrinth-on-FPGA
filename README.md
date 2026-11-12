@@ -2,8 +2,6 @@
 
 A tilt-the-maze ball game in Verilog for the Digilent **Basys 3** (Artix-7 XC7A35T). The whole maze rotates on a VGA monitor, gravity always pulls the ball straight down the screen, and you steer it to the exit by turning the maze with a mouse or the board buttons.
 
-Built for EE2026 (Digital Design) by team S2_19.
-
 ![Labyrinth Runner on a VGA monitor: a rotated brick maze, the yellow ball, red and blue item boxes, and the time/item HUD](docs/gameplay.jpg)
 
 ## Features
